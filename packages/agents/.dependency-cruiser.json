@@ -1,0 +1,14 @@
+{
+  "options": {
+    "doNotFollow": { "path": "node_modules" }
+  },
+  "forbidden": [
+    {
+      "name": "render-must-not-touch-inference",
+      "severity": "error",
+      "comment": "The anti-hallucination claim is a build failure, not an assertion (§7.3).",
+      "from": { "path": "render" },
+      "to": { "path": "inference|graphs" }
+    }
+  ]
+}
