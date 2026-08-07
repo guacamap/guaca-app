@@ -1,0 +1,10 @@
+# GUACA — Caddy reverse proxy with automatic TLS.
+# Uses {env.API_HOST} / {env.API_PORT} from docker-compose.prod.yml.
+# Set PUBLIC_WEB_URL (e.g. https://api.<ip>.sslip.io) in .env for TLS.
+{
+	email admin@example.com
+}
+
+{$PUBLIC_WEB_URL} {
+	reverse_proxy {env.API_HOST}:{env.API_PORT}
+}

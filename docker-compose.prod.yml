@@ -1,0 +1,110 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-guaca}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: guaca
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-guaca} -d guaca"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-guaca}:${POSTGRES_PASSWORD}@postgres:5432/guaca
+      REDIS_URL: redis://redis:6379
+      API_PORT: 3001
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL}
+      NODE_ENV: production
+      INFERENCE_BASE_URL: ${INFERENCE_BASE_URL}
+      INFERENCE_API_KEY: ${INFERENCE_API_KEY}
+      INFERENCE_MODEL: ${INFERENCE_MODEL:-Qwen/Qwen3-VL-8B-Instruct}
+      INFERENCE_VISION_MODEL: ${INFERENCE_VISION_MODEL:-Qwen/Qwen3-VL-8B-Instruct}
+      INFERENCE_TIMEOUT_MS: 30000
+      INFERENCE_MAX_RETRIES: 2
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-guaca-photos}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      SESSION_SECRET: ${SESSION_SECRET}
+      OPERATOR_TOKEN: ${OPERATOR_TOKEN}
+      GAP_AGENT_ENABLED: ${GAP_AGENT_ENABLED:-true}
+      GAP_AGENT_INTERVAL_MS: ${GAP_AGENT_INTERVAL_MS:-300000}
+      GAP_AGENT_MIN_SCORE: ${GAP_AGENT_MIN_SCORE:-0.45}
+      GAP_AGENT_MAX_MISSIONS_PER_DAY: ${GAP_AGENT_MAX_MISSIONS_PER_DAY:-5}
+      GAP_AGENT_MAX_REWARD_MINOR: ${GAP_AGENT_MAX_REWARD_MINOR:-500}
+      GAP_AGENT_REQUIRE_APPROVAL: ${GAP_AGENT_REQUIRE_APPROVAL:-false}
+      MISSION_DEFAULT_REWARD_MINOR: ${MISSION_DEFAULT_REWARD_MINOR:-300}
+      MISSION_EXPIRY_HOURS: ${MISSION_EXPIRY_HOURS:-48}
+      VERIFICATION_GEO_TOLERANCE_M: ${VERIFICATION_GEO_TOLERANCE_M:-150}
+      VERIFICATION_MAX_CAPTURE_AGE_MIN: ${VERIFICATION_MAX_CAPTURE_AGE_MIN:-120}
+      PLANNER_MIN_CANDIDATES: ${PLANNER_MIN_CANDIDATES:-3}
+      PAYOUT_PROVIDER: mock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3001"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_HOST: api
+      API_PORT: 3001
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  caddydata:
+  caddyconfig:
