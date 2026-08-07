@@ -1,0 +1,32 @@
+{
+  "name": "@guaca/agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "pnpm test:unit",
+    "test:unit": "vitest run",
+    "lint": "tsc -b --noEmit && tsc -p tsconfig.test.json && pnpm dlx dependency-cruiser@16 --config .dependency-cruiser.json --ts-pre-compilation-deps src"
+  },
+  "dependencies": {
+    "@guaca/shared": "workspace:*",
+    "sharp": "^0.35.3",
+    "sharp-phash": "^2.2.0",
+    "zod": "^3.25.32"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "fast-check": "^4.9.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+.next/
+out/
+
+# Environment & secrets — never commit
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Testing & coverage
+coverage/
+
+# Logs
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Local agent state
+.commandcode/
+
+# Database
+*.sqlite
+*.sqlite3

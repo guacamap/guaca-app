@@ -1,0 +1,18 @@
+{
+  "name": "guaca-app",
+  "private": true,
+  "packageManager": "pnpm@11.13.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:unit": "pnpm -r test:unit",
+    "test:integration": "pnpm -r test:integration",
+    "lint": "pnpm -r lint",
+    "migrate": "pnpm --filter @guaca/db migrate",
+    "seed": "pnpm --filter @guaca/db seed"
+  }
+}
