@@ -22,6 +22,37 @@ export function buildApp(options: AppOptions): FastifyInstance {
   void app.register(cookie);
   void app.register(opsStreamPlugin);
 
+  /*
+   * The web app is served from a different origin than the API in every
+   * environment we run (3000 vs 3001 locally). Without this the browser
+   * never reaches /api/ask at all — preflight 404s and the fetch is blocked.
+   * A specific origin rather than "*" so the villa session cookie still works.
+   */
+  const allowedOrigins = (process.env.WEB_ORIGIN ?? 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  app.addHook('onRequest', async (req, reply) => {
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      reply.header('access-control-allow-origin', origin);
+      reply.header('access-control-allow-credentials', 'true');
+      reply.header('vary', 'Origin');
+    }
+    if (req.method === 'OPTIONS') {
+      reply
+        .header('access-control-allow-methods', 'GET,POST,OPTIONS')
+        .header(
+          'access-control-allow-headers',
+          req.headers['access-control-request-headers'] ?? 'content-type',
+        )
+        .header('access-control-max-age', '600')
+        .code(204)
+        .send();
+    }
+  });
+
   app.get('/api/places', async (req, reply) => {
     const { bbox, category } = req.query as {
       bbox?: string;

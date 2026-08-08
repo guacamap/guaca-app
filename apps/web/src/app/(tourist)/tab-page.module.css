@@ -1,0 +1,96 @@
+/* Shared shell for the app's non-map tabs. Each is a first-run state today,
+   because nothing has been documented yet — and in this product that is a
+   fact to state plainly, not an emptiness to decorate. */
+
+.page {
+  min-height: 100dvh;
+  background: var(--bone);
+  padding: var(--s8) var(--gutter)
+    calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding-bottom: var(--s6);
+  border-bottom: var(--hairline);
+}
+
+.mark {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+}
+
+.wordmark {
+  font-family: var(--display);
+  font-size: var(--size-wordmark);
+  letter-spacing: 0.04em;
+}
+
+.title {
+  margin-top: var(--s12);
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: var(--size-title);
+  line-height: 1.04;
+  letter-spacing: var(--track-monument);
+  max-width: 18ch;
+}
+
+.body {
+  margin-top: var(--s4);
+  max-width: var(--measure);
+  color: var(--ink-soft);
+}
+
+.rule {
+  margin-top: var(--s8);
+  padding-top: var(--s6);
+  border-top: var(--hairline);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s4) 0;
+  border-bottom: var(--hairline);
+}
+
+.rowName {
+  font-family: var(--display);
+  font-size: var(--size-name);
+  letter-spacing: var(--track-monument);
+}
+
+.rowStatus {
+  color: var(--merlot);
+  white-space: nowrap;
+}
+
+.action {
+  display: inline-block;
+  margin-top: var(--s8);
+  padding: var(--s4) var(--s8);
+  background: var(--ink);
+  color: var(--bone);
+  font-size: var(--size-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  min-height: 2.75rem;
+  transition: opacity var(--quick) var(--ease);
+}
+
+.action:hover {
+  opacity: 0.82;
+}

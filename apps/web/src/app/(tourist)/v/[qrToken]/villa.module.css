@@ -1,0 +1,101 @@
+.villa {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bone);
+}
+
+.header {
+  padding: var(--s6) var(--gutter) var(--s4);
+  border-bottom: var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.property {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: var(--size-panel-title);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s6) var(--gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+}
+
+.empty {
+  color: var(--ink-soft);
+  max-width: 34ch;
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.bubble {
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.user {
+  align-items: flex-end;
+}
+
+.user .bubble {
+  border-right: 1px solid var(--ink);
+  padding-right: var(--s3);
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+.refusal .bubble,
+.refusal span {
+  color: var(--merlot);
+}
+
+.field {
+  border-top: var(--hairline);
+  padding: var(--s4) var(--gutter) var(--s6);
+  display: flex;
+  gap: var(--s3);
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--s3) 0;
+  border: 0;
+  border-bottom: var(--hairline-ink);
+  background: transparent;
+}
+
+.field input::placeholder {
+  color: var(--ink-soft);
+}
+
+.field button {
+  padding: var(--s3) var(--s6);
+  border: 0;
+  background: var(--ink);
+  color: var(--bone);
+  font-size: var(--size-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.field button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
