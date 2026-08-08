@@ -1,0 +1,348 @@
+.page {
+  position: relative;
+  height: 100dvh;
+  background: var(--bone);
+}
+
+.topbar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  display: flex;
+  gap: var(--s3);
+  align-items: center;
+  padding: var(--s3) var(--s4);
+  background: var(--bone);
+  border-bottom: var(--hairline);
+}
+
+/* The field is the first control on the screen, so it takes the width and the
+   mark shrinks to a home affordance beside it. */
+.search {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  border-bottom: var(--hairline-ink);
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--s3) 0;
+  border: 0;
+  background: transparent;
+  font-size: 1rem;
+}
+
+.search input::placeholder {
+  color: var(--ink-soft);
+}
+
+.search button {
+  flex: none;
+  min-height: 2.75rem;
+  padding: var(--s2) var(--s4);
+  border: 0;
+  background: var(--ink);
+  color: var(--bone);
+  font-size: var(--size-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity var(--quick) var(--ease);
+}
+
+.search button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.count {
+  position: absolute;
+  /* Clear of the search bar, whose height is set by its 2.75rem button plus
+     the bar's own padding — not by a spacing step. */
+  top: calc(2.75rem + var(--s3) * 2 + var(--s2));
+  right: var(--s4);
+  z-index: 15;
+  margin: 0;
+  padding: var(--s1) var(--s2);
+  background: var(--bone);
+  border: var(--hairline);
+}
+
+.wordmark {
+  font-family: var(--display);
+  font-size: var(--size-wordmark);
+  letter-spacing: 0.02em;
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+}
+
+.pin {
+  cursor: pointer;
+  line-height: 0;
+}
+
+.pin:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.chat {
+  position: absolute;
+  right: var(--gutter);
+  top: calc(var(--s16) + var(--s2));
+  /* Clear of the app shell's bar, which is fixed to the bottom edge. */
+  bottom: calc(3rem + var(--s4));
+  z-index: 10;
+  width: min(360px, calc(100vw - var(--gutter) * 2));
+  display: flex;
+  flex-direction: column;
+  background: var(--bone);
+  border: var(--hairline);
+  box-shadow: 0 12px 32px rgb(11 11 11 / 0.08);
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.empty {
+  color: var(--ink-soft);
+  font-size: var(--size-compact);
+  max-width: 34ch;
+}
+
+/* Offered only when the visitor is standing outside covered ground. It is a
+   way out of an empty map, so it stays the secondary outlined treatment the
+   landing page uses for its exit, never the ink fill reserved for asking. */
+.jump {
+  align-self: flex-start;
+  margin-top: var(--s4);
+  padding: var(--s3) var(--s4);
+  background: transparent;
+  color: var(--ink);
+  border: var(--hairline-ink);
+  font-size: var(--size-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background var(--quick) var(--ease),
+    color var(--quick) var(--ease);
+}
+
+.jump:hover {
+  background: var(--ink);
+  color: var(--bone);
+}
+
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.bubble {
+  white-space: pre-wrap;
+  font-size: var(--size-compact);
+  line-height: 1.5;
+}
+
+.user {
+  align-items: flex-end;
+}
+
+.user .bubble {
+  border-right: 1px solid var(--ink);
+  padding-right: var(--s3);
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+.refusal .bubble {
+  color: var(--merlot);
+}
+
+.refusal span {
+  color: var(--merlot);
+}
+
+.field {
+  border-top: var(--hairline);
+  padding: var(--s3) var(--s4) var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.fieldRow {
+  display: flex;
+  gap: var(--s2);
+}
+
+.fieldRow input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--s3) 0;
+  border: 0;
+  border-bottom: var(--hairline-ink);
+  background: transparent;
+  font-size: var(--size-compact);
+}
+
+.fieldRow input::placeholder {
+  color: var(--ink-soft);
+}
+
+.fieldRow button {
+  padding: var(--s3) var(--s6);
+  border: 0;
+  background: var(--ink);
+  color: var(--bone);
+  font-size: var(--size-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity var(--quick) var(--ease);
+}
+
+.fieldRow button:hover:not(:disabled) {
+  opacity: 0.82;
+}
+
+.fieldRow button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sheet {
+  position: absolute;
+  bottom: calc(3rem + var(--s4));
+  left: var(--gutter);
+  z-index: 10;
+  background: var(--bone);
+  border: var(--hairline);
+  padding: var(--s6);
+  max-width: 340px;
+  box-shadow: 0 12px 32px rgb(11 11 11 / 0.08);
+}
+
+.close {
+  float: right;
+  border: 0;
+  background: none;
+  padding: var(--s1);
+  margin: calc(var(--s2) * -1) calc(var(--s2) * -1) 0 var(--s3);
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.close:hover {
+  color: var(--ink);
+}
+
+.sheetTitle {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: var(--size-panel-title);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--s2);
+}
+
+.landmark {
+  color: var(--ink-soft);
+  font-size: var(--size-compact);
+}
+
+.spotter {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: var(--hairline);
+}
+
+.spotter img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+}
+
+/* ---- Phone: the real usage scene ---------------------------------------
+   A guest standing in the street, one thumb, bright sun. The map is the
+   whole screen and the ask is a sheet on the bottom edge, where a thumb
+   reaches — not a floating card marooned in the middle of the map. */
+
+@media (max-width: 720px) {
+  .topbar {
+    gap: var(--s4);
+    padding: var(--s3) var(--s4);
+  }
+
+  /* The claim belongs to the landing page. Here the screen is the tool, and
+     three wrapped lines of tagline cost a fifth of the viewport. */
+  .tagline {
+    display: none;
+  }
+
+  .chat {
+    inset: auto 0 0 0;
+    width: auto;
+    /* Sized to its content, capped so the map always keeps the upper half. */
+    height: auto;
+    max-height: min(46dvh, 26rem);
+    bottom: calc(3.25rem + env(safe-area-inset-bottom, 0px));
+    border: none;
+    border-top: var(--hairline);
+    box-shadow: 0 -12px 32px rgb(11 11 11 / 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .scroll {
+    padding: var(--s4) var(--s4) var(--s2);
+  }
+
+  /* Full width and a proper target: this is the way out of an empty map. */
+  .jump {
+    align-self: stretch;
+    text-align: center;
+    padding: var(--s4);
+  }
+
+  /* iOS zooms the whole page when a focused input is under 16px. The field is
+     the one control on this screen, so it holds 16px on phones regardless of
+     the compact step used elsewhere. */
+  .fieldRow input {
+    font-size: 1rem;
+    padding: var(--s3) 0;
+  }
+
+  /* A thumb needs 44px; the desktop padding lands short of it. */
+  .fieldRow button {
+    min-height: 2.75rem;
+    padding-inline: var(--s4);
+  }
+
+  .sheet {
+    left: var(--s4);
+    right: var(--s4);
+    bottom: calc(46dvh + 3.25rem + var(--s4));
+    max-width: none;
+  }
+}

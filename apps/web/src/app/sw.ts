@@ -3,8 +3,8 @@ export {};
 
 declare const self: ServiceWorkerGlobalScope;
 
-const CACHE = 'guaca-shell-v1';
-const SHELL = ['/', '/spotter'];
+const CACHE = 'guaca-shell-v2';
+const SHELL = ['/', '/map', '/spotter'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

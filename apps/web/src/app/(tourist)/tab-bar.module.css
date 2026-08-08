@@ -1,0 +1,63 @@
+/* The app shell's bottom bar. Hairline, square, ink — the same vocabulary as
+   every other control in this world. Underline marks the active tab, because
+   that is how this world has shown active state since the landing page. */
+
+.bar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--bone);
+  border-top: var(--hairline);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s1);
+  /* 3.25rem plus the label keeps every target past the 44px thumb minimum. */
+  min-height: 3.25rem;
+  padding: var(--s3) var(--s2);
+  color: var(--ink-soft);
+  text-align: center;
+  transition: color var(--quick) var(--ease);
+}
+
+.tab span {
+  color: inherit;
+  letter-spacing: var(--track-label);
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.active {
+  color: var(--ink);
+}
+
+.active span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Above the phone breakpoint the bar sits inline at the foot of the shell
+   rather than floating, so a desktop visitor is not given a phone chrome. */
+@media (min-width: 721px) {
+  .bar {
+    grid-template-columns: repeat(4, max-content);
+    justify-content: start;
+    gap: var(--s8);
+    padding-inline: var(--gutter);
+  }
+
+  .tab {
+    flex-direction: row;
+    gap: var(--s2);
+    min-height: 3rem;
+  }
+}

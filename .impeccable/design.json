@@ -1,0 +1,319 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T17:20:35Z",
+  "title": "Design System: GUACA",
+  "extensions": {
+    "colorMeta": {
+      "bone": {
+        "role": "neutral",
+        "displayName": "Bone",
+        "canonical": "#f7f6f2",
+        "tonalRamp": [
+          "#1a1917",
+          "#332f2b",
+          "#4d4842",
+          "#6b655d",
+          "#8f8880",
+          "#b5aea5",
+          "#dcd7cf",
+          "#f7f6f2"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0b0b0b",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#6e6e6e",
+          "#969696",
+          "#c4c4c4",
+          "#ededed"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "#4a4742",
+        "tonalRamp": [
+          "#141311",
+          "#26241f",
+          "#38352f",
+          "#4a4742",
+          "#6d6960",
+          "#948f84",
+          "#bfb9ad",
+          "#e6e1d8"
+        ]
+      },
+      "stone": {
+        "role": "neutral",
+        "displayName": "Stone",
+        "canonical": "#d8d6d0",
+        "tonalRamp": [
+          "#1c1b19",
+          "#35332f",
+          "#4f4c46",
+          "#6d695f",
+          "#938f84",
+          "#b8b3a9",
+          "#d8d6d0",
+          "#f0eeea"
+        ]
+      },
+      "merlot": {
+        "role": "primary",
+        "displayName": "Merlot",
+        "canonical": "#6b1f2b",
+        "tonalRamp": [
+          "#20090d",
+          "#3a1017",
+          "#531821",
+          "#6b1f2b",
+          "#8f3341",
+          "#b45c68",
+          "#d49aa2",
+          "#f0dbde"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Monument",
+        "purpose": "The single word that opens a surface. Sized in cqw against its own column so the longest word in any supported language fits on one line."
+      },
+      "headline": {
+        "displayName": "Statement",
+        "purpose": "A whole sentence at scale: the answer or the refusal."
+      },
+      "plate": {
+        "displayName": "Plate Line",
+        "purpose": "A short declarative line owning a whole plate: the loop's three statements and the closing line."
+      },
+      "title": {
+        "displayName": "Section Statement",
+        "purpose": "The opening sentence of a section, in place of a labelled heading."
+      },
+      "name": {
+        "displayName": "Name",
+        "purpose": "A proper name in a full-width row — the register's zones — and the register's tally figures."
+      },
+      "panel-title": {
+        "displayName": "Panel Title",
+        "purpose": "A heading inside a narrow panel — the map's place sheet and the villa's property name. Fixed rather than viewport-scaled, because the panel does not grow with the viewport."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "GUACA in the bar, on every surface."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "The paragraph beneath a monument. Held to ~46ch."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text at a 68ch measure."
+      },
+      "compact": {
+        "displayName": "Compact",
+        "purpose": "Dense tool text: map and villa panels, and subordinate helper lines. Subordination is carried by soft ink, not by shrinking further."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, navigation, and state labels. Uppercase, 0.16em."
+      },
+      "micro": {
+        "displayName": "Micro",
+        "purpose": "Captions, credits, statuses and counts. Uppercase, 0.2em, soft ink."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 12px 32px rgb(11 11 11 / 0.08)",
+        "purpose": "The map tool's ask panel and place sheet only — the two surfaces that float over a live map. No other surface in the system casts a shadow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The only easing curve in the system: exponential ease-out."
+      },
+      {
+        "name": "quick",
+        "value": "220ms",
+        "purpose": "Hover and focus state changes."
+      },
+      {
+        "name": "mid",
+        "value": "520ms",
+        "purpose": "Reserved for state transitions between plates."
+      },
+      {
+        "name": "slow",
+        "value": "900ms",
+        "purpose": "The authored reveal: a clip-path wipe from an already-visible default."
+      },
+      {
+        "name": "stagger",
+        "value": "45ms",
+        "purpose": "Interval between register rows striking in."
+      },
+      {
+        "name": "plate-arrive",
+        "value": "@keyframes plate-arrive { from { opacity: 0.001; clip-path: inset(0 0 22% 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }",
+        "purpose": "The one authored moment: the answer plate uncovers from its bottom edge over 900ms on the house easing, inside prefers-reduced-motion: no-preference. Rest state is opaque and unclipped."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "panel",
+        "value": "720px"
+      },
+      {
+        "name": "stack",
+        "value": "900px"
+      },
+      {
+        "name": "phone",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled action per surface. Never greyed out for an empty field — only while a request is in flight.",
+      "html": "<button class=\"ds-btn-primary\">Ask</button>",
+      "css": ".ds-btn-primary { background: var(--ink, #0b0b0b); color: var(--bone, #f7f6f2); border: 0; border-radius: 0; padding: 0.75rem 2rem; font-family: Archivo, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; transition: opacity 220ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-primary:hover { opacity: 0.82; } .ds-btn-primary:focus-visible { outline: 2px solid var(--ink, #0b0b0b); outline-offset: 3px; } .ds-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The outlined companion. Every button that is not the surface's one primary action takes this form; it inverts to the ink fill on hover.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"#\">Open the map</a>",
+      "css": ".ds-btn-secondary { display: inline-block; background: transparent; color: var(--ink, #0b0b0b); border: 1px solid var(--ink, #0b0b0b); border-radius: 0; padding: 1rem 3rem; text-decoration: none; font-family: Archivo, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; transition: background 220ms cubic-bezier(0.16,1,0.3,1), color 220ms cubic-bezier(0.16,1,0.3,1); } .ds-btn-secondary:hover { background: var(--ink, #0b0b0b); color: var(--bone, #f7f6f2); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--ink, #0b0b0b); outline-offset: 3px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Used inside coloured fields where an ink fill would disappear. A 1px underline in the current colour is the whole affordance.",
+      "html": "<button class=\"ds-btn-ghost\">Ask another</button>",
+      "css": ".ds-btn-ghost { background: none; border: 0; border-bottom: 1px solid currentColor; border-radius: 0; padding: 0; color: inherit; font-family: Archivo, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; } .ds-btn-ghost:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }"
+    },
+    {
+      "name": "Underline Input",
+      "kind": "input",
+      "refersTo": "input-underline",
+      "description": "A bottom rule, never a box. Placeholder in soft ink.",
+      "html": "<input class=\"ds-input-underline\" placeholder=\"Where can I swim near the fort?\" />",
+      "css": ".ds-input-underline { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--ink, #0b0b0b); border-radius: 0; padding: 0.75rem 0; font-family: Archivo, system-ui, sans-serif; font-size: 1.125rem; color: var(--ink, #0b0b0b); } .ds-input-underline::placeholder { color: var(--ink-soft, #4a4742); } .ds-input-underline:focus-visible { outline: 2px solid var(--ink, #0b0b0b); outline-offset: 3px; }"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Uppercase label type with a transparent 1px bottom border that becomes ink on hover, so nothing shifts.",
+      "html": "<a class=\"ds-nav-link\" href=\"#\">The map</a>",
+      "css": ".ds-nav-link { color: var(--ink, #0b0b0b); text-decoration: none; font-family: Archivo, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; border-bottom: 1px solid transparent; transition: border-color 220ms cubic-bezier(0.16,1,0.3,1); } .ds-nav-link:hover, .ds-nav-link:focus-visible { border-bottom-color: var(--ink, #0b0b0b); }"
+    },
+    {
+      "name": "Absence Plate",
+      "kind": "custom",
+      "refersTo": "plate-absence",
+      "description": "The signature component. When the product cannot answer, the refusal takes a full merlot field at headline scale rather than hiding as an error. It carries no label above its sentence, and it uncovers via the plate-arrive keyframe.",
+      "html": "<section class=\"ds-plate-absence\"><p class=\"ds-plate-absence__text\">No one has verified places for that yet.</p><div class=\"ds-plate-absence__foot\"><p class=\"ds-plate-absence__body\">Gaps become paid missions for the local who covers that zone.</p></div></section>",
+      "css": ".ds-plate-absence { background: var(--merlot, #6b1f2b); color: var(--bone, #f7f6f2); padding: 4rem 2rem; display: flex; flex-direction: column; gap: 2rem; animation: ds-plate-arrive 900ms cubic-bezier(0.16,1,0.3,1) both; } @keyframes ds-plate-arrive { from { opacity: 0.001; clip-path: inset(0 0 22% 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } } .ds-plate-absence__text { font-family: 'Bodoni Moda', Didot, serif; font-size: clamp(2rem, 5.2vw, 4.5rem); line-height: 1; letter-spacing: -0.035em; max-width: 24ch; margin: 0; } .ds-plate-absence__foot { display: flex; flex-direction: column; gap: 0.75rem; padding-top: 2rem; border-top: 1px solid currentColor; max-width: 68ch; } .ds-plate-absence__body { font-size: 1.125rem; line-height: 1.55; opacity: 0.88; margin: 0; font-family: Archivo, system-ui, sans-serif; }"
+    },
+    {
+      "name": "Register Row",
+      "kind": "list-item",
+      "refersTo": "register-row",
+      "description": "A baseline-aligned pair separated by a hairline: the zone in Bodoni, its coverage status in merlot micro type.",
+      "html": "<li class=\"ds-register-row\"><span class=\"ds-register-row__name\">Playa Quizandal</span><span class=\"ds-register-row__status\">Not documented</span></li>",
+      "css": ".ds-register-row { list-style: none; display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; padding: 1.5rem 0; border-bottom: 1px solid var(--stone, #d8d6d0); } .ds-register-row__name { font-family: 'Bodoni Moda', Didot, serif; font-size: clamp(1.5rem, 3.2vw, 2.5rem); line-height: 0.9; letter-spacing: -0.035em; } .ds-register-row__status { font-family: Archivo, system-ui, sans-serif; font-size: 0.6875rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--merlot, #6b1f2b); white-space: nowrap; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The House of Record",
+    "overview": "GUACA borrows the grammar of a fashion house's digital flagship — monumental display type, vast quiet ground, full-bleed photography as the only texture, hairlines instead of boxes — and points it at something a fashion house never photographs: an ordinary Caribbean shoreline with driftwood and litter on it. That collision is the system. Couture framing says this was considered; documentary photography says this is real.\n\nThe system is deliberately near-monochrome. Bone ground, ink type, one wine-red accent — and that accent has exactly one job: it marks what the map does not know. A visitor who learns the colour once can read coverage at a glance from then on, and the moment the product admits ignorance becomes the most visually arresting thing in the whole experience rather than something to hide.\n\nDensity is low and space is the expensive material. Sections are plates, not cards; nothing is enclosed in a rounded container; every corner is square and every divider is a single hairline.",
+    "keyCharacteristics": [
+      "Bone ground, ink type, one reserved accent",
+      "Monumental Didone display against a workhorse grotesk",
+      "Full-bleed documentary photography as the only texture",
+      "One solid ink button per surface; everything else outlined",
+      "Square corners, hairline rules, no shadows on flat surfaces",
+      "Space used as luxury; plates rather than cards"
+    ],
+    "rules": [
+      {
+        "name": "The Reserved Accent Rule",
+        "body": "Merlot means \"not known\". If a surface uses it for anything else — a hover, a highlight, a decorative flourish, a second brand colour — the system is broken, because the colour's meaning is the only thing carrying coverage state.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Grey Rule",
+        "body": "Secondary text is tinted from the ground's own warmth (#4a4742), never a neutral grey. Grey on bone reads as a rendering accident.",
+        "section": "colors"
+      },
+      {
+        "name": "The Container-Sized Monument Rule",
+        "body": "The opening word is sized in cqw against its own column, never in vw. The system is bilingual and the Spanish word is two characters longer than the English; a viewport-sized monument either breaks mid-word or crowds the photograph. Measure the longest word in every supported language before changing the ceiling.",
+        "section": "typography"
+      },
+      {
+        "name": "The No Eyebrow Rule",
+        "body": "A heading never carries a small uppercase label above it. Headings carry themselves — the answer plate opens directly on its sentence, with no label of any kind above it, because the sentence and the field colour already report the state. Uppercase labels are permitted only when they report state inline (Not documented) or name a control.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline-Not-Shadow Rule",
+        "body": "Separation is a 1px stone rule. A shadow on a surface that isn't floating over a map is wrong.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Negative Rule",
+        "body": "Every image on a surface is a crop of the same source photograph. Different framing, different subject inside the frame, one light and one place. Mixing stock sources — or any two negatives — breaks the claim that someone stood there.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Fill Rule",
+        "body": "A surface gets exactly one solid ink button, and it goes on the action the surface exists for. A second solid fill means one of the two is not actually primary; make it the outlined variant.",
+        "section": "components"
+      },
+      {
+        "name": "The Uncover Rule",
+        "body": "Things arrive by uncovering, never by sliding or by fade alone. A clip-path inset on the house easing is the only entrance vocabulary in the system — the section observer and the answer plate share it — and one surface gets at most one authored moment. The rest state is always the visible state; motion is layered onto a page that already reads without it.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do spend merlot (#6b1f2b) only on what the map does not know.",
+      "Do size the opening word in cqw against its column, and re-measure the longest word in every language after changing it.",
+      "Do keep every corner square and every divider a 1px stone hairline.",
+      "Do tint secondary text from the ground (#4a4742) rather than greying it.",
+      "Do let photography be documentary — real weather, real litter, eye level.",
+      "Do keep one authored motion moment per surface; content is visible by default and the observer only adds the animated class once JS is running.",
+      "Do crop every image on a surface from the same source negative.",
+      "Do spend the solid ink fill once per surface and make every other button the outlined variant."
+    ],
+    "donts": [
+      "Don't put a small uppercase label above a heading.",
+      "Don't introduce a second accent colour, a gradient, or gradient text.",
+      "Don't round a corner or add a shadow to a surface that isn't floating over the map.",
+      "Don't use an emoji or a glyph as an icon; icons are authored SVG at a 1.25px stroke.",
+      "Don't idealise the photography, and never caption an image with a verification claim the product cannot back.",
+      "Don't grey out a primary action because its field is empty.",
+      "Don't put two solid ink buttons on the same surface.",
+      "Don't name a person, a face, a partner property, a verification date, or a count of verified places on any surface. Every such record in the codebase today is seed fiction; until real ones exist, the visual system has no testimonial, no avatar row, no logo wall and no “N places mapped” statistic to design for."
+    ]
+  }
+}

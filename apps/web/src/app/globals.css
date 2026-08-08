@@ -1,0 +1,202 @@
+/*
+ * GUACA — token layer.
+ * World: the digital flagship of a fashion house, carried as a working system.
+ * Ground is bone, ink is near-black, the single accent is spent only on what
+ * the map does not yet know.
+ */
+
+:root {
+  /* Ground and ink */
+  --bone: #f7f6f2;
+  --stone: #d8d6d0;
+  --ink: #0b0b0b;
+  --ink-soft: #4a4742; /* 7.8:1 on bone — tinted from the ground, never gray */
+  --merlot: #6b1f2b; /* reserved: absence, commission, the unverified */
+
+  /* Rules */
+  --hairline: 1px solid var(--stone);
+  --hairline-ink: 1px solid var(--ink);
+
+  /* Type */
+  --display: var(--font-display), "Bodoni Moda", "Didot", serif;
+  --text: var(--font-text), "Archivo", system-ui, sans-serif;
+
+  /* Sized so the longest word in either language — ATESTIGUADO — still fits
+     its column at 390px and never crowds the photograph at 1440. */
+  --size-monument: clamp(2rem, 14cqw, 9rem);
+  --size-headline: clamp(2rem, 5.2vw, 4.5rem);
+  --size-plate: clamp(2.5rem, 7vw, 5.5rem);
+  --size-title: clamp(1.75rem, 3.4vw, 3rem);
+  /* A proper name inside a row or a panel: register zones, the place sheet,
+     the property heading, and the register's figures all share this step. */
+  --size-name: clamp(1.5rem, 3.2vw, 2.5rem);
+  /* A heading inside a narrow panel, where a viewport-scaled step would
+     overflow: the map's place sheet and the villa's property name. */
+  --size-panel-title: 1.75rem;
+  --size-lead: clamp(1.0625rem, 1.35vw, 1.3125rem);
+  --size-body: 1rem;
+  /* Dense tool text: map and villa panels, and subordinate helper lines. */
+  --size-compact: 0.9375rem;
+  --size-wordmark: 1.25rem;
+  --size-label: 0.75rem;
+  --size-micro: 0.6875rem;
+
+  --track-monument: -0.035em;
+  --track-label: 0.16em;
+  --track-micro: 0.2em;
+
+  /* Space — 4px base */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s6: 1.5rem;
+  --s8: 2rem;
+  --s12: 3rem;
+  --s16: 4rem;
+  --s24: 6rem;
+  --s32: 8rem;
+  --s40: 10rem;
+
+  --gutter: clamp(1.25rem, 4.5vw, 4.5rem);
+  --measure: 68ch;
+
+  /* Motion — one vocabulary: exponential ease-out, slow */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --slow: 900ms;
+  --mid: 520ms;
+  --quick: 220ms;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bone);
+  color: var(--ink);
+  font-family: var(--text);
+  font-size: var(--size-body);
+  line-height: 1.55;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+p,
+figure,
+blockquote {
+  margin: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+  border-radius: 0; /* the world has no rounded corners */
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--bone);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* ---- Shared type roles ------------------------------------------------- */
+
+.u-display {
+  font-family: var(--display);
+  font-weight: 400;
+  line-height: 0.9;
+  letter-spacing: var(--track-monument);
+}
+
+.u-label {
+  font-family: var(--text);
+  font-size: var(--size-label);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.u-micro {
+  font-family: var(--text);
+  font-size: var(--size-micro);
+  font-weight: 400;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Tabular figures for every record number and count. */
+.u-figures {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ---- The one authored motion ------------------------------------------- */
+/* Plates uncover rather than slide: a clip-path wipe, content visible by
+   default so a failed observer never hides the page. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .u-observe {
+    opacity: 0.001;
+    clip-path: inset(0 0 18% 0);
+    transition:
+      opacity var(--slow) var(--ease),
+      clip-path var(--slow) var(--ease);
+  }
+
+  .u-observe[data-shown="true"] {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.u-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--ink);
+  color: var(--bone);
+  padding: var(--s3) var(--s4);
+  z-index: 100;
+}
+
+.u-skip:focus {
+  left: var(--gutter);
+  top: var(--s3);
+}

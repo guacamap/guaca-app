@@ -1,229 +1,476 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-
-export interface PlacePin {
-  id: string;
-  name: string;
-  category: string;
-  landmarkDescription: string;
-  lat: number;
-  lon: number;
-  spotterName: string | null;
-  spotterPhotoUrl: string | null;
-  verifiedAt: string | null;
-}
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  kind?: 'answer' | 'refusal';
-  text: string;
-  placeIds: string[];
-}
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import Link from 'next/link';
+import { COPY, REPLAY, TERRITORIES, ZONES, type Lang } from '../../lib/copy';
+import styles from './landing.module.css';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-const BBOX = '-68.03,10.44,-67.98,10.52';
+const LIVE_TIMEOUT_MS = 2500;
 
-export default function TouristMap() {
-  const container = useRef<HTMLDivElement>(null);
-  const [places, setPlaces] = useState<PlacePin[]>([]);
-  const [selected, setSelected] = useState<PlacePin | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [question, setQuestion] = useState('');
-  const [busy, setBusy] = useState(false);
-  const mapRef = useRef<maplibregl.Map | null>(null);
+type Status = 'idle' | 'asking' | 'done';
 
-  useEffect(() => {
-    if (!container.current || mapRef.current) return;
-    const map = new maplibregl.Map({
-      container: container.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: 'raster',
-            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '© OpenStreetMap contributors',
-          },
-        },
-        layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-      },
-      center: [-68.0056, 10.4716],
-      zoom: 14,
-    });
-    mapRef.current = map;
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
+interface Result {
+  kind: 'answer' | 'refusal';
+  text: string;
+  replayed: boolean;
+}
+
+/**
+ * Content is visible by default; the observer only adds the animated class
+ * once JS is running, so a failed observer can never hide a section.
+ */
+function Reveal({
+  children,
+  className,
+  as: Tag = 'div',
+  ...rest
+}: {
+  children: ReactNode;
+  className?: string | undefined;
+  as?: 'div' | 'section' | 'li';
+  [key: string]: unknown;
+}) {
+  const ref = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    fetch(`${API}/api/places?bbox=${BBOX}`)
-      .then((r) => r.json())
-      .then((data: { places: PlacePin[] }) => {
-        setPlaces(data.places);
-        const map = mapRef.current;
-        if (!map) return;
-        for (const p of data.places) {
-          const el = document.createElement('div');
-          el.className = 'pin';
-          el.innerHTML = '📍';
-          el.addEventListener('click', () => setSelected(p));
-          new maplibregl.Marker({ element: el })
-            .setLngLat([p.lon, p.lat])
-            .addTo(map);
+    const el = ref.current;
+    if (!el) return;
+    if (!('IntersectionObserver' in window)) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    el.classList.add('u-observe');
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            el.dataset.shown = 'true';
+            io.disconnect();
+          }
         }
-      })
-      .catch(() => {
-        // The map still renders; pins appear once the API is up.
-      });
+      },
+      { rootMargin: '0px 0px -12% 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
 
-  async function ask() {
-    if (!question.trim() || busy) return;
-    const text = question.trim();
-    setQuestion('');
-    setBusy(true);
-    setMessages((m) => [...m, { role: 'user', text, placeIds: [] }]);
+  return (
+    // @ts-expect-error -- ref type narrows per tag, all are HTMLElement
+    <Tag ref={ref} className={className} {...rest}>
+      {children}
+    </Tag>
+  );
+}
+
+export default function Landing() {
+  const [lang, setLang] = useState<Lang>('en');
+  const [question, setQuestion] = useState('');
+  const [status, setStatus] = useState<Status>('idle');
+  const [result, setResult] = useState<Result | null>(null);
+  const answerRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const askRef = useRef<((override?: string) => Promise<void>) | null>(null);
+  const deepLinked = useRef(false);
+
+  const t = COPY[lang];
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('guaca-lang');
+    if (stored === 'en' || stored === 'es') {
+      setLang(stored);
+      return;
+    }
+    if ((navigator.language || 'en').toLowerCase().startsWith('es')) {
+      setLang('es');
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = t.htmlLang;
+  }, [t.htmlLang]);
+
+  const toggleLang = useCallback(() => {
+    setLang((prev) => {
+      const next: Lang = prev === 'en' ? 'es' : 'en';
+      window.localStorage.setItem('guaca-lang', next);
+      return next;
+    });
+  }, []);
+
+  const ask = useCallback(async (override?: string) => {
+    const text = (override ?? question).trim();
+    if (status === 'asking') return;
+    if (!text) {
+      inputRef.current?.focus();
+      return;
+    }
+    setStatus('asking');
+    setResult(null);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), LIVE_TIMEOUT_MS);
+
     try {
       const res = await fetch(`${API}/api/ask`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, language: 'en', lat: 10.4716, lon: -68.0056 }),
+        body: JSON.stringify({
+          text,
+          language: lang,
+          lat: 10.4716,
+          lon: -68.0056,
+        }),
+        signal: controller.signal,
       });
-      const body = (await res.json()) as {
-        kind: 'answer' | 'refusal';
-        text: string;
-        placeIds: string[];
-      };
-      setMessages((m) => [
-        ...m,
-        {
-          role: 'assistant',
-          kind: body.kind,
-          text: body.text,
-          placeIds: body.placeIds,
-        },
-      ]);
+      if (!res.ok) throw new Error(String(res.status));
+      const body = (await res.json()) as { kind: Result['kind']; text: string };
+      setResult({ kind: body.kind, text: body.text, replayed: false });
     } catch {
-      setMessages((m) => [
-        ...m,
-        {
-          role: 'assistant',
-          kind: 'refusal',
-          text: 'Something went wrong. Please try again shortly.',
-          placeIds: [],
-        },
-      ]);
+      setResult({
+        kind: 'refusal',
+        text: REPLAY[lang].text,
+        replayed: true,
+      });
     } finally {
-      setBusy(false);
+      clearTimeout(timer);
+      setStatus('done');
     }
-  }
+  }, [question, status, lang]);
+
+  useEffect(() => {
+    if (status === 'done' && result) {
+      answerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [status, result]);
+
+  /* A shared or printed link can carry its own question: /?q=… */
+  useEffect(() => {
+    askRef.current = ask;
+  }, [ask]);
+
+  useEffect(() => {
+    if (deepLinked.current) return;
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (!q) return;
+    deepLinked.current = true;
+    setQuestion(q);
+    void askRef.current?.(q);
+  }, []);
+
+  const refused = result?.kind === 'refusal';
 
   return (
-    <main className="tourist-page">
-      <header className="topbar">
-        <strong>GUACA</strong>
-        <span>Puerto Cabello — witnessed, not inferred</span>
-      </header>
-      <div ref={container} className="map" />
-      <aside className="chat">
-        <div className="chat-scroll">
-          {messages.map((m, i) => (
-            <div key={i} className={`msg ${m.role} ${m.kind ?? ''}`}>
-              <div className="bubble">{m.text}</div>
-              {m.kind === 'refusal' && (
-                <div className="refusal-note">
-                  No one has been there yet — we&apos;ve commissioned a local to
-                  go look.
-                </div>
-              )}
-            </div>
-          ))}
-          {busy && <div className="msg assistant"><div className="bubble">…</div></div>}
-        </div>
-        <div className="chat-input">
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && ask()}
-            placeholder="Ask about Puerto Cabello…"
-            disabled={busy}
+    <>
+      <a className="u-skip" href="#main">
+        {t.nav.skip}
+      </a>
+
+      <header className={styles.nav}>
+        <Link href="/" className={styles.wordmark}>
+          {/* The guacamaya is the only colour on the page. It is the mark, not
+              ornament, so it sits with the wordmark and nowhere else. */}
+          <img
+            src="/icon.svg"
+            alt=""
+            width={32}
+            height={32}
+            className={styles.mark}
           />
-          <button onClick={ask} disabled={busy}>Ask</button>
-        </div>
-      </aside>
-      {selected && (
-        <aside className="sheet">
-          <button onClick={() => setSelected(null)} aria-label="close">×</button>
-          <h2>{selected.name}</h2>
-          <p className="landmark">{selected.landmarkDescription}</p>
-          {selected.spotterName && (
-            <div className="spotter">
-              {selected.spotterPhotoUrl && (
-                <img src={selected.spotterPhotoUrl} alt={selected.spotterName} />
+          GUACA
+        </Link>
+        <nav className={styles.navLinks}>
+          <Link href="/map" className={styles.navLink}>
+            {t.nav.map}
+          </Link>
+          <a href="#register" className={styles.navLink}>
+            {t.nav.register}
+          </a>
+          <a href="#spotters" className={styles.navLink}>
+            {t.nav.spotters}
+          </a>
+          <button
+            type="button"
+            onClick={toggleLang}
+            className={styles.langBtn}
+            lang={lang === 'en' ? 'es' : 'en'}
+          >
+            {t.footer.lang}
+          </button>
+        </nav>
+      </header>
+
+      <main id="main">
+        {/* ---- Opening plate ---------------------------------------- */}
+        <section className={styles.hero}>
+          <figure className={styles.heroFigure}>
+            <img
+              src="/img/coast-2560.webp"
+              srcSet="/img/coast-800.webp 800w, /img/coast-1280.webp 1280w, /img/coast-2560.webp 2560w"
+              sizes="(max-width: 900px) 100vw, 54vw"
+              alt="A Caribbean shoreline at eye level: driftwood on the sand, palms and low structures along the treeline, hazy mountains behind."
+              width={2560}
+              height={1707}
+              fetchPriority="high"
+            />
+            <figcaption className={styles.heroCaption}>
+              <span className="u-micro">{t.hero.caption}</span>
+              <span className="u-micro">{t.hero.credit}</span>
+            </figcaption>
+          </figure>
+
+          <div className={styles.heroBody}>
+            <h1 className={`${styles.monument} u-display`}>
+              {t.hero.monument}
+              <span className={styles.qualifier}>{t.hero.qualifier}</span>
+            </h1>
+
+            <p className={styles.lead}>{t.hero.lead}</p>
+
+            <form
+              className={styles.ask}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void ask(question);
+              }}
+            >
+              <label className="u-micro" htmlFor="ask">
+                {t.ask.label}
+              </label>
+              <div className={styles.askRow}>
+                <input
+                  id="ask"
+                  ref={inputRef}
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder={t.ask.placeholder}
+                  disabled={status === 'asking'}
+                  autoComplete="off"
+                />
+                {/* Never greyed out on an empty field — this is the primary
+                    action of the first viewport and it must read as live. */}
+                <button type="submit" disabled={status === 'asking'}>
+                  {status === 'asking' ? t.ask.working : t.ask.submit}
+                </button>
+              </div>
+              <p className={styles.hint}>{t.ask.hint}</p>
+            </form>
+          </div>
+        </section>
+
+        {/* ---- The answer, resolved in place ------------------------- */}
+        {status !== 'idle' && (
+          <section
+            id="answer"
+            ref={answerRef as React.RefObject<HTMLElement>}
+            className={`${styles.answer} ${refused ? styles.answerRefused : ''}`}
+            aria-live="polite"
+          >
+            <div className={styles.answerInner}>
+              {/* No label above the headline: the refusal sentence and the
+                  merlot field already say which state this is, and an eyebrow
+                  over a heading is refused outright. */}
+              {status === 'asking' ? (
+                <p className={`${styles.answerText} u-display`}>
+                  {t.ask.working}
+                </p>
+              ) : (
+                <>
+                  <p className={`${styles.answerText} u-display`}>
+                    {result?.text}
+                  </p>
+
+                  {refused && (
+                    <div className={styles.commission}>
+                      <p>{t.answer.commissionBody}</p>
+                    </div>
+                  )}
+
+                  <div className={styles.answerFoot}>
+                    <button
+                      type="button"
+                      className={styles.ghost}
+                      onClick={() => {
+                        setStatus('idle');
+                        setResult(null);
+                        setQuestion('');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        window.setTimeout(() => inputRef.current?.focus(), 600);
+                      }}
+                    >
+                      {t.answer.again}
+                    </button>
+                    {result?.replayed && (
+                      <span className="u-micro">{t.answer.replayNote}</span>
+                    )}
+                  </div>
+                </>
               )}
-              <span>
-                Visited by <strong>{selected.spotterName}</strong>
-                {selected.verifiedAt
-                  ? ` on ${new Date(selected.verifiedAt).toLocaleDateString()}`
-                  : ''}
-              </span>
             </div>
-          )}
-        </aside>
-      )}
-      <style jsx>{`
-        .tourist-page {
-          position: relative;
-          height: 100vh;
-          font-family: system-ui, sans-serif;
-        }
-        .topbar {
-          position: absolute;
-          top: 0; left: 0; right: 0; z-index: 10;
-          display: flex; gap: 12px; align-items: center;
-          padding: 12px 16px;
-          background: rgba(255,255,255,0.92);
-          border-bottom: 1px solid #ddd;
-        }
-        .map { width: 100%; height: 100%; }
-        .pin { cursor: pointer; font-size: 22px; }
-        .chat {
-          position: absolute; right: 16px; top: 64px; bottom: 16px; z-index: 10;
-          width: 340px; display: flex; flex-direction: column;
-          background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-        }
-        .chat-scroll { flex: 1; overflow-y: auto; padding: 12px; }
-        .msg { margin-bottom: 10px; }
-        .msg.user { text-align: right; }
-        .bubble {
-          display: inline-block; padding: 8px 12px; border-radius: 12px;
-          background: #eee; max-width: 90%; text-align: left; white-space: pre-wrap;
-        }
-        .msg.user .bubble { background: #dbeafe; }
-        .msg.refusal .bubble {
-          background: #fff3cd; border: 1px solid #f0d58a; font-weight: 500;
-        }
-        .refusal-note { font-size: 12px; color: #7a5b00; margin-top: 4px; }
-        .chat-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #eee; }
-        .chat-input input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 8px; }
-        .chat-input button { padding: 8px 14px; border: 0; border-radius: 8px; background: #1d5cb0; color: #fff; cursor: pointer; }
-        .chat-input button:disabled { opacity: 0.5; }
-        .sheet {
-          position: absolute; bottom: 16px; left: 16px; z-index: 10;
-          background: #fff; border-radius: 12px; padding: 16px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.25); max-width: 320px;
-        }
-        .sheet button { float: right; border: 0; background: none; font-size: 20px; cursor: pointer; }
-        .landmark { color: #444; }
-        .spotter { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-        .spotter img { width: 32px; height: 32px; border-radius: 50%; }
-      `}</style>
-    </main>
+          </section>
+        )}
+
+        {/* ---- The loop --------------------------------------------- */}
+        <section className={styles.loop} aria-label={t.loop.one}>
+          <div className={`${styles.loopPlate} ${styles.loopA}`}>
+            <p className="u-display">{t.loop.one}</p>
+          </div>
+          <div className={`${styles.loopPlate} ${styles.loopB}`}>
+            <p className="u-display">{t.loop.two}</p>
+          </div>
+          <div className={`${styles.loopPlate} ${styles.loopC}`}>
+            <p className="u-display">{t.loop.three}</p>
+            <p className={styles.loopClose}>{t.loop.close}</p>
+          </div>
+        </section>
+
+        {/* A quiet full-bleed breath: the coast the register is about. */}
+        <div className={styles.band} role="presentation">
+          <img
+            src="/img/coast-band-2560.webp"
+            srcSet="/img/coast-band-1280.webp 1280w, /img/coast-band-2560.webp 2560w"
+            sizes="100vw"
+            alt=""
+            width={2560}
+            height={731}
+            loading="lazy"
+          />
+        </div>
+
+        {/* ---- The register ------------------------------------------ */}
+        <section id="register" className={styles.register}>
+          <div className={styles.registerHead}>
+            <h2 className={`${styles.sectionTitle} u-display`}>
+              {t.register.statement}
+            </h2>
+            <p className={`${styles.tally} u-figures`}>
+              <strong>1</strong> {t.register.documented}
+              <span className={styles.tallyRule} aria-hidden="true" />
+              <strong>{TERRITORIES.length}</strong> {t.register.awaiting}
+            </p>
+          </div>
+
+          {/* The region at country level. The list is deliberately long and
+              deliberately unscrolled sideways: the extent of what nobody has
+              stood in is the argument, so nothing here hides behind arrows.
+              Venezuela is the only country with an area in the database, so
+              it is the only one that opens. */}
+          <ul className={styles.zones}>
+            {TERRITORIES.map((territory, i) => {
+              const name = lang === 'es' ? territory.es : territory.en;
+              const open = territory.status === 'started';
+              return (
+                <Reveal
+                  as="li"
+                  key={territory.en}
+                  className={styles.zone}
+                  style={{ transitionDelay: `${Math.min(i, 12) * 40}ms` }}
+                >
+                  <div className={styles.zoneRow}>
+                    <span className={`${styles.zoneName} u-display`}>
+                      {name}
+                    </span>
+                    <span
+                      className={`${styles.zoneStatus} u-micro ${
+                        territory.status === 'started' ? styles.zoneStarted : ''
+                      }`}
+                    >
+                      {territory.status === 'started'
+                        ? t.register.started
+                        : territory.status === 'next'
+                          ? t.register.next
+                          : t.register.status}
+                    </span>
+                  </div>
+
+                  {open && (
+                    <div className={styles.area}>
+                      <p className={styles.areaHead}>
+                        <span className={styles.areaName}>Puerto Cabello</span>
+                        <span className="u-micro u-figures">
+                          {t.register.zonesOf(0, ZONES.length)}
+                        </span>
+                      </p>
+                      <ul className={styles.areaZones}>
+                        {ZONES.map((zone) => (
+                          <li key={zone}>
+                            <span>{zone}</span>
+                            <span className="u-micro">
+                              {t.register.status}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </Reveal>
+              );
+            })}
+          </ul>
+
+          <p className={styles.note}>{t.register.note}</p>
+        </section>
+
+        {/* ---- The spotters ------------------------------------------ */}
+        <section id="spotters" className={styles.spotters}>
+          <div className={styles.spottersInner}>
+            <p className={`${styles.spottersStatement} u-display`}>
+              {t.spotters.statement}
+            </p>
+            <p className={styles.note}>{t.spotters.note}</p>
+          </div>
+        </section>
+
+        {/* ---- Close: the page ends on the material it opened with ---- */}
+        <section className={styles.close}>
+          <img
+            className={styles.closeImage}
+            src="/img/coast-close-1800.webp"
+            alt=""
+            width={1800}
+            height={1523}
+            loading="lazy"
+          />
+          <div className={styles.closeInner}>
+            <h2 className={`${styles.closeMonument} u-display`}>
+              {t.close.monument}
+            </h2>
+            <p className={styles.lead}>{t.close.body}</p>
+            <Link href="/map" className={styles.cta}>
+              {t.close.cta}
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <footer className={styles.footer}>
+        <div className={styles.footerRow}>
+          <span className={styles.wordmark}>GUACA</span>
+          <span className="u-micro">{t.footer.rights}</span>
+        </div>
+        <div className={styles.footerRow}>
+          <span className={styles.owners}>
+            {t.close.owners}{' '}
+            {/* Points at the real QR surface running on a seeded demo token.
+                Replace with a signup or contact route once one exists. */}
+            <Link href="/v/qr-marina" className={styles.ownersLink}>
+              {t.close.ownersLink}
+            </Link>
+          </span>
+        </div>
+        <div className={styles.footerRow}>
+          <span className="u-micro">{t.footer.photo}</span>
+          <button type="button" onClick={toggleLang} className={styles.langBtn}>
+            {t.footer.lang}
+          </button>
+        </div>
+      </footer>
+    </>
   );
 }
