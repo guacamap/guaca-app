@@ -8,13 +8,16 @@ import { OperatorView } from './components/OperatorView'
 import { MarketingLanding } from './components/MarketingLanding'
 import { JoinRole } from './components/JoinRole'
 import { InfoProvider } from './components/InfoStore'
+import { LanguageProvider } from './lib/i18n'
 
 type Role = 'tourist' | 'spotter' | 'operator'
 
 export default function App() {
   return (
     <InfoProvider>
-      <GuacaExperience />
+      <LanguageProvider>
+        <GuacaExperience />
+      </LanguageProvider>
     </InfoProvider>
   )
 }
