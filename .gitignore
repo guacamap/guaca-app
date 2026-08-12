@@ -29,6 +29,47 @@ logs/
 # Local agent state
 .commandcode/
 
+# Local design references and generated source artwork
+/guaca-landing/
+/guaca-mobile-ui-connected/
+/guaca-prototype.tar.gz
+/ChatGPT Image*.png
+
+# Local Shogo workspace metadata (not required by the production Vite app)
+/apps/web/.cursor/
+/apps/web/.shogo-*
+/apps/web/.tech-stack
+/apps/web/AGENTS.md
+/apps/web/HEARTBEAT.md
+/apps/web/MEMORY.md
+/apps/web/TOOLS.md
+/apps/web/config.json
+/apps/web/memory/
+/apps/web/files/
+/apps/web/spotter_view_report.md
+/apps/web/bun.lock
+/apps/web/pnpm-lock.yaml
+/apps/web/custom-routes.ts
+/apps/web/prisma.config.ts
+/apps/web/prisma/
+/apps/web/scripts/
+/apps/web/server.tsx
+/apps/web/shogo.config.json
+/apps/web/src/generated/
+/apps/web/src/lib/db.ts
+/apps/web/pyrightconfig.json
+/apps/web/src/ShogoErrorBoundary.tsx
+/apps/web/.gitignore
+/apps/web/LICENSE
+/apps/web/components.json
+
+# Generated UI and brand candidates that are not imported by the app
+/apps/web/src/components/ui/*
+!/apps/web/src/components/ui/button.tsx
+!/apps/web/src/components/ui/input.tsx
+!/apps/web/src/components/ui/textarea.tsx
+/apps/web/public/brand/guaca-logo-horizontal.png
+
 # Database
 *.sqlite
 *.sqlite3

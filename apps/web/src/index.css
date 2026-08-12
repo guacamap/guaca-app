@@ -1,0 +1,370 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #FBF4EB;
+  --foreground: #0A1F24;
+  --card: #FFFFFF;
+  --card-foreground: #0A1F24;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A1F24;
+  --primary: #0D8B8B;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E8F0EE;
+  --secondary-foreground: #0A1F24;
+  --muted: #F0E6DA;
+  --muted-foreground: #5A7276;
+  --accent: #E8863A;
+  --accent-foreground: #FFFFFF;
+  --destructive: #C43D2F;
+  --border: #E2D6C8;
+  --input: #E2D6C8;
+  --ring: #0D8B8B;
+  --radius: 0.75rem;
+
+  --guaca-paper: #FBF4EB;
+  --guaca-ink: #0A1F24;
+  --guaca-ink-light: #2D4A50;
+  --guaca-teal: #0D8B8B;
+  --guaca-teal-light: #A8DDD4;
+  --guaca-teal-dark: #0A6B6B;
+  --guaca-ocean: #0C4A5C;
+  --guaca-ocean-deep: #0A2F3C;
+  --guaca-mango: #D4A853;
+  --guaca-mango-light: #F0DDA8;
+  --guaca-mango-dark: #B38A30;
+  --guaca-coral: #E8735A;
+  --guaca-coral-light: #F5B8AC;
+  --guaca-coral-dark: #C85A42;
+  --guaca-sunset: #E8863A;
+  --guaca-sunset-light: #F5C48A;
+  --guaca-sand: #F5E6D0;
+  --guaca-sand-light: #FBF4EB;
+  --guaca-sea: #2E8B9E;
+  --guaca-lagoon: #5CC5B8;
+  --guaca-palm: #2D8B4E;
+  --guaca-palm-dark: #1A5C3A;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-guaca-paper: var(--guaca-paper);
+  --color-guaca-ink: var(--guaca-ink);
+  --color-guaca-ink-light: var(--guaca-ink-light);
+  --color-guaca-teal: var(--guaca-teal);
+  --color-guaca-teal-light: var(--guaca-teal-light);
+  --color-guaca-teal-dark: var(--guaca-teal-dark);
+  --color-guaca-ocean: var(--guaca-ocean);
+  --color-guaca-ocean-deep: var(--guaca-ocean-deep);
+  --color-guaca-mango: var(--guaca-mango);
+  --color-guaca-mango-light: var(--guaca-mango-light);
+  --color-guaca-mango-dark: var(--guaca-mango-dark);
+  --color-guaca-coral: var(--guaca-coral);
+  --color-guaca-coral-light: var(--guaca-coral-light);
+  --color-guaca-coral-dark: var(--guaca-coral-dark);
+  --color-guaca-sunset: var(--guaca-sunset);
+  --color-guaca-sunset-light: var(--guaca-sunset-light);
+  --color-guaca-sand: var(--guaca-sand);
+  --color-guaca-sand-light: var(--guaca-sand-light);
+  --color-guaca-sea: var(--guaca-sea);
+  --color-guaca-lagoon: var(--guaca-lagoon);
+  --color-guaca-palm: var(--guaca-palm);
+  --color-guaca-palm-dark: var(--guaca-palm-dark);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  }
+
+  .lucide {
+    stroke-width: 1.8;
+  }
+
+  button,
+  a,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--guaca-mango);
+    outline-offset: 3px;
+  }
+}
+
+@keyframes gapPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(232,115,90,0.25), 0 2px 8px rgba(0,0,0,0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(232,115,90,0.12), 0 2px 8px rgba(0,0,0,0.3); }
+}
+
+.guaca-map-marker:focus-visible {
+  outline: 3px solid var(--guaca-mango);
+  outline-offset: 5px;
+  border-radius: 999px;
+}
+
+.landing-link {
+  position: relative;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.landing-link::after {
+  content: '';
+  position: absolute;
+  right: 100%;
+  bottom: 5px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--guaca-teal);
+  transition: right 150ms ease-out;
+}
+
+.landing-link:hover::after,
+.landing-link:focus-visible::after {
+  right: 0;
+}
+
+/* Beach-render backdrop: aqua sky settling into warm sand, with faint
+   topographic contours on the right — matching the hero reference art. */
+.landing-hero-glow {
+  background:
+    radial-gradient(circle at 84% 30%, rgba(255, 255, 255, .35), transparent 40%),
+    radial-gradient(circle at 12% 0%, rgba(64, 178, 170, .45), transparent 52%),
+    linear-gradient(168deg, #8fd4cd 0%, #b8e4de 34%, #ecebdd 62%, #f2e7d2 100%);
+}
+
+.landing-hero-contours {
+  background-image: repeating-radial-gradient(
+    circle at 110% 40%,
+    transparent 0,
+    transparent 46px,
+    rgba(255, 255, 255, .5) 47px,
+    transparent 48px
+  );
+  opacity: .5;
+  mask-image: linear-gradient(to left, black 20%, transparent 70%);
+  -webkit-mask-image: linear-gradient(to left, black 20%, transparent 70%);
+}
+
+/* A palm frond casting a soft shadow from the top-left, as in the render. */
+.landing-palm-shadow {
+  filter: blur(14px);
+  opacity: .18;
+  color: #0a4f4a;
+}
+
+.landing-scribble {
+  border-top: 5px solid var(--guaca-coral);
+  border-radius: 50%;
+  transform: rotate(-4deg);
+}
+
+.landing-phone {
+  transform-origin: center bottom;
+  box-shadow: 0 45px 80px rgba(10, 47, 60, .38), 0 18px 30px rgba(10, 47, 60, .22), inset 0 0 0 1px rgba(255,255,255,.18);
+}
+
+.landing-phone-tourist { transform: rotate(-7deg); }
+.landing-phone-spotter { transform: rotate(8deg) scale(.94); }
+
+.landing-island {
+  position: absolute;
+  z-index: 30;
+  top: 10px;
+  left: 50%;
+  width: 88px;
+  height: 23px;
+  border-radius: 999px;
+  background: #050505;
+  transform: translateX(-50%);
+}
+
+@media (max-width: 560px) {
+  .landing-phone-tourist { left: 0; transform: rotate(-7deg) scale(.86); }
+  .landing-phone-spotter { right: -4%; transform: rotate(8deg) scale(.81); }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+@layer components {
+  .guaca-page {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(255,255,255,0.75), transparent 28%),
+      radial-gradient(circle at 85% 8%, rgba(92,197,184,0.18), transparent 30%),
+      linear-gradient(135deg, #EEDFCB 0%, #FBF4EB 44%, #E7D5BE 100%);
+  }
+
+  .guaca-phone {
+    width: min(100vw, 430px);
+    min-height: 100vh;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    background: var(--guaca-paper);
+  }
+
+  @media (min-width: 480px) {
+    .guaca-phone {
+      min-height: min(920px, calc(100vh - 32px));
+      height: min(920px, calc(100vh - 32px));
+      margin: 16px auto;
+      border: 10px solid #101010;
+      border-radius: 48px;
+      box-shadow: 0 30px 80px rgba(44, 30, 16, 0.24), inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+
+    .guaca-phone::before {
+      content: '';
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 108px;
+      height: 28px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: #050505;
+      z-index: 1000;
+      pointer-events: none;
+    }
+  }
+
+  .guaca-script {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    letter-spacing: -0.06em;
+  }
+
+  .guaca-logo {
+    display: inline-flex;
+    width: max-content;
+    max-width: 100%;
+    align-items: center;
+    gap: .05em;
+    line-height: 0;
+    white-space: nowrap;
+  }
+
+  .guaca-logo-mark {
+    width: auto;
+    height: 100%;
+    flex: none;
+  }
+
+  .guaca-logo-word {
+    width: auto;
+    height: 62%;
+    flex: none;
+    /* Pacifico's swash descenders sit low; nudge up so the x-height reads
+       centered against the macaw. */
+    transform: translateY(-4%);
+  }
+
+  .guaca-logo-reversed .guaca-logo-word {
+    filter: brightness(0) invert(1);
+  }
+
+  .guaca-card {
+    border: 1px solid rgba(226, 214, 200, 0.72);
+    background: rgba(255, 251, 245, 0.94);
+    box-shadow: 0 18px 45px rgba(52, 37, 20, 0.12);
+  }
+
+  .guaca-pill-active {
+    background: linear-gradient(135deg, var(--guaca-teal), #14A6A0);
+    color: white;
+    box-shadow: 0 10px 22px rgba(13, 139, 139, 0.24);
+  }
+
+  .guaca-tropical-corner::after,
+  .guaca-tropical-corner::before {
+    content: '';
+    position: absolute;
+    width: 92px;
+    height: 120px;
+    opacity: 0.62;
+    background:
+      radial-gradient(ellipse at 48% 15%, #1f7653 0 8%, transparent 9%),
+      radial-gradient(ellipse at 35% 32%, #238965 0 10%, transparent 11%),
+      radial-gradient(ellipse at 62% 40%, #2a9d72 0 11%, transparent 12%),
+      radial-gradient(ellipse at 30% 56%, #176b4d 0 9%, transparent 10%);
+    pointer-events: none;
+  }
+
+  .guaca-tropical-corner::before {
+    top: 6px;
+    left: -22px;
+    transform: rotate(-22deg);
+  }
+
+  .guaca-tropical-corner::after {
+    top: 4px;
+    right: -22px;
+    transform: scaleX(-1) rotate(-22deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

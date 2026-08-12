@@ -1,0 +1,6 @@
+# Media assets are intentionally committed as ordinary Git binary files.
+# The project does not require Git LFS for its small, optimized web assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary

@@ -2,25 +2,32 @@
   "name": "@guaca/web",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "test": "pnpm test:unit",
-    "test:unit": "vitest run --passWithNoTests"
+    "dev": "vite --host 0.0.0.0 --port 3000 --strictPort",
+    "build": "vite build",
+    "start": "vite preview --host 0.0.0.0 --port 3000 --strictPort"
   },
   "dependencies": {
-    "@guaca/shared": "workspace:*",
-    "maplibre-gl": "^4.7.1",
-    "next": "^15.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.563.0",
+    "mapbox-gl": "^3.28.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.9"
+    "@vitejs/plugin-react": "^5.1.2",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.0.0",
+    "vite": "^7.3.1",
+    "vite-tsconfig-paths": "^5.0.0"
   }
 }
