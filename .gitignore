@@ -73,3 +73,8 @@ logs/
 # Database
 *.sqlite
 *.sqlite3
+
+# Local AI-tool configs, not shared across the team
+.codex/
+.impeccable/
+.github/hooks/
