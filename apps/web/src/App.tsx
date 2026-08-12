@@ -37,7 +37,7 @@ function GuacaExperience() {
   }
 
   if (!showApp) {
-    return <MarketingLanding onOpenApp={(nextRole) => { setRole(nextRole ?? null); setShowApp(true) }} />
+    return <MarketingLanding />
   }
 
   return (

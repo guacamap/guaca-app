@@ -25,11 +25,6 @@ import { formatUpdateTime, useInfoStore } from './InfoStore'
 const WAITLIST_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLSf-y0xwBbCw77P6zTjgxqG6HaGVZCDmRQU-cTvpTB6kNf0_rg/viewform'
 
-type Role = 'tourist' | 'spotter' | 'operator'
-
-interface MarketingLandingProps {
-  onOpenApp: (role?: Role) => void
-}
 
 const roles = [
   {
@@ -55,7 +50,7 @@ const roles = [
   },
 ]
 
-export function MarketingLanding({ onOpenApp }: MarketingLandingProps) {
+export function MarketingLanding() {
   const { updates } = useInfoStore()
   const latestUpdate = updates[0]
   const pendingUpdates = updates.filter((update) => update.status === 'published')
@@ -112,9 +107,9 @@ export function MarketingLanding({ onOpenApp }: MarketingLandingProps) {
                 <Button type="button" onClick={() => goToWaitlist()} className="h-13 rounded-xl bg-guaca-teal px-6 text-sm font-extrabold text-white shadow-xl shadow-guaca-teal/20 hover:bg-guaca-teal-dark">
                   <MailPlus aria-hidden="true" className="mr-2 h-4 w-4" /> Join the waitlist
                 </Button>
-                <Button type="button" onClick={() => onOpenApp()} variant="outline" className="h-13 rounded-xl border-guaca-teal/35 bg-white/72 px-6 text-sm font-extrabold text-guaca-teal backdrop-blur hover:bg-white">
-                  <Smartphone aria-hidden="true" className="mr-2 h-4 w-4" /> Preview the app
-                </Button>
+                <span className="inline-flex h-13 items-center justify-center rounded-xl border border-dashed border-guaca-teal/35 bg-white/60 px-6 text-sm font-extrabold text-guaca-teal/75 backdrop-blur">
+                  <Smartphone aria-hidden="true" className="mr-2 h-4 w-4" /> App coming soon
+                </span>
               </div>
               <div className="mt-7 flex items-center gap-4 text-xs font-bold text-guaca-ink/52">
                 <span className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4 text-guaca-teal" /> Local verification</span>
@@ -253,7 +248,7 @@ export function MarketingLanding({ onOpenApp }: MarketingLandingProps) {
           </div>
         </section>
 
-        <section id="businesses" className="bg-guaca-ocean-deep py-20 text-white"><div className="mx-auto flex w-[min(960px,calc(100%_-_32px))] flex-col items-center px-4 text-center sm:px-0"><MessageCircle className="h-9 w-9 text-guaca-mango-light" /><h2 className="mt-5 text-4xl font-black tracking-[-.055em] sm:text-5xl">Want to see how the product works?</h2><p className="mt-4 max-w-xl text-white/68">Preview the tourist, spotter, and business experiences while community coverage grows.</p><Button type="button" onClick={() => onOpenApp()} className="mt-8 h-13 rounded-xl bg-white px-7 font-black text-guaca-teal hover:bg-guaca-paper">Preview Guaca <ArrowRight className="ml-2 h-4 w-4" /></Button></div></section>
+        <section id="businesses" className="bg-guaca-ocean-deep py-20 text-white"><div className="mx-auto flex w-[min(960px,calc(100%_-_32px))] flex-col items-center px-4 text-center sm:px-0"><MessageCircle className="h-9 w-9 text-guaca-mango-light" /><h2 className="mt-5 text-4xl font-black tracking-[-.055em] sm:text-5xl">Want to see how the product works?</h2><p className="mt-4 max-w-xl text-white/68">The tourist, spotter, and business experiences are almost ready — opening as community coverage grows.</p><span className="mt-8 inline-flex h-13 items-center rounded-xl border border-dashed border-white/40 bg-white/10 px-7 font-black text-white/85">App preview coming soon</span></div></section>
       </main>
 
       <footer className="bg-guaca-paper py-10"><div className="mx-auto flex w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-between gap-5 px-4 text-center sm:flex-row sm:px-0 sm:text-left"><GuacaLogo className="h-11" /><p className="text-xs font-bold text-guaca-ink/45">The Caribbean, mapped by the people who know it.</p></div></footer>
