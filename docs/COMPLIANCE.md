@@ -1,9 +1,12 @@
 # GUACA — Compliance & Responsible AI
 
-**Data minimisation and anonymity.** Tourist sessions are anonymous: no
-account, no profile, no personal data captured — a session is a property
-reference and a language. Questions are stored as demand signals, not as
-attributable behaviour. Spotters are named on pins by design (territory
+**Data minimisation.** A tourist account holds an email address and a
+language — nothing else. No name, no profile, no payment data at rest
+(subscriptions, when enabled, live with the payment provider). Questions
+are stored as demand signals and are detachable from the account: erasure
+deletes the account and detaches its questions, which survive only as
+anonymous coverage demand. The right to erasure covers tourists as well as
+Spotters. Spotters are named on pins by design (territory
 identity is the product), with explicit consent covering their name, photo
 and verified contributions, and a right to erasure: removing a spotter
 unlinks their identity from pins. Photos are minimised to what verification

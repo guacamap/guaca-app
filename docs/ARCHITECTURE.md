@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
     subgraph Guests
-        T[Tourist phone — QR]
+        T[Tourist phone — installable PWA, email-code account]
     end
     subgraph Spotters
         S[Spotter phone — PWA]
@@ -16,7 +16,7 @@ flowchart LR
     T -->|HTTPS| W[apps/web — Next.js]
     S -->|HTTPS| W
     O -->|OPERATOR_TOKEN| A[apps/api — Fastify + WS]
-    W -->|/api/ask /api/places /api/photos /api/v/:qr/session| A
+    W -->|/api/tourist/auth /api/ask /api/places /api/photos /api/v/:qr/session| A
     A -->|pg| P[(Postgres + PostGIS)]
     A -->|queues/checkpoints/rate limits| R[(Redis)]
     A -->|photos| M[(MinIO)]
@@ -36,7 +36,7 @@ flowchart LR
 | `packages/agents` | Catalog, assertGrounded, lexicalSweep, renderer, inference client, verification ladder, planner, gap agent |
 | `packages/cli` | `guaca` operator CLI — queue, verify, gaps, missions, tail |
 | `apps/api` | Fastify + WebSockets — ask, plan, places, photos, spotter session |
-| `apps/web` | Next.js — (tourist) map + chat, (spotter) PWA, /v/[qrToken] villa landing |
+| `apps/web` | Next.js installable PWA — role-chooser entry; (tourist) map + chat behind email-code account; (spotter) capture; /v/[qrToken] villa landing = no-auth signup funnel with property attribution |
 
 ## The core claim: the AI never generates a place
 

@@ -6,8 +6,10 @@ Target: one area (Puerto Cabello), 10 Spotters, 30–50 verified places,
 1. **(0:00) The frame.** "Every AI travel planner will confidently answer
    everything today. Some of those restaurants don't exist. Ours refuses —
    and that refusal pays a local."
-2. **(0:30) Scan the villa QR** on a real phone. Session opens in the
-   guest's language.
+2. **(0:30) Scan the villa QR** on a real phone. The villa landing opens in
+   the guest's language; create the account live — email, one code, ~15
+   seconds — born attributed to that villa. (Fallback if stage email drags:
+   a pre-created judge account.)
 3. **(1:00) Ask a covered question.** Instant answer from verified places.
    Tap a pin — a named local's face and name. "This was physically visited
    by Yorman, on this date."
