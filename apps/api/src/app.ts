@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration } from '@guaca/db';
 import type { Inference } from '@guaca/agents';
 import { ask } from './plannerService.js';
 import { opsStreamPlugin } from './opsStream.js';
@@ -169,6 +169,43 @@ export function buildApp(options: AppOptions): FastifyInstance {
       url: '/api/ask',
       payload: { text: body.text, language: body.language, lat: 10.4716, lon: -68.0056 },
     }).then((res) => reply.code(res.statusCode).send(res.body));
+  });
+
+  app.post('/api/register', async (req, reply) => {
+    const body = req.body as {
+      role?: string;
+      name?: string;
+      contact?: string;
+      language?: string;
+      details?: Record<string, unknown>;
+    };
+    const role = body.role;
+    if (role !== 'traveler' && role !== 'spotter' && role !== 'owner') {
+      return reply.code(400).send({ error: 'role must be traveler, spotter or owner' });
+    }
+    const name = body.name?.trim();
+    const contact = body.contact?.trim().toLowerCase();
+    if (!name || !contact) {
+      return reply.code(400).send({ error: 'name and contact required' });
+    }
+    if (name.length > 200 || contact.length > 200) {
+      return reply.code(400).send({ error: 'name and contact must be under 200 characters' });
+    }
+    const details =
+      body.details && typeof body.details === 'object' && !Array.isArray(body.details)
+        ? body.details
+        : {};
+    if (JSON.stringify(details).length > 4000) {
+      return reply.code(400).send({ error: 'details must be under 4000 characters' });
+    }
+    const recorded = await recordRegistration(options.pool, {
+      role,
+      name,
+      contact,
+      language: body.language === 'es' ? 'es' : 'en',
+      details,
+    });
+    return reply.code(201).send({ ok: true, id: recorded.id, role: recorded.role });
   });
 
   app.post('/api/spotter/login', async (req, reply) => {

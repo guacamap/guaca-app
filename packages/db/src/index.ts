@@ -41,3 +41,5 @@ export { sessionForQr } from './qrSession.js';
 export type { QrSession } from './qrSession.js';
 export { postEvent } from './events.js';
 export type { PostEventInput, PostEventResult } from './events.js';
+export { recordRegistration } from './registrations.js';
+export type { RegistrationInput, RegistrationRole, RecordedRegistration } from './registrations.js';
