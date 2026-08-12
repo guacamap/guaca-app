@@ -23,7 +23,7 @@ const waitlistRoles = [
 ]
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? ''
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')
 
 export function WaitlistForm({ role, onRoleChange }: WaitlistFormProps) {
   const [name, setName] = useState('')
