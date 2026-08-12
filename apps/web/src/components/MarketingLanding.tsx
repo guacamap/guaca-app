@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   ArrowRight,
   Award,
@@ -23,7 +22,8 @@ import { GuacaLogo } from './GuacaBrand'
 import { GuacaMap } from './GuacaMap'
 import { PalmFrondLeft } from './GuacaIcons'
 import { formatUpdateTime, useInfoStore } from './InfoStore'
-import { WaitlistForm, type WaitlistRole } from './WaitlistForm'
+const WAITLIST_FORM_URL =
+  'https://docs.google.com/forms/d/e/1FAIpQLSf-y0xwBbCw77P6zTjgxqG6HaGVZCDmRQU-cTvpTB6kNf0_rg/viewform'
 
 type Role = 'tourist' | 'spotter' | 'operator'
 
@@ -57,12 +57,10 @@ const roles = [
 
 export function MarketingLanding({ onOpenApp }: MarketingLandingProps) {
   const { updates } = useInfoStore()
-  const [waitlistRole, setWaitlistRole] = useState<WaitlistRole>('tourist')
   const latestUpdate = updates[0]
   const pendingUpdates = updates.filter((update) => update.status === 'published')
 
-  const goToWaitlist = (role?: WaitlistRole) => {
-    if (role) setWaitlistRole(role)
+  const goToWaitlist = () => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     window.requestAnimationFrame(() => {
       document.getElementById('waitlist')?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' })
@@ -168,7 +166,7 @@ export function MarketingLanding({ onOpenApp }: MarketingLandingProps) {
             <div className="text-center"><p className="text-xs font-black uppercase tracking-[.12em] text-guaca-teal">Choose your way in</p><h2 className="mt-3 text-4xl font-black tracking-[-.05em] sm:text-5xl">Three roles. One connected Caribbean.</h2><p className="mx-auto mt-4 max-w-xl text-guaca-ink/58">Every role strengthens the same local loop wherever Guaca grows: questions become verified updates, and useful updates become better days.</p></div>
             <div className="mt-12 grid gap-5 md:grid-cols-3">
               {roles.map(({ id, title, description, icon: Icon, tone }) => (
-                <button key={id} type="button" onClick={() => goToWaitlist(id)} className="group min-h-[290px] rounded-[32px] border border-guaca-sand bg-white p-7 text-left shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guaca-teal focus-visible:ring-offset-2">
+                <button key={id} type="button" onClick={() => goToWaitlist()} className="group min-h-[290px] rounded-[32px] border border-guaca-sand bg-white p-7 text-left shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guaca-teal focus-visible:ring-offset-2">
                   <div className={`flex h-20 w-20 items-center justify-center rounded-3xl ${tone}`}><Icon aria-hidden="true" className="h-10 w-10" /></div>
                   <div className="mt-8"><h3 className="text-xl font-black">{title}</h3></div>
                   <p className="mt-3 text-sm font-medium leading-6 text-guaca-ink/60">{description}</p>
@@ -213,7 +211,7 @@ export function MarketingLanding({ onOpenApp }: MarketingLandingProps) {
 
         <section id="spotters" className="bg-guaca-ocean-deep py-24 text-white">
           <div className="mx-auto grid w-[min(1180px,calc(100%_-_32px))] items-center gap-12 px-4 sm:px-0 lg:grid-cols-[.9fr_1.1fr]">
-            <div><p className="text-xs font-black uppercase tracking-[.12em] text-guaca-lagoon">The heart of Guaca</p><h2 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl">Spotters keep the map alive.</h2><p className="mt-5 max-w-lg leading-7 text-white/68">Local knowledge deserves recognition. Missions turn unanswered traveller questions into paid, visible community work.</p><Button type="button" onClick={() => goToWaitlist('spotter')} className="mt-8 h-12 rounded-xl bg-guaca-coral px-6 font-black text-white hover:bg-guaca-coral-dark"><Trophy className="mr-2 h-4 w-4" /> Join as a Spotter</Button></div>
+            <div><p className="text-xs font-black uppercase tracking-[.12em] text-guaca-lagoon">The heart of Guaca</p><h2 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl">Spotters keep the map alive.</h2><p className="mt-5 max-w-lg leading-7 text-white/68">Local knowledge deserves recognition. Missions turn unanswered traveller questions into paid, visible community work.</p><Button type="button" onClick={() => goToWaitlist()} className="mt-8 h-12 rounded-xl bg-guaca-coral px-6 font-black text-white hover:bg-guaca-coral-dark"><Trophy className="mr-2 h-4 w-4" /> Join as a Spotter</Button></div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex min-h-64 flex-col rounded-[30px] bg-white/8 p-6">
                 <div className="grid flex-1 place-items-center rounded-3xl bg-guaca-coral/14">
@@ -239,7 +237,19 @@ export function MarketingLanding({ onOpenApp }: MarketingLandingProps) {
         <section id="waitlist" className="scroll-mt-4 bg-guaca-teal py-24 text-white">
           <div className="mx-auto grid w-[min(1080px,calc(100%_-_32px))] items-center gap-12 px-4 sm:px-0 lg:grid-cols-[.85fr_1.15fr]">
             <div><p className="text-xs font-black uppercase tracking-[.12em] text-guaca-mango-light">Join the first communities</p><h2 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl">Help decide where Guaca grows next.</h2><p className="mt-5 max-w-lg leading-7 text-white/76">Tell us your role and the Caribbean community that matters to you. We’ll use the waitlist to prioritise real local demand—not pretend the whole region is already covered.</p><div className="mt-8 space-y-3 text-sm font-bold text-white/80">{[['01','Choose your role'],['02','Name your community'],['03','Hear from us when coverage is ready']].map(([number,label]) => <div key={number} className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-white/12 text-[10px] text-guaca-mango-light">{number}</span><span>{label}</span></div>)}</div></div>
-            <WaitlistForm role={waitlistRole} onRoleChange={setWaitlistRole} />
+            <div className="flex flex-col justify-center gap-6 rounded-[32px] bg-white/10 p-8 ring-1 ring-white/15 backdrop-blur-sm">
+              <p className="text-sm font-bold leading-6 text-white/80">
+                The waitlist runs on a short form — your role, your community,
+                about a minute.
+              </p>
+              <a
+                href={WAITLIST_FORM_URL}
+                className="inline-flex h-14 items-center justify-center rounded-xl bg-white px-8 text-sm font-extrabold text-guaca-ocean-deep shadow-xl transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-guaca-teal"
+              >
+                Open the waitlist form <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
+              </a>
+              <p className="text-xs font-semibold text-white/55">Opens Google Forms</p>
+            </div>
           </div>
         </section>
 
