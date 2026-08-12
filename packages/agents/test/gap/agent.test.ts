@@ -33,7 +33,7 @@ describe('runGapAgent (T5.6)', () => {
           { id: 'g1', category: 'eat_drink', h3_8: 'h', questionCount: 7, distinctSessionCount: 6 },
         ],
         score: () => ({ score: 120, breakdown: { D: 1, Rmult: 1, Cmult: 1, S: 1, F: 1, q: 7, s: 6 } }),
-        selectSpotter: async () => ({ id: 's1', name: 'Yorman', level: 2, openMissions: 0 }),
+        selectSpotter: async () => ({ id: 's1', name: 'Yorman', zoneId: 'h', homeH3: 'h', level: 2, openMissions: 0 }),
         commission: async (args) => {
           commissions.push(args.gapId);
           return { status: 'offered' as const, missionId: 'm1' };
@@ -53,7 +53,7 @@ describe('runGapAgent (T5.6)', () => {
           { id: 'g1', category: 'eat_drink', h3_8: 'h', questionCount: 7, distinctSessionCount: 6 },
         ],
         score: () => ({ score: 120, breakdown: { D: 1, Rmult: 1, Cmult: 1, S: 1, F: 1, q: 7, s: 6 } }),
-        selectSpotter: async () => ({ id: 's1', name: 'Yorman', level: 2, openMissions: 0 }),
+        selectSpotter: async () => ({ id: 's1', name: 'Yorman', zoneId: 'h', homeH3: 'h', level: 2, openMissions: 0 }),
         commission: async () => ({ status: 'offered' as const, missionId: 'm1' }),
       }),
     );
@@ -70,7 +70,7 @@ describe('runGapAgent (T5.6)', () => {
           { id: 'g1', category: 'eat_drink', h3_8: 'h', questionCount: 7, distinctSessionCount: 6 },
         ],
         score: () => ({ score: 30, breakdown: { D: 1, Rmult: 1, Cmult: 1, S: 1, F: 1, q: 7, s: 6 } }),
-        selectSpotter: async () => ({ id: 's1', name: 'Yorman', level: 2, openMissions: 0 }),
+        selectSpotter: async () => ({ id: 's1', name: 'Yorman', zoneId: 'h', homeH3: 'h', level: 2, openMissions: 0 }),
         commission: async (args) => {
           commissions.push(args.gapId);
           return { status: 'offered' as const, missionId: 'm1' };

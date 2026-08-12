@@ -87,6 +87,12 @@ export interface DeterministicOptions {
   lon: number;
   places: readonly FastPathPlace[];
   inference: Inference;
+  /**
+   * Minutes past midnight to plan from. Defaults to the wall clock.
+   * Injected by tests so behaviour does not depend on what time the suite
+   * runs — without it, every fast-path test fails outside opening hours.
+   */
+  nowMin?: number;
 }
 
 /**
@@ -111,7 +117,7 @@ export async function answerDeterministic(
   if (categoryPlaces.length === 0) return null;
 
   const now = new Date();
-  const startMin = now.getHours() * 60 + now.getMinutes();
+  const startMin = options.nowMin ?? now.getHours() * 60 + now.getMinutes();
   const stops = greedyRoute({
     places: options.places,
     category: intent.category,

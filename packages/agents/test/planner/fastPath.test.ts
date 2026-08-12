@@ -56,6 +56,7 @@ describe('answerDeterministic (T4.4)', () => {
       lon: -68.0056,
       places,
       inference: fake,
+      nowMin: 600, // 10:00 — fixed so the suite does not depend on the clock
     });
     if (result === null) throw new Error('expected a fast-path plan');
     expect(result.kind).toBe('FastPathPlan');
