@@ -13,13 +13,15 @@ human-verified data only — it is structurally incapable of inventing a
 place. When coverage does not exist, it refuses, and that refusal is a
 demand signal precise enough to pay someone to resolve it.
 
-**The core loop.** Tourist asks (free, unlimited) → answers from verified
+**The core loop.** Tourist installs the PWA, creates an account (email
+one-time code), and asks (free, unlimited) → answers from verified
 places if coverage exists → otherwise a confident refusal + a logged gap →
 the gap agent commissions ONE paid mission to ONE named Spotter → the
 Spotter photographs and verifies → the answer becomes permanent map data,
 free to every future asker.
 
-**Business model.** Tourists subscribe $4.99–9.99 at the planning moment.
+**Business model.** Tourists subscribe $4.99–9.99 at the planning moment,
+against the account created at first scan.
 Villas and posadas are the distribution channel and the payer — no front
 desk and no F&B revenue to protect, and their Airbnb rating depends on good
 local recommendations. Coverage is funded once per area and resold to every

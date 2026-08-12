@@ -15,6 +15,22 @@ Operator laptop ─────▶ packages/cli           ─┘        │
                                          → MiniMax-M3 (fallback, one env var)
 ```
 
+## Environments (§4.3)
+
+| | local | staging | production |
+|---|---|---|---|
+| web | `next dev` :3000 | `staging.app.guaca.live` — Vercel, branch `main` | `app.guaca.live` — Vercel, branch `production` |
+| api | `tsx watch` :3001 | `staging.api.guaca.live` — same VM, compose project `guaca-staging` | `api.guaca.live` — compose project `guaca-prod` |
+| data | docker compose | own DB/Redis/MinIO bucket on VM | own DB/Redis/MinIO bucket on VM |
+| inference | FakeInference (tests) or shared endpoint | shared L40S or MiniMax — never a 2nd GPU | L40S, MiniMax failover |
+| email codes | printed to ops stream | printed to ops stream | Resend/SMTP |
+| Mapbox token | `guaca-dev` (unrestricted, .env.local only) | `guaca-web-prod` (staging URL in list) | `guaca-web-prod` (URL-restricted) |
+
+**Promote:** PR → CI green → merge `main` (auto-staging) → rehearse →
+`git push origin main:production`. Each tier's deploy runs `pnpm migrate`
+on its own DB; migrations are forward-only. Rehearsals never run against
+prod — the prod `loop_events` timeline must stay clean for the demo.
+
 ## Inference — Qwen3-VL-8B on a Nebius L40S
 
 Provision a **single L40S** (~48 GB). Do NOT provision an H200 — the 8B model
@@ -90,6 +106,13 @@ for automatic TLS:
 ```
 Caddyfile: api.<ip>.sslip.io
 ```
+
+**Auth caveat:** `sslip.io` is fine for testing the API alone, but cookie
+auth (spotter + tourist) requires web and API to be **same-site** — one
+registrable domain with `app.` and `api.` subdomains. A `vercel.app` web +
+`sslip.io` API is cross-site, and Safari/iOS blocks cross-site cookies.
+The project domain is **`guaca.live`** (chosen 2026-08-08): `app.` /
+`api.` / `staging.app.` / `staging.api.`, apex redirects to `app.`.
 
 ## Redeploy
 
