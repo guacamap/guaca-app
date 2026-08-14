@@ -5,6 +5,9 @@ export interface StorePhotoInput {
   placeId: string;
   image: Buffer;
   uploadedBySpotterId: string;
+  /** Object-store key the bytes were written under — the API uploads to
+   *  MinIO/S3 first, then records here. Synthesised when absent (tests). */
+  storageKey?: string;
   capture?: {
     lat?: number;
     lon?: number;
@@ -36,7 +39,7 @@ export async function storePhoto(pool: Pool, input: StorePhotoInput): Promise<St
      returning id`,
     [
       input.placeId,
-      `${input.placeId}/${Date.now()}.jpg`,
+      input.storageKey ?? `${input.placeId}/${Date.now()}.jpg`,
       sha256,
       phash,
       input.capture?.lat ?? null,
@@ -47,4 +50,56 @@ export async function storePhoto(pool: Pool, input: StorePhotoInput): Promise<St
     ],
   );
   return { id: res.rows[0]!.id, sha256, phash };
+}
+
+export interface PlacePhotoRow {
+  id: string;
+  storageKey: string;
+  sha256: string;
+  phash: string;
+  captureLat: number | null;
+  captureLon: number | null;
+  captureAccuracyM: number | null;
+  capturedAt: Date | null;
+  receivedAt: Date;
+  uploadedBySpotterId: string | null;
+}
+
+/** The submission's photos, oldest first — the ladder verifies all of them. */
+export async function photosForPlace(pool: Pool, placeId: string): Promise<PlacePhotoRow[]> {
+  const res = await pool.query(
+    `select id, storage_key, sha256, phash, capture_lat, capture_lon,
+            capture_accuracy_m, captured_at, received_at, uploaded_by_spotter_id
+     from place_photos where place_id = $1 order by received_at asc`,
+    [placeId],
+  );
+  return res.rows.map((r) => ({
+    id: r.id as string,
+    storageKey: r.storage_key as string,
+    sha256: r.sha256 as string,
+    phash: r.phash as string,
+    captureLat: (r.capture_lat as number) ?? null,
+    captureLon: (r.capture_lon as number) ?? null,
+    captureAccuracyM: (r.capture_accuracy_m as number) ?? null,
+    capturedAt: (r.captured_at as Date) ?? null,
+    receivedAt: r.received_at as Date,
+    uploadedBySpotterId: (r.uploaded_by_spotter_id as string) ?? null,
+  }));
+}
+
+/** pHash history for the L3 reuse rung — everything in the area EXCEPT the
+ *  submission's own photos. */
+export async function priorPhashesForArea(
+  pool: Pool,
+  areaId: string,
+  excludePlaceId: string,
+): Promise<string[]> {
+  const res = await pool.query<{ phash: string }>(
+    `select pp.phash
+     from place_photos pp
+     join places p on p.id = pp.place_id
+     where p.area_id = $1 and pp.place_id <> $2`,
+    [areaId, excludePlaceId],
+  );
+  return res.rows.map((r) => r.phash);
 }

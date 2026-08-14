@@ -49,3 +49,5 @@ export { loadMapHealthStats } from './mapHealth.js';
 export type { MapHealthStats as MapHealthStatsRow, CategoryCoverageRow, StalePlaceRow, WeakLandmarkRow, ZoneCoverageRow } from './mapHealth.js';
 export { addSpotter, listSpotters, issueLoginCode } from './spotters.js';
 export type { SpotterRosterRow } from './spotters.js';
+export { photosForPlace, priorPhashesForArea } from './photos.js';
+export type { PlacePhotoRow } from './photos.js';
