@@ -1,43 +1,109 @@
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useState } from 'react';
-
-type Role = 'tourist' | 'spotter';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, BackHandler, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { WebView } from 'react-native-webview';
+import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 
 /**
- * Minimal shell for the first Play builds — the closed-testing clock runs
- * on the track, not the features. Real screens replace this via updates.
+ * §4.6 — thin wrapper around the mobile web app. All product features live
+ * in apps/web; this shell only delivers them to the Play testing track.
+ * Preview builds point at staging, production at app.guaca.live (eas.json).
  */
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://app.guaca.live';
+
+function isGuacaUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return (
+      host === 'guaca.live' ||
+      host.endsWith('.guaca.live') ||
+      host === 'localhost' ||
+      host === '10.0.2.2' // Android emulator → host machine
+    );
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
-  const [role, setRole] = useState<Role | null>(null);
+  const webRef = useRef<WebView>(null);
+  const canGoBackRef = useRef(false);
+  const [failed, setFailed] = useState(false);
+
+  // Android hardware back navigates webview history before exiting the app.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (canGoBackRef.current) {
+        webRef.current?.goBack();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Keep the app inside guaca.live; everything else opens the system browser.
+  const onShouldStartLoadWithRequest = useCallback((request: ShouldStartLoadRequest) => {
+    if (request.isTopFrame === false) return true;
+    if (isGuacaUrl(request.url) || request.url === 'about:blank') return true;
+    Linking.openURL(request.url).catch(() => {});
+    return false;
+  }, []);
+
+  if (failed) {
+    return (
+      <View style={styles.fallback}>
+        <StatusBar style="light" />
+        <Text style={styles.wordmark}>guaca</Text>
+        <Text style={styles.offlineTitle}>Sin conexión · Offline</Text>
+        <Text style={styles.offlineBody}>
+          El Caribe en tiempo real te espera — revisa tu conexión.
+        </Text>
+        <Pressable
+          style={styles.retryButton}
+          onPress={() => {
+            setFailed(false);
+            webRef.current?.reload();
+          }}
+        >
+          <Text style={styles.retryText}>Reintentar · Retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <Text style={styles.wordmark}>guaca</Text>
-      <Text style={styles.tagline}>El Caribe, en tiempo real.</Text>
-
-      {role === null ? (
-        <View style={styles.chooser}>
-          <Pressable style={styles.roleButton} onPress={() => setRole('tourist')}>
-            <Text style={styles.roleTitle}>Turista · Tourist</Text>
-            <Text style={styles.roleBody}>Plan with verified local places</Text>
-          </Pressable>
-          <Pressable style={styles.roleButton} onPress={() => setRole('spotter')}>
-            <Text style={styles.roleTitle}>Spotter</Text>
-            <Text style={styles.roleBody}>Verify places, get paid</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View style={styles.chooser}>
-          <Text style={styles.comingSoon}>
-            {role === 'tourist' ? 'Tourist experience' : 'Spotter missions'} — muy pronto
-          </Text>
-          <Pressable style={styles.backLink} onPress={() => setRole(null)}>
-            <Text style={styles.backText}>← back</Text>
-          </Pressable>
-        </View>
-      )}
+      <WebView
+        ref={webRef}
+        source={{ uri: WEB_URL }}
+        style={styles.webview}
+        applicationNameForUserAgent="GuacaApp/0.1"
+        onNavigationStateChange={(nav) => {
+          canGoBackRef.current = nav.canGoBack;
+        }}
+        onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
+        onError={() => setFailed(true)}
+        onHttpError={(e) => {
+          if (e.nativeEvent.statusCode >= 500) setFailed(true);
+        }}
+        // Spotter capture: auto-grant camera/mic to guaca.live pages only
+        // (native layer grants when the app holds the Android permissions);
+        // geolocation for the map and the L2 distance check.
+        mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
+        geolocationEnabled
+        allowsBackForwardNavigationGestures
+        domStorageEnabled
+        setSupportMultipleWindows={false}
+        startInLoadingState
+        renderLoading={() => (
+          <View style={[StyleSheet.absoluteFill, styles.fallback]}>
+            <Text style={styles.wordmark}>guaca</Text>
+            <ActivityIndicator color="#FFFFFF" style={styles.spinner} />
+          </View>
+        )}
+      />
     </View>
   );
 }
@@ -46,9 +112,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0D8B8B',
+  },
+  webview: {
+    flex: 1,
+  },
+  fallback: {
+    flex: 1,
+    backgroundColor: '#0D8B8B',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: 32,
   },
   wordmark: {
     color: '#FFFFFF',
@@ -56,45 +129,31 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -2,
   },
-  tagline: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 4,
-    marginBottom: 48,
+  spinner: {
+    marginTop: 24,
   },
-  chooser: {
-    alignSelf: 'stretch',
-    gap: 14,
-  },
-  roleButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 22,
-  },
-  roleTitle: {
-    color: '#0A1F24',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  roleBody: {
-    color: 'rgba(10,31,36,0.6)',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  comingSoon: {
+  offlineTitle: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '800',
-    textAlign: 'center',
+    marginTop: 24,
   },
-  backLink: {
-    alignSelf: 'center',
-    padding: 12,
-  },
-  backText: {
+  offlineBody: {
     color: 'rgba(255,255,255,0.8)',
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  retryButton: {
+    marginTop: 28,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+  },
+  retryText: {
+    color: '#0A1F24',
+    fontWeight: '900',
   },
 });
