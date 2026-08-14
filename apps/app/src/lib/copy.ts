@@ -24,6 +24,20 @@ export interface AppCopy {
     notFound: string
     backHome: string
   }
+  tourist: {
+    askPlaceholder: string
+    asking: string
+    refusalTitle: string
+    refusalNote: string
+    answerTitle: string
+    placesOnMap: string
+    verifiedBy: string
+    landmarkLabel: string
+    close: string
+    askError: string
+    emptyMapTitle: string
+    emptyMapBody: string
+  }
 }
 
 export const appCopy: Record<Lang, AppCopy> = {
@@ -49,6 +63,20 @@ export const appCopy: Record<Lang, AppCopy> = {
       notFound: 'This QR code isn’t active.',
       backHome: 'Go to Guaca',
     },
+    tourist: {
+      askPlaceholder: 'Ask Guaca about a place…',
+      asking: 'Checking with the locals…',
+      refusalTitle: 'No one has been there yet',
+      refusalNote: 'Your question was recorded — it can open a paid Spotter mission.',
+      answerTitle: 'Verified by locals',
+      placesOnMap: 'on the map',
+      verifiedBy: 'Physically visited by',
+      landmarkLabel: 'How to find it',
+      close: 'Close',
+      askError: 'Couldn’t reach Guaca — try again.',
+      emptyMapTitle: 'Coverage grows locally',
+      emptyMapBody: 'Verified places appear as Spotters confirm them on the ground.',
+    },
   },
   es: {
     gate: {
@@ -71,6 +99,20 @@ export const appCopy: Record<Lang, AppCopy> = {
       continueCta: 'Explorar el mapa',
       notFound: 'Este código QR no está activo.',
       backHome: 'Ir a Guaca',
+    },
+    tourist: {
+      askPlaceholder: 'Pregúntale a Guaca sobre un lugar…',
+      asking: 'Consultando con los locales…',
+      refusalTitle: 'Nadie ha estado ahí todavía',
+      refusalNote: 'Tu pregunta quedó registrada — puede abrir una misión pagada para un Spotter.',
+      answerTitle: 'Verificado por locales',
+      placesOnMap: 'en el mapa',
+      verifiedBy: 'Visitado físicamente por',
+      landmarkLabel: 'Cómo encontrarlo',
+      close: 'Cerrar',
+      askError: 'No pudimos conectar con Guaca — intenta de nuevo.',
+      emptyMapTitle: 'La cobertura crece localmente',
+      emptyMapBody: 'Los lugares verificados aparecen cuando los Spotters los confirman en el terreno.',
     },
   },
 }
