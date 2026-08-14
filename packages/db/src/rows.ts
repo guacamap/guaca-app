@@ -20,8 +20,15 @@ export const PlaceRowSchema = z.object({
   witness_count: z.number().int().min(0),
   created_by_spotter_id: z.string().uuid().nullable(),
   confirmed_by_spotter_id: z.string().uuid().nullable(),
-  verified_at: z.string().datetime().nullable(),
+  // pg returns timestamptz as Date; normalise to an ISO string either way.
+  verified_at: z
+    .union([z.string(), z.date()])
+    .nullable()
+    .transform((v) => (v instanceof Date ? v.toISOString() : v)),
   rejection_reason: z.string().nullable(),
+  // Present when the query joins spotters (territory identity on pins).
+  spotter_name: z.string().nullable().optional(),
+  spotter_photo_url: z.string().nullable().optional(),
 });
 
 export type PlaceRow = z.infer<typeof PlaceRowSchema>;
