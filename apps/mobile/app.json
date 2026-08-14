@@ -16,6 +16,11 @@
     "android": {
       "package": "live.guaca.app",
       "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D8B8B"
@@ -24,7 +29,11 @@
     },
     "ios": {
       "bundleIdentifier": "live.guaca.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Spotters photograph places to verify them on the map.",
+        "NSLocationWhenInUseUsageDescription": "Guaca shows verified places near you and confirms Spotter submissions happen on-site."
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
