@@ -1,4 +1,7 @@
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
+
+/** Pool or a transaction client — the confirm flow runs atomically. */
+export type Queryable = Pool | PoolClient;
 
 export interface SecondLocalResult {
   ok: boolean;
@@ -34,6 +37,11 @@ export async function pendingProvisionalNear(
      where p.verification_status = 'provisional'
        and p.witness_count = 1
        and ($4::uuid is null or p.created_by_spotter_id <> $4)
+       and exists (
+         select 1 from verification_runs vr
+         where vr.place_id = p.id
+           and vr.decision in ('needs_second_local', 'verified')
+       )
        and ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography, $3)
      order by "distanceM" asc
      limit 20`,
@@ -49,7 +57,7 @@ export async function pendingProvisionalNear(
  * verification_status='verified'.
  */
 export async function confirmSecondLocal(
-  pool: Pool,
+  pool: Queryable,
   placeId: string,
   confirmingSpotterId: string,
 ): Promise<SecondLocalResult> {
