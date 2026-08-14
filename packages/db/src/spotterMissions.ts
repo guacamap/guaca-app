@@ -23,7 +23,17 @@ export async function missionsForSpotter(
      order by offered_at desc`,
     [spotterId],
   );
-  return res.rows as SpotterMission[];
+  // Explicit mapping — the same lying-cast that fed NULLs into payouts.
+  return res.rows.map((r) => ({
+    id: r.id as string,
+    brief: r.brief as string,
+    targetCategory: r.target_category as string,
+    targetH3: r.target_h3 as string,
+    rewardMinor: r.reward_minor as number,
+    currency: r.currency as string,
+    status: r.status as string,
+    expiresAt: r.expires_at as Date,
+  }));
 }
 
 export interface AcceptResult {
