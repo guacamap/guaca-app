@@ -19,7 +19,8 @@ Operator laptop ─────▶ packages/cli           ─┘        │
 
 | | local | staging | production |
 |---|---|---|---|
-| web | `next dev` :3000 | `staging.app.guaca.live` — Vercel, branch `main` | `app.guaca.live` — Vercel, branch `production` |
+| web (marketing) | `next dev` :3000 | `staging.guaca.live` — Vercel project 1, branch `main` | `guaca.live` — Vercel project 1, branch `production` |
+| app (product) | `next dev` :3002 | `staging.app.guaca.live` — Vercel project 2, branch `main` | `app.guaca.live` — Vercel project 2, branch `production` |
 | api | `tsx watch` :3001 | `staging.api.guaca.live` — same VM, compose project `guaca-staging` | `api.guaca.live` — compose project `guaca-prod` |
 | data | docker compose | own DB/Redis/MinIO bucket on VM | own DB/Redis/MinIO bucket on VM |
 | inference | FakeInference (tests) or shared endpoint | shared L40S or MiniMax — never a 2nd GPU | L40S, MiniMax failover |
