@@ -62,6 +62,22 @@ function visionFixture(photoCount: number, verdict: Record<string, unknown>) {
   return { [key]: verdict };
 }
 
+let areaSeq = 0;
+/** A pristine area per L5-reaching test — the L3 reuse rung reads the whole
+ *  area's photo history, so shared ground makes tests interfere. */
+async function mkFreshArea(): Promise<{ areaId: string; lat: number; lon: number }> {
+  areaSeq += 1;
+  const lat = 11 + areaSeq * 0.3;
+  const lon = -68.5;
+  const poly = `POLYGON((${lon - 0.05} ${lat - 0.05},${lon + 0.05} ${lat - 0.05},${lon + 0.05} ${lat + 0.05},${lon - 0.05} ${lat + 0.05},${lon - 0.05} ${lat - 0.05}))`;
+  const res = await pool.query<{ id: string }>(
+    `insert into areas (name, slug, country, timezone, geom)
+     values ($1, $2, 'VE', 'America/Caracas', ST_GeogFromText($3)) returning id`,
+    [`Área ${areaSeq}`, `area-${areaSeq}`, poly],
+  );
+  return { areaId: res.rows[0]!.id, lat, lon };
+}
+
 let gapSeq = 0;
 async function mkMission(spotterId: string, areaId = AREA_ID): Promise<string> {
   gapSeq += 1;
@@ -174,10 +190,11 @@ describe('§7.4 — the check ladder runs on submission', () => {
     const fake = new FakeInference(fixtures);
     const store = memoryObjectStore();
     const app = buildApp({ pool, inference: fake, objectStore: store });
-    const missionId = await mkMission(YORMAN);
+    const fresh = await mkFreshArea();
+    const missionId = await mkMission(YORMAN, fresh.areaId);
     const tokenY = await spotterToken(YORMAN);
 
-    const placeId = await submitAndPhotograph(app, tokenY, missionId, 3);
+    const placeId = await submitAndPhotograph(app, tokenY, missionId, 3, { lat: fresh.lat, lon: fresh.lon });
     expect(store.size()).toBe(3); // bytes actually landed in the object store
 
     // Second local cannot jump the ladder.
@@ -217,12 +234,101 @@ describe('§7.4 — the check ladder runs on submission', () => {
     await app.close();
   });
 
+  it('complete is idempotent — a retry replays the verdict without a second paid call', async () => {
+    const fixtures = visionFixture(3, {
+      showsRealPlace: true,
+      categoryMatch: true,
+      isFranchise: false,
+      isScreenshot: false,
+      isStockLike: false,
+      confidence: 0.92,
+      reasons: [],
+    });
+    const fake = new FakeInference(fixtures);
+    const app = buildApp({ pool, inference: fake, objectStore: memoryObjectStore() });
+    const fresh = await mkFreshArea();
+    const missionId = await mkMission(YORMAN, fresh.areaId);
+    const tokenY = await spotterToken(YORMAN);
+    const placeId = await submitAndPhotograph(app, tokenY, missionId, 3, { lat: fresh.lat, lon: fresh.lon });
+
+    // Replaying the place submission returns the SAME place, no duplicate.
+    const resubmit = await app.inject({
+      method: 'POST',
+      url: '/api/spotter/places',
+      headers: { authorization: `Bearer ${tokenY}` },
+      payload: {
+        name: 'Duplicado', category: 'market_shop', landmarkDescription: 'no importa dónde',
+        lat: fresh.lat, lon: fresh.lon, missionId,
+      },
+    });
+    expect(resubmit.statusCode).toBe(200);
+    expect((resubmit.json() as { placeId: string }).placeId).toBe(placeId);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: `/api/spotter/submissions/${placeId}/complete`,
+      headers: { authorization: `Bearer ${tokenY}` },
+    });
+    expect((first.json() as { decision: string }).decision).toBe('needs_second_local');
+    const second = await app.inject({
+      method: 'POST',
+      url: `/api/spotter/submissions/${placeId}/complete`,
+      headers: { authorization: `Bearer ${tokenY}` },
+    });
+    expect(second.statusCode).toBe(200);
+    const replay = second.json() as { decision: string; reasons: string[] };
+    expect(replay.decision).toBe('needs_second_local');
+    expect(replay.reasons).toContain('ALREADY_DECIDED');
+    // The paid rung ran exactly once across both calls.
+    expect(fake.calls.filter((c) => c.method === 'vision')).toHaveLength(1);
+    await app.close();
+  });
+
+  it('a spotter cannot attach photos to a place they did not submit', async () => {
+    const app = buildApp({ pool, inference: new FakeInference({}), objectStore: memoryObjectStore() });
+    const missionId = await mkMission(YORMAN);
+    const tokenY = await spotterToken(YORMAN);
+    const placeId = await submitAndPhotograph(app, tokenY, missionId, 1);
+    const tokenM = await spotterToken(MARIA);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/photos',
+      headers: { authorization: `Bearer ${tokenM}` },
+      payload: { placeId, imageBase64: PHOTOS[1]! },
+    });
+    expect(res.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it('unreadable photo bytes escalate to the operator — never a rejection', async () => {
+    const brokenStore = {
+      ...memoryObjectStore(),
+      async get() { return null; }, // the store took the bytes but cannot serve them
+    };
+    const app = buildApp({ pool, inference: new FakeInference({}), objectStore: brokenStore });
+    const missionId = await mkMission(YORMAN);
+    const tokenY = await spotterToken(YORMAN);
+    const placeId = await submitAndPhotograph(app, tokenY, missionId, 3);
+    const complete = await app.inject({
+      method: 'POST',
+      url: `/api/spotter/submissions/${placeId}/complete`,
+      headers: { authorization: `Bearer ${tokenY}` },
+    });
+    const verdict = complete.json() as { decision: string; reasons: string[] };
+    expect(verdict.decision).toBe('needs_operator');
+    expect(verdict.reasons).toContain('PHOTO_BYTES_UNAVAILABLE');
+    const place = await pool.query(`select verification_status from places where id = $1`, [placeId]);
+    expect(place.rows[0]!.verification_status).toBe('provisional');
+    await app.close();
+  });
+
   it('vision unreachable → escalates to the operator, then confirm unlocks', async () => {
     const fake = new FakeInference({}); // no fixture: the vision call throws
     const app = buildApp({ pool, inference: fake, objectStore: memoryObjectStore() });
-    const missionId = await mkMission(YORMAN, AREA_B);
+    const fresh = await mkFreshArea();
+    const missionId = await mkMission(YORMAN, fresh.areaId);
     const tokenY = await spotterToken(YORMAN);
-    const placeId = await submitAndPhotograph(app, tokenY, missionId, 3, { lat: 10.6, lon: -68.2 });
+    const placeId = await submitAndPhotograph(app, tokenY, missionId, 3, { lat: fresh.lat, lon: fresh.lon });
 
     const complete = await app.inject({
       method: 'POST',

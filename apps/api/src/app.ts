@@ -141,6 +141,22 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (image.length > 8 * 1024 * 1024) {
       return reply.code(413).send({ error: 'photo too large (8MB max)' });
     }
+    // Only the submitting spotter may attach photos, and only while the
+    // submission is open — review finding: photo injection into someone
+    // else's ladder run (stale timestamps / duplicate phashes / foreign
+    // bytes in the victim's paid vision call).
+    const target = await options.pool.query(
+      `select verification_status, created_by_spotter_id from places where id = $1`,
+      [body.placeId],
+    );
+    const targetPlace = target.rows[0];
+    if (!targetPlace) return reply.code(404).send({ error: 'place not found' });
+    if (targetPlace.created_by_spotter_id !== spotterId) {
+      return reply.code(403).send({ error: 'not your submission' });
+    }
+    if (targetPlace.verification_status !== 'provisional') {
+      return reply.code(409).send({ error: `place is ${targetPlace.verification_status}` });
+    }
     const capture: {
       lat?: number;
       lon?: number;
@@ -488,6 +504,27 @@ export function buildApp(options: AppOptions): FastifyInstance {
     );
     const areaId = geo.rows[0]?.area_id;
     if (!areaId) return reply.code(400).send({ error: 'outside any coverage area' });
+    // Mission linkage is validated BEFORE creating anything: a retry after a
+    // mid-flow failure replays the existing submission instead of minting an
+    // orphan duplicate place (review finding).
+    if (body.missionId) {
+      const mres = await options.pool.query(
+        `select id, status, spotter_id, result_place_id from missions where id = $1`,
+        [body.missionId],
+      );
+      const mission = mres.rows[0];
+      if (!mission || mission.spotter_id !== spotterId) {
+        return reply.code(404).send({ error: 'mission not found' });
+      }
+      if (mission.status === 'submitted' && mission.result_place_id) {
+        return reply
+          .code(200)
+          .send({ ok: true, placeId: mission.result_place_id, status: 'provisional' });
+      }
+      if (mission.status !== 'accepted') {
+        return reply.code(409).send({ error: `mission is ${mission.status}` });
+      }
+    }
     const result = await submitPlace(options.pool, {
       name: body.name,
       category: body.category,
@@ -523,24 +560,39 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!(await confirmAllowed(options.pool, id))) {
       return reply.code(409).send({ error: 'VERIFICATION_PENDING' });
     }
-    const result = await confirmSecondLocal(options.pool, id, spotterId);
-    if (!result.ok) return reply.code(409).send({ error: result.reason });
-    await options.pool.query(
-      `insert into verification_runs (place_id, checks, decision, decided_by)
-       values ($1, $2, 'verified', 'agent')`,
-      [id, JSON.stringify({ secondLocal: spotterId })],
-    );
-    await options.pool.query(
-      `update missions set status = 'verified' where result_place_id = $1 and status = 'submitted'`,
-      [id],
-    );
-    // Close the loop: the gap that demanded this place is now filled.
-    await options.pool.query(
-      `update gaps set status = 'filled', updated_at = now()
-       where status = 'commissioned'
-         and id in (select gap_id from missions where result_place_id = $1)`,
-      [id],
-    );
+    // Atomic: witness-2, the audit row, the mission and the gap move
+    // together or not at all (review finding).
+    const client = await options.pool.connect();
+    try {
+      await client.query('begin');
+      const result = await confirmSecondLocal(client, id, spotterId);
+      if (!result.ok) {
+        await client.query('rollback');
+        return reply.code(409).send({ error: result.reason });
+      }
+      await client.query(
+        `insert into verification_runs (place_id, checks, decision, decided_by)
+         values ($1, $2, 'verified', 'second_local')`,
+        [id, JSON.stringify({ secondLocal: spotterId })],
+      );
+      await client.query(
+        `update missions set status = 'verified' where result_place_id = $1 and status = 'submitted'`,
+        [id],
+      );
+      // Close the loop: the gap that demanded this place is now filled.
+      await client.query(
+        `update gaps set status = 'filled', updated_at = now()
+         where status = 'commissioned'
+           and id in (select gap_id from missions where result_place_id = $1)`,
+        [id],
+      );
+      await client.query('commit');
+    } catch (err) {
+      await client.query('rollback');
+      throw err;
+    } finally {
+      client.release();
+    }
     return { ok: true, status: 'verified' };
   });
 
