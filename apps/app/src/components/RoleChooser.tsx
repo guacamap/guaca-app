@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { ArrowRight, Compass, Sparkles, Trophy, Store } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { GuacaLogo } from './GuacaBrand'
-import { PalmFrondLeft, PalmFrondRight } from './GuacaIcons'
+import { Button } from '@guaca/ui'
+import { GuacaLogo } from '@guaca/ui'
+import { PalmFrondLeft, PalmFrondRight } from '@guaca/ui'
 
 type Role = 'tourist' | 'spotter' | 'operator'
 

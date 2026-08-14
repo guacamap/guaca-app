@@ -17,12 +17,12 @@ import {
   Trophy,
   Users,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { GuacaLogo } from './GuacaBrand'
-import { GuacaMap } from './GuacaMap'
-import { PalmFrondLeft } from './GuacaIcons'
-import { formatUpdateTime, useInfoStore } from './InfoStore'
-import { useLanguage, type Lang } from '@/lib/i18n'
+import { Button } from '@guaca/ui'
+import { GuacaLogo } from '@guaca/ui'
+import { GuacaMap } from '@guaca/ui'
+import { PalmFrondLeft } from '@guaca/ui'
+import { formatUpdateTime, useInfoStore } from '@guaca/ui'
+import { useLanguage, type Lang } from '@guaca/ui'
 import { landingCopy } from '@/lib/landingCopy'
 
 const WAITLIST_FORM_URL =
