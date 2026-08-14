@@ -3,6 +3,7 @@ import pg from 'pg';
 import { buildApp } from '../../src/app.ts';
 import { migrate } from '@guaca/db';
 import { FakeInference } from '@guaca/agents';
+import { authTourist, captureSender } from '../helpers/touristTestAuth.ts';
 
 const TEST_DB = 'guaca_ask_api';
 const pool = new pg.Pool({
@@ -64,12 +65,26 @@ describe('POST /api/ask', () => {
     await pool.end();
   });
 
-  it('answers a covered question from verified data (fast path, zero model calls)', async () => {
-    const fake = new FakeInference({});
-    const app = buildApp({ pool, inference: fake, minCandidates: 1 });
+  it('rejects an unauthenticated ask — §4.1: demand signals belong to accounts', async () => {
+    const app = buildApp({ pool, inference: new FakeInference({}), minCandidates: 1 });
     const res = await app.inject({
       method: 'POST',
       url: '/api/ask',
+      payload: { text: 'where can I eat arepas now?', language: 'en' },
+    });
+    expect(res.statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('answers a covered question from verified data (fast path, zero model calls)', async () => {
+    const fake = new FakeInference({});
+    const cap = captureSender();
+    const app = buildApp({ pool, inference: fake, minCandidates: 1, emailSender: cap.sender });
+    const headers = await authTourist(app, cap.codes);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ask',
+      headers,
       payload: { text: 'where can I eat arepas now?', language: 'en', lat: 10.4716, lon: -68.0056 },
     });
     expect(res.statusCode).toBe(200);
@@ -83,14 +98,18 @@ describe('POST /api/ask', () => {
   });
 
   it('refuses an uncovered question as a first-class result, never an error', async () => {
+    const cap = captureSender();
     const app = buildApp({
       pool,
       inference: new FakeInference({}),
       minCandidates: 5, // forces the refusal path even with 1 verified place
+      emailSender: cap.sender,
     });
+    const headers = await authTourist(app, cap.codes);
     const res = await app.inject({
       method: 'POST',
       url: '/api/ask',
+      headers,
       payload: { text: 'is there anywhere to snorkel at Isla Larga?', language: 'en' },
     });
     expect(res.statusCode).toBe(200); // not an error status
