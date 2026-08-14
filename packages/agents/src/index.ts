@@ -39,3 +39,7 @@ export { selectSpotter, type SpotterCandidate } from './gap/spotterSelection.js'
 export { composeBrief, type BriefInput } from './gap/brief.js';
 export { runGapAgent, type GapAgentOptions, type GapAgentResult, type GapRow } from './gap/agent.js';
 export { scoreGap, HARD_GATES, SCARCITY_EXPONENT, type GapSignals, type ScoredGap } from './gap/scoring.js';
+export { analyzeMapHealth } from './health/analyze.js';
+export type { MapHealthStats, MapHealthAnalysis, HealthFinding, HealthFindingKind, MissionCandidate } from './health/analyze.js';
+export { narrateMapHealth } from './health/narrate.js';
+export type { HealthNarrative } from './health/narrate.js';
