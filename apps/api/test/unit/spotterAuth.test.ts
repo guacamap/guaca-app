@@ -54,4 +54,14 @@ describe('T7.1 — spotter login (phone + code → httpOnly JWT)', () => {
     const bad = await verifySpotterToken(forged, SECRET);
     expect(bad.spotterId).toBeNull();
   });
+
+  it('rejects a tourist token — roles never cross', async () => {
+    const touristToken = await new SignJWT({ sub: SPOTTER_ID, role: 'tourist' })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('30d')
+      .sign(SECRET);
+    const crossed = await verifySpotterToken(touristToken, SECRET);
+    expect(crossed.spotterId).toBeNull();
+  });
 });

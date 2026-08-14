@@ -33,7 +33,7 @@ export async function spotterLogin(
   const hash = createHash('sha256').update(input.code).digest('hex');
   if (hash !== spotter.loginCodeHash) return { ok: false, reason: 'BAD_CODE' };
 
-  const token = await new SignJWT({ sub: spotter.id, name: spotter.name })
+  const token = await new SignJWT({ sub: spotter.id, name: spotter.name, role: 'spotter' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
@@ -47,6 +47,8 @@ export async function verifySpotterToken(
 ): Promise<{ spotterId: string | null }> {
   try {
     const { payload } = await jwtVerify(token, secret);
+    // Role-bound: a tourist JWT must never authenticate spotter routes.
+    if (payload.role !== 'spotter') return { spotterId: null };
     return { spotterId: typeof payload.sub === 'string' ? payload.sub : null };
   } catch {
     return { spotterId: null };
