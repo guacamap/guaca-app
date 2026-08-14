@@ -5,7 +5,7 @@
 ```mermaid
 flowchart LR
     subgraph Guests
-        T[Tourist phone — mobile app, Expo RN, email-code account]
+        T[Tourist phone — mobile web PWA, email-code account]
     end
     subgraph Spotters
         S[Spotter phone — PWA]
@@ -36,8 +36,8 @@ flowchart LR
 | `packages/agents` | Catalog, assertGrounded, lexicalSweep, renderer, inference client, verification ladder, planner, gap agent |
 | `packages/cli` | `guaca` operator CLI — queue, verify, gaps, missions, tail |
 | `apps/api` | Fastify + WebSockets — ask, plan, places, photos, spotter session |
-| `apps/web` | Next.js — bilingual marketing landing + waitlist redirect; villa QR landing (villa code + install links). Legacy tourist/spotter views = demo fallback only (removal after judging) |
-| `apps/mobile` | Expo React Native (product client, §4.4) — role chooser; (tourist) map + ask, email-code account via Bearer; (spotter) missions + native capture with EXIF/GPS |
+| `apps/web` | Next.js — bilingual marketing landing + waitlist redirect, AND the product as mobile web (§4.5): role chooser, (tourist) map + ask behind email-code account, (spotter) capture, villa QR landing |
+| `apps/mobile` | Expo RN scaffold, **parked** (§4.5) — the later switch target; Play pipeline may mature in background |
 
 ## The core claim: the AI never generates a place
 

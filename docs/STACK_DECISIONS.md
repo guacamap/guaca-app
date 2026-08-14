@@ -42,10 +42,11 @@ win. Status: **settled** (do not relitigate without new facts) ·
   default, not an argued choice); ported back into Next 15 same day —
   §1 reaffirmed. The experience currently mounts client-only
   (`src/app/page.tsx`); route-level splitting lands with the §4.1 build.
-- *2026-08-13 (§4.4):* the product client is now the **Expo RN app**
-  (`apps/mobile`); Next/`apps/web` narrows to the bilingual marketing
-  landing + villa QR page. Next remains the right tool for that narrower
-  job; the RN column in these tables moves from "later" to "now".
+- *2026-08-13 (§4.4 → §4.5, same day):* after weighing the Play pipeline
+  against build speed, the product ships as **mobile web now** in
+  `apps/web`; the Expo RN scaffold (`apps/mobile`, package
+  `live.guaca.app`) stays committed but parked as the later switch
+  target. §1's original rationale applies unchanged.
 
 **Alternatives**
 
