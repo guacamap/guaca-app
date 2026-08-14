@@ -28,6 +28,28 @@ program
     process.stdout.write(render({ operator: token }, { json }) + '\n');
   });
 
+program
+  .command('audit')
+  .description('map-health audit — findings + demand-driven mission candidates')
+  .argument('[areaId]', 'area to audit (defaults to the first area)')
+  .option('--narrative', 'add a model-written analyst note (one inference call)')
+  .option('--es', 'narrative in Spanish')
+  .action(async (areaId, opts, command) => {
+    const json = command.parent!.opts().json ?? false;
+    const { pool } = await import('@guaca/db');
+    const { auditCommand, renderAudit } = await import('./commands/audit.js');
+    try {
+      const result = await auditCommand(pool, {
+        areaId,
+        narrative: opts.narrative ?? false,
+        language: opts.es ? 'es' : 'en',
+      });
+      process.stdout.write(renderAudit(result, { json }) + '\n');
+    } finally {
+      await pool.end();
+    }
+  });
+
 export async function main(argv: string[]): Promise<void> {
   await program.parseAsync(argv);
 }
