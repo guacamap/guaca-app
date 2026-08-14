@@ -12,7 +12,8 @@
     "@guaca/db": "workspace:*",
     "@guaca/shared": "workspace:*",
     "commander": "^12.1.0",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "@guaca/agents": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

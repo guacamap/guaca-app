@@ -192,6 +192,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@guaca/agents':
+        specifier: workspace:*
+        version: link:../agents
       '@guaca/db':
         specifier: workspace:*
         version: link:../db
