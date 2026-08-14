@@ -36,6 +36,12 @@ describe('pendingProvisionalNear (T7.5)', () => {
            '8a0000000000000', 'spotter', 'provisional', 1, $3)`,
         [PLACE_ID, AREA_ID, S1],
       );
+      // The worklist only offers ladder-cleared places (§7.4 review).
+      await client.query(
+        `insert into verification_runs (place_id, checks, decision, decided_by)
+         values ($1, '{"reasons":["LADDER_PASSED"]}', 'needs_second_local', 'agent')`,
+        [PLACE_ID],
+      );
     } finally {
       client.release();
     }
