@@ -57,11 +57,11 @@ describe('POST /api/photos', () => {
         [SPOTTER_ID, AREA_ID],
       );
       await client.query(
-        `insert into places (id, area_id, name, category, landmark_description, location, h3_8, source, verification_status)
+        `insert into places (id, area_id, name, category, landmark_description, location, h3_8, source, verification_status, created_by_spotter_id)
          values ($1, $2, 'Arepera La Guacamaya', 'eat_drink', 'Casa amarilla',
            ST_SetSRID(ST_MakePoint(-68.0056, 10.4716), 4326)::geography,
-           '8a0000000000000', 'spotter', 'pending')`,
-        [PLACE_ID, AREA_ID],
+           '8a0000000000000', 'spotter', 'provisional', $3)`,
+        [PLACE_ID, AREA_ID, SPOTTER_ID],
       );
     } finally {
       client.release();
