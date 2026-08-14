@@ -45,3 +45,5 @@ export { recordRegistration } from './registrations.js';
 export { upsertTouristLoginCode, consumeTouristLoginCode, touristById } from './tourists.js';
 export type { TouristRow } from './tourists.js';
 export type { RegistrationInput, RegistrationRole, RecordedRegistration } from './registrations.js';
+export { loadMapHealthStats } from './mapHealth.js';
+export type { MapHealthStats as MapHealthStatsRow, CategoryCoverageRow, StalePlaceRow, WeakLandmarkRow, ZoneCoverageRow } from './mapHealth.js';
