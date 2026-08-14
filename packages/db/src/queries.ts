@@ -21,8 +21,10 @@ export async function findVerifiedNear(
        p.verification_status, p.witness_count,
        p.created_by_spotter_id, p.confirmed_by_spotter_id,
        p.verified_at, p.rejection_reason,
+       s.name as spotter_name, s.photo_url as spotter_photo_url,
        ST_Distance(p.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) as dist_m
      from places p
+     left join spotters s on s.id = p.created_by_spotter_id
      where p.verification_status = 'verified'
        and p.witness_count >= 2
        and ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography, $3)
