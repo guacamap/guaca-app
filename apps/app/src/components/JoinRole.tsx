@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { AlertCircle, BadgeCheck, Check, ChevronLeft, Compass, LoaderCircle, MapPin, Star, Store, Trophy } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { GuacaMark } from './GuacaBrand'
+import { Button } from '@guaca/ui'
+import { Input } from '@guaca/ui'
+import { GuacaMark } from '@guaca/ui'
 
 type Role = 'tourist' | 'spotter' | 'operator'
 

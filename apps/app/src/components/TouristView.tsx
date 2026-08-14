@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { BadgeCheck, Bell, Clock3, MapPin, Megaphone, Mic, Search, Store } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { GuacaMap } from './GuacaMap'
-import { GuacaMark } from './GuacaBrand'
-import { formatUpdateTime, useInfoStore } from './InfoStore'
+import { Button } from '@guaca/ui'
+import { Input } from '@guaca/ui'
+import { GuacaMap } from '@guaca/ui'
+import { GuacaMark } from '@guaca/ui'
+import { formatUpdateTime, useInfoStore } from '@guaca/ui'
 
 interface TouristViewProps {
   onRoleChange: () => void

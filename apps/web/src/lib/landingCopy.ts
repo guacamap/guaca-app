@@ -1,4 +1,4 @@
-import type { Lang } from './i18n'
+import type { Lang } from '@guaca/ui'
 
 /** Every user-facing string on the marketing landing, both languages.
  *  The interface keeps EN and ES structurally in sync at compile time. */

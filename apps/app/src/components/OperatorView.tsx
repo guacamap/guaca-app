@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { BadgeCheck, Check, Clock3, Info, Send, Store } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { GuacaLogo, GuacaMark } from './GuacaBrand'
+import { Button } from '@guaca/ui'
+import { Input } from '@guaca/ui'
+import { Textarea } from '@guaca/ui'
+import { GuacaLogo, GuacaMark } from '@guaca/ui'
 import {
   UPDATE_CATEGORIES,
   formatUpdateTime,
   useInfoStore,
   type UpdateCategory,
-} from './InfoStore'
+} from '@guaca/ui'
 
 interface FormErrors {
   businessName?: string

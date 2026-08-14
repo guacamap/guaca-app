@@ -1,0 +1,21 @@
+{
+  "name": "Guaca",
+  "short_name": "Guaca",
+  "description": "Community-verified local information for Caribbean travellers, spotters, and businesses.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF4EB",
+  "theme_color": "#0A2F3C",
+  "icons": [
+    {
+      "src": "/brand/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

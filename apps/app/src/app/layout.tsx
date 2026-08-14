@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from 'next';
 import '../index.css';
 
 export const metadata: Metadata = {
-  title: 'Guaca — The Caribbean in real time',
+  title: 'Guaca',
   description:
-    'Guaca is building a community-verified information layer for the Caribbean, connecting travellers, local spotters, and businesses.',
+    'The Caribbean in real time — plan with information verified on the ground by named locals.',
+  manifest: '/brand/site.webmanifest',
   icons: {
     icon: [
       { url: '/brand/favicon-32.png', sizes: '32x32', type: 'image/png' },

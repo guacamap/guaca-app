@@ -1,5 +1,5 @@
 import { type ButtonHTMLAttributes, forwardRef } from 'react'
-import { cn } from '@/lib/cn'
+import { cn } from './cn'
 
 const variants: Record<string, string> = {
   default: 'bg-primary text-primary-foreground hover:bg-primary/90',

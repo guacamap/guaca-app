@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { BadgeCheck, Check, ClipboardCheck, Clock3, MapPin, Store } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { GuacaMap } from './GuacaMap'
-import { GuacaLogo } from './GuacaBrand'
-import { formatUpdateTime, useInfoStore } from './InfoStore'
+import { Button } from '@guaca/ui'
+import { GuacaMap } from '@guaca/ui'
+import { GuacaLogo } from '@guaca/ui'
+import { formatUpdateTime, useInfoStore } from '@guaca/ui'
 
 interface SpotterViewProps {
   onRoleChange: () => void

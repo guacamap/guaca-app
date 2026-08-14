@@ -5,8 +5,7 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@guaca/ui'],
   async rewrites() {
-    // Parity with the Vite dev proxy: components may fetch relative `/api/*`
-    // (JoinRole does) and reach the Fastify API without CORS.
+    // Relative /api/* reaches the Fastify API without CORS, in dev and prod.
     return [
       {
         source: '/api/:path*',
