@@ -37,7 +37,7 @@ flowchart LR
 | `packages/cli` | `guaca` operator CLI — queue, verify, gaps, missions, tail |
 | `apps/api` | Fastify + WebSockets — ask, plan, places, photos, spotter session |
 | `apps/web` | Next.js — bilingual marketing landing + waitlist redirect, AND the product as mobile web (§4.5): role chooser, (tourist) map + ask behind email-code account, (spotter) capture, villa QR landing |
-| `apps/mobile` | Expo RN scaffold, **parked** (§4.5) — the later switch target; Play pipeline may mature in background |
+| `apps/mobile` | Expo RN **webview wrapper** (§4.6) — ships the mobile web to Play closed testing; grows native (push, then screens) toward the §4.5 switch |
 
 ## The core claim: the AI never generates a place
 
