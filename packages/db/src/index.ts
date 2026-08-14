@@ -42,4 +42,6 @@ export type { QrSession } from './qrSession.js';
 export { postEvent } from './events.js';
 export type { PostEventInput, PostEventResult } from './events.js';
 export { recordRegistration } from './registrations.js';
+export { upsertTouristLoginCode, consumeTouristLoginCode, touristById } from './tourists.js';
+export type { TouristRow } from './tourists.js';
 export type { RegistrationInput, RegistrationRole, RecordedRegistration } from './registrations.js';
