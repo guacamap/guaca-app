@@ -23,7 +23,20 @@ export async function listMissions(pool: Pool, status?: string): Promise<Mission
      order by offered_at desc`,
     [status ?? null],
   );
-  return res.rows as MissionRow[];
+  // Map explicitly — a bare cast left camelCase fields undefined and once
+  // fed a NULL spotter_id into payouts.
+  return res.rows.map((r) => ({
+    id: r.id as string,
+    gapId: r.gap_id as string,
+    spotterId: r.spotter_id as string,
+    brief: r.brief as string,
+    status: r.status as string,
+    rewardMinor: r.reward_minor as number,
+    currency: r.currency as string,
+    createdBy: r.created_by as string,
+    offeredAt: r.offered_at as Date,
+    expiresAt: r.expires_at as Date,
+  }));
 }
 
 export interface CancelResult {

@@ -53,5 +53,12 @@ export async function operatorCommission(
   if (res.rows.length === 0) {
     return { status: 'blocked', reason: 'gap already has an open mission' };
   }
+  // Advance the gap's lifecycle — demand with an open mission is
+  // `commissioned`, so the audit and the cluster cycle stop re-raising it.
+  await pool.query(
+    `update gaps set status = 'commissioned', updated_at = now()
+     where id = $1 and status = 'open'`,
+    [input.gapId],
+  );
   return { status: 'offered', missionId: res.rows[0]!.id };
 }
