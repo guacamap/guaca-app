@@ -1,7 +1,10 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal } from '@guaca/db';
+import { randomUUID } from 'node:crypto';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear } from '@guaca/db';
+import { createObjectStore, type ObjectStore } from './objectStore.js';
+import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
 import { ask } from './plannerService.js';
 import { opsStreamPlugin } from './opsStream.js';
@@ -15,6 +18,8 @@ export interface AppOptions {
   minCandidates?: number;
   /** Injected by tests to capture login codes instead of sending mail. */
   emailSender?: EmailSender;
+  /** Injected by tests; defaults to MinIO/S3 from env. */
+  objectStore?: ObjectStore;
 }
 
 /** §4.1 — auth tokens arrive as an httpOnly cookie (web) or a Bearer
@@ -116,19 +121,26 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/photos', async (req, reply) => {
+    // The uploader is whoever holds the spotter session — never a body field.
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
     const body = req.body as {
       placeId?: string;
-      spotterId?: string;
       imageBase64?: string;
       captureLat?: number;
       captureLon?: number;
       captureAccuracyM?: number;
       capturedAt?: string;
     };
-    if (!body.placeId || !body.spotterId || !body.imageBase64) {
-      return reply.code(400).send({ error: 'placeId, spotterId, imageBase64 required' });
+    if (!body.placeId || !body.imageBase64) {
+      return reply.code(400).send({ error: 'placeId, imageBase64 required' });
     }
     const image = Buffer.from(body.imageBase64, 'base64');
+    if (image.length > 8 * 1024 * 1024) {
+      return reply.code(413).send({ error: 'photo too large (8MB max)' });
+    }
     const capture: {
       lat?: number;
       lon?: number;
@@ -139,9 +151,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (body.captureLon !== undefined) capture.lon = body.captureLon;
     if (body.captureAccuracyM !== undefined) capture.accuracyM = body.captureAccuracyM;
     if (body.capturedAt) capture.capturedAt = new Date(body.capturedAt);
+    // Bytes first (the ladder's L5 must be able to read them back), row second.
+    const storageKey = `${body.placeId}/${randomUUID()}.jpg`;
+    await objectStore.put(storageKey, image, 'image/jpeg');
     const stored = await storePhoto(options.pool, {
       placeId: body.placeId,
-      uploadedBySpotterId: body.spotterId,
+      uploadedBySpotterId: spotterId,
+      storageKey,
       image,
       capture,
     });
@@ -151,6 +167,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const sessionSecret = () =>
     new TextEncoder().encode(process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!');
   const emailSender = options.emailSender ?? createEmailSender();
+  const objectStore = options.objectStore ?? createObjectStore();
+  const resolveInference = async () =>
+    options.inference ??
+    (await import('@guaca/agents')).createProvider({
+      INFERENCE_BASE_URL: process.env.INFERENCE_BASE_URL ?? 'http://localhost:8000/v1',
+      INFERENCE_API_KEY: process.env.INFERENCE_API_KEY ?? 'changeme',
+      INFERENCE_MODEL: process.env.INFERENCE_MODEL ?? 'Qwen/Qwen3-VL-8B-Instruct',
+    });
   const askLimiter = rateLimiter(30, 60 * 60 * 1000); // 30 asks/hour/account
   const codeLimiter = rateLimiter(5, 15 * 60 * 1000); // 5 codes/15min/email
 
@@ -389,6 +413,54 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return { rows };
   });
 
+  app.get('/api/spotter/me', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const res = await options.pool.query(
+      `select id, name, language from spotters where id = $1 and active`,
+      [spotterId],
+    );
+    const row = res.rows[0];
+    if (!row) return reply.code(401).send({ error: 'unauthorized' });
+    return { id: row.id, name: row.name, language: row.language };
+  });
+
+  // Provisional places by OTHER spotters near the caller — the L6 worklist.
+  app.get('/api/spotter/confirmations', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const { lat, lon } = req.query as { lat?: string; lon?: string };
+    const latN = Number(lat ?? 10.4716);
+    const lonN = Number(lon ?? -68.0056);
+    if (!Number.isFinite(latN) || !Number.isFinite(lonN)) {
+      return reply.code(400).send({ error: 'invalid lat/lon' });
+    }
+    const pending = await pendingProvisionalNear(options.pool, latN, lonN, 5000, spotterId);
+    return { pending };
+  });
+
+  // The submission is complete — run the check ladder (§7.4). The cheap
+  // rungs run always; if vision is unreachable the case escalates to the
+  // operator instead of silently passing.
+  app.post('/api/spotter/submissions/:placeId/complete', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const { placeId } = req.params as { placeId: string };
+    const inference = await resolveInference();
+    const result = await runSubmissionVerification(options.pool, inference, objectStore, {
+      placeId,
+      spotterId,
+    });
+    if (!result.ok) return reply.code(result.code).send({ error: result.error });
+    return reply.send(result.verdict);
+  });
+
   app.post('/api/spotter/places', async (req, reply) => {
     const token = tokenFrom(req, 'guaca_spotter');
     if (!token) return reply.code(401).send({ error: 'unauthorized' });
@@ -447,8 +519,17 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const { spotterId } = await verifySpotterToken(token, sessionSecret());
     if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
     const { id } = req.params as { id: string };
+    // L6 runs after the ladder, never instead of it (§7.4).
+    if (!(await confirmAllowed(options.pool, id))) {
+      return reply.code(409).send({ error: 'VERIFICATION_PENDING' });
+    }
     const result = await confirmSecondLocal(options.pool, id, spotterId);
     if (!result.ok) return reply.code(409).send({ error: result.reason });
+    await options.pool.query(
+      `insert into verification_runs (place_id, checks, decision, decided_by)
+       values ($1, $2, 'verified', 'agent')`,
+      [id, JSON.stringify({ secondLocal: spotterId })],
+    );
     await options.pool.query(
       `update missions set status = 'verified' where result_place_id = $1 and status = 'submitted'`,
       [id],
