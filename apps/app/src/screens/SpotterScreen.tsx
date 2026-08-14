@@ -1,6 +1,7 @@
 import { useRouter } from 'next/navigation'
 import { Providers } from '../components/Providers'
 import { PhoneShell } from '../components/PhoneShell'
+import { SpotterGate } from '../components/SpotterGate'
 import { SpotterView } from '../components/SpotterView'
 
 export default function SpotterScreen() {
@@ -8,7 +9,9 @@ export default function SpotterScreen() {
   return (
     <Providers>
       <PhoneShell showRoleSwitch>
-        <SpotterView onRoleChange={() => router.push('/')} />
+        <SpotterGate>
+          <SpotterView onRoleChange={() => router.push('/')} />
+        </SpotterGate>
       </PhoneShell>
     </Providers>
   )
