@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal } from '@guaca/db';
 import type { Inference } from '@guaca/agents';
 import { ask } from './plannerService.js';
 import { opsStreamPlugin } from './opsStream.js';
@@ -387,6 +387,80 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
     const rows = await spotterEarnings(options.pool, spotterId);
     return { rows };
+  });
+
+  app.post('/api/spotter/places', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const body = req.body as {
+      name?: string;
+      category?: string;
+      landmarkDescription?: string;
+      lat?: number;
+      lon?: number;
+      missionId?: string;
+    };
+    if (!body.name || !body.category || !body.landmarkDescription ||
+        typeof body.lat !== 'number' || typeof body.lon !== 'number') {
+      return reply.code(400).send({ error: 'name, category, landmarkDescription, lat, lon required' });
+    }
+    // Same area/h3 derivation the demand pipeline uses — one geometry truth.
+    const geo = await options.pool.query<{ area_id: string | null; h3_8: string }>(
+      `select (select a.id from areas a
+                where ST_Covers(a.geom, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography)
+                limit 1) as area_id,
+              h3_lat_lng_to_cell(point($2, $1), 8)::text as h3_8`,
+      [body.lat, body.lon],
+    );
+    const areaId = geo.rows[0]?.area_id;
+    if (!areaId) return reply.code(400).send({ error: 'outside any coverage area' });
+    const result = await submitPlace(options.pool, {
+      name: body.name,
+      category: body.category,
+      landmarkDescription: body.landmarkDescription,
+      lat: body.lat,
+      lon: body.lon,
+      h3_8: geo.rows[0]!.h3_8,
+      spotterId,
+      areaId,
+    });
+    if (!result.ok || !result.placeId) {
+      return reply.code(409).send({ error: result.reason ?? 'submission rejected' });
+    }
+    if (body.missionId) {
+      await options.pool.query(
+        `update missions set status = 'submitted', submitted_at = now(), result_place_id = $1
+         where id = $2 and spotter_id = $3 and status = 'accepted'`,
+        [result.placeId, body.missionId, spotterId],
+      );
+    }
+    return reply.code(201).send({ ok: true, placeId: result.placeId, status: 'provisional' });
+  });
+
+  // L6 — the second local. A DIFFERENT spotter confirms on the ground;
+  // only then does the place become verified (witness_count = 2).
+  app.post('/api/spotter/places/:id/confirm', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const { id } = req.params as { id: string };
+    const result = await confirmSecondLocal(options.pool, id, spotterId);
+    if (!result.ok) return reply.code(409).send({ error: result.reason });
+    await options.pool.query(
+      `update missions set status = 'verified' where result_place_id = $1 and status = 'submitted'`,
+      [id],
+    );
+    // Close the loop: the gap that demanded this place is now filled.
+    await options.pool.query(
+      `update gaps set status = 'filled', updated_at = now()
+       where status = 'commissioned'
+         and id in (select gap_id from missions where result_place_id = $1)`,
+      [id],
+    );
+    return { ok: true, status: 'verified' };
   });
 
   app.post('/api/v/:qrToken/session', async (req, reply) => {
