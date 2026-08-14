@@ -31,6 +31,10 @@ export interface CommissionCommandInput {
   spotterId: string;
   rewardMinor: number;
   approve: boolean;
+  /** From the ranked gap row — the mission must target the gap's own
+   *  category and cell, never a hardcoded default. */
+  targetCategory?: string;
+  targetH3?: string;
   db: GapsDb;
   pool: Pool;
 }
@@ -46,8 +50,8 @@ export async function commissionCommand(
     gapId: input.gapId,
     spotterId: input.spotterId,
     brief: `Mission commissioned by operator for gap ${input.gapId}`,
-    targetCategory: 'eat_drink',
-    targetH3: '',
+    targetCategory: input.targetCategory ?? 'eat_drink',
+    targetH3: input.targetH3 ?? '',
     rewardMinor: input.rewardMinor,
   });
 }
