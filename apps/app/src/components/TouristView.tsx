@@ -54,6 +54,7 @@ export function TouristView({ onRoleChange }: TouristViewProps) {
   const { lang } = useLanguage()
   const t = appCopy[lang].tourist
   const [query, setQuery] = useState('')
+  const [askText, setAskText] = useState('')
   const [activeTab, setActiveTab] = useState<'map' | 'updates'>('map')
   const [center, setCenter] = useState<[number, number]>(PILOT_CENTER)
   const [places, setPlaces] = useState<ApiPlace[]>([])
@@ -105,7 +106,7 @@ export function TouristView({ onRoleChange }: TouristViewProps) {
   )
 
   const ask = async () => {
-    const text = query.trim()
+    const text = askText.trim()
     if (!text || askState.kind === 'asking') return
     setSelected(null)
     setAskState({ kind: 'asking' })
@@ -164,8 +165,8 @@ export function TouristView({ onRoleChange }: TouristViewProps) {
         >
           <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-guaca-ocean/55" />
           <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={askText}
+            onChange={(event) => setAskText(event.target.value)}
             placeholder={t.askPlaceholder}
             aria-label={t.askPlaceholder}
             className="h-7 flex-1 border-0 bg-transparent px-0 text-[12px] shadow-none placeholder:text-guaca-ink/35 focus-visible:ring-0"
@@ -179,7 +180,7 @@ export function TouristView({ onRoleChange }: TouristViewProps) {
 
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
       {selected && (
-        <div className="absolute bottom-[82px] left-4 right-4 z-[450]">
+        <div className="absolute bottom-[82px] left-4 right-4 z-[650]">
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-black leading-tight text-guaca-ink">{selected.name}</h3>
@@ -224,7 +225,7 @@ export function TouristView({ onRoleChange }: TouristViewProps) {
 
       {/* Ask result / teaser card. */}
       {!selected && (
-        <div className="absolute bottom-[82px] left-4 right-4 z-[400]">
+        <div className="absolute bottom-[82px] left-4 right-4 z-[650]">
           {askState.kind === 'asking' && (
             <div className="guaca-card rounded-[30px] p-4">
               <p className="text-[12px] font-black text-guaca-ink/55">{t.asking}</p>
@@ -254,7 +255,7 @@ export function TouristView({ onRoleChange }: TouristViewProps) {
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <p className="mt-2 text-[13px] font-bold leading-relaxed text-guaca-ink">{askState.text}</p>
+              <p className="mt-2 whitespace-pre-line text-[13px] font-bold leading-relaxed text-guaca-ink">{askState.text}</p>
               {answerPlaces.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {answerPlaces.map((p) => (
