@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Crosshair, MapPin, Trophy } from 'lucide-react'
-import { Button, GuacaLogo, Input, useLanguage } from '@guaca/ui'
+import { Button, GuacaLogo, Input, useLanguage, type Lang } from '@guaca/ui'
+import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 
 interface SpotterViewProps {
@@ -34,10 +35,24 @@ interface Earning {
 }
 
 type Verdict =
-  | { decision: 'needs_second_local' | 'needs_operator' }
+  | { decision: 'needs_second_local' | 'needs_operator'; reasons?: string[] }
   | { decision: 'rejected'; reasons: string[] }
 
 const money = (minor: number, currency: string) => `${(minor / 100).toFixed(2)} ${currency}`
+
+function categoryLabel(category: string, lang: Lang): string {
+  const entry = TAXONOMY.find((t) => t.category === category)
+  return entry ? (lang === 'es' ? entry.labelEs : entry.labelEn) : category
+}
+
+/** An expired session goes back through the gate — never a fake empty list. */
+function guard401(r: Response): Response {
+  if (r.status === 401) {
+    window.location.reload()
+    throw new Error('session expired')
+  }
+  return r
+}
 
 export function SpotterView({ onRoleChange }: SpotterViewProps) {
   const { lang } = useLanguage()
@@ -47,7 +62,11 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
   const [pending, setPending] = useState<PendingConfirmation[]>([])
   const [earnings, setEarnings] = useState<Earning[]>([])
   const [capture, setCapture] = useState<Mission | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [banner, setBanner] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
+  const [geoNote, setGeoNote] = useState(false)
+
+  const reasonLabel = (code: string) => t.reasons[code] ?? code
 
   const statusLabel: Record<string, string> = {
     offered: t.statusOffered,
@@ -57,61 +76,121 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
     paid: t.statusPaid,
   }
 
+  const withBusy = async (id: string, fn: () => Promise<void>) => {
+    if (busyIds.has(id)) return
+    setBusyIds((prev) => new Set(prev).add(id))
+    try {
+      await fn()
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
   const loadMissions = useCallback(() => {
     fetch('/api/spotter/missions', { credentials: 'include' })
+      .then(guard401)
       .then((r) => (r.ok ? r.json() : { missions: [] }))
       .then((d: { missions: Mission[] }) => setMissions(d.missions ?? []))
-      .catch(() => setError(t.error))
+      .catch((e) => {
+        if (String(e).includes('session')) return
+        setBanner({ kind: 'error', text: t.error })
+      })
   }, [t.error])
 
   const loadPending = useCallback(() => {
     const go = (lat: number, lon: number) =>
       fetch(`/api/spotter/confirmations?lat=${lat}&lon=${lon}`, { credentials: 'include' })
+        .then(guard401)
         .then((r) => (r.ok ? r.json() : { pending: [] }))
         .then((d: { pending: PendingConfirmation[] }) => setPending(d.pending ?? []))
-        .catch(() => setError(t.error))
+        .catch((e) => {
+          if (String(e).includes('session')) return
+          setBanner({ kind: 'error', text: t.error })
+        })
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => go(pos.coords.latitude, pos.coords.longitude),
-        () => go(10.4716, -68.0056),
+        (pos) => {
+          setGeoNote(false)
+          void go(pos.coords.latitude, pos.coords.longitude)
+        },
+        () => {
+          setGeoNote(true)
+          void go(10.4716, -68.0056)
+        },
         { timeout: 3000 },
       )
-    } else void go(10.4716, -68.0056)
+    } else {
+      setGeoNote(true)
+      void go(10.4716, -68.0056)
+    }
   }, [t.error])
 
   const loadEarnings = useCallback(() => {
     fetch('/api/spotter/earnings', { credentials: 'include' })
+      .then(guard401)
       .then((r) => (r.ok ? r.json() : { rows: [] }))
       .then((d: { rows: Earning[] }) => setEarnings(d.rows ?? []))
-      .catch(() => setError(t.error))
+      .catch((e) => {
+        if (String(e).includes('session')) return
+        setBanner({ kind: 'error', text: t.error })
+      })
   }, [t.error])
 
   useEffect(() => {
     loadMissions()
   }, [loadMissions])
   useEffect(() => {
+    setBanner(null)
     if (tab === 'confirm') loadPending()
     if (tab === 'earnings') loadEarnings()
   }, [tab, loadPending, loadEarnings])
 
-  const accept = async (missionId: string) => {
-    const res = await fetch(`/api/spotter/missions/${missionId}/accept`, {
-      method: 'POST',
-      credentials: 'include',
+  const accept = (missionId: string) =>
+    withBusy(missionId, async () => {
+      try {
+        const res = guard401(
+          await fetch(`/api/spotter/missions/${missionId}/accept`, {
+            method: 'POST',
+            credentials: 'include',
+          }),
+        )
+        if (res.ok) {
+          setBanner(null)
+          loadMissions()
+        } else setBanner({ kind: 'error', text: t.error })
+      } catch (e) {
+        if (!String(e).includes('session')) setBanner({ kind: 'error', text: t.error })
+      }
     })
-    if (res.ok) loadMissions()
-    else setError(t.error)
-  }
 
-  const confirmPlace = async (placeId: string) => {
-    const res = await fetch(`/api/spotter/places/${placeId}/confirm`, {
-      method: 'POST',
-      credentials: 'include',
+  const confirmPlace = (placeId: string) =>
+    withBusy(placeId, async () => {
+      try {
+        const res = guard401(
+          await fetch(`/api/spotter/places/${placeId}/confirm`, {
+            method: 'POST',
+            credentials: 'include',
+          }),
+        )
+        if (res.ok) {
+          setPending((p) => p.filter((x) => x.id !== placeId))
+          setBanner({ kind: 'info', text: t.confirmed })
+        } else if (res.status === 409) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string }
+          setBanner({
+            kind: 'info',
+            text: body.error === 'VERIFICATION_PENDING' ? t.confirmPending : t.error,
+          })
+          loadPending()
+        } else setBanner({ kind: 'error', text: t.error })
+      } catch (e) {
+        if (!String(e).includes('session')) setBanner({ kind: 'error', text: t.error })
+      }
     })
-    if (res.ok) {
-      setPending((p) => p.filter((x) => x.id !== placeId))
-    } else setError(t.error)
-  }
 
   if (capture) {
     return (
@@ -139,9 +218,21 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
           {tab === 'confirm' && <p className="mt-2 text-sm font-semibold text-white/85">{t.confirmLede}</p>}
         </div>
 
-        {error && (
-          <p role="alert" className="mt-4 rounded-2xl bg-guaca-coral/10 px-4 py-3 text-xs font-bold text-guaca-coral-dark">
-            {error}
+        {banner && (
+          <p
+            role={banner.kind === 'error' ? 'alert' : 'status'}
+            className={`mt-4 rounded-2xl px-4 py-3 text-xs font-bold ${
+              banner.kind === 'error'
+                ? 'bg-guaca-coral/10 text-guaca-coral-dark'
+                : 'bg-guaca-teal/10 text-guaca-teal-dark'
+            }`}
+          >
+            {banner.text}
+          </p>
+        )}
+        {tab === 'confirm' && geoNote && (
+          <p role="status" className="mt-3 rounded-2xl bg-guaca-mango/15 px-4 py-3 text-xs font-bold text-guaca-mango-dark">
+            {t.geoDenied}
           </p>
         )}
 
@@ -149,7 +240,7 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
           <div className="mt-5 space-y-3">
             {missions.length === 0 && (
               <div className="rounded-[28px] border border-dashed border-guaca-coral/30 bg-white/70 p-6 text-center">
-                <Trophy className="mx-auto h-8 w-8 text-guaca-coral/60" />
+                <Trophy aria-hidden="true" className="mx-auto h-8 w-8 text-guaca-coral/60" />
                 <p className="mx-auto mt-3 max-w-[260px] text-[12px] font-semibold leading-relaxed text-guaca-ink/55">
                   {t.missionsEmpty}
                 </p>
@@ -159,22 +250,22 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
               <article key={m.id} className="rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-guaca-sand/75">
                 <div className="flex items-center justify-between gap-3">
                   <span className="rounded-full bg-guaca-coral/10 px-2.5 py-1 text-[9px] font-black text-guaca-coral-dark">
-                    {m.targetCategory}
+                    {categoryLabel(m.targetCategory, lang)}
                   </span>
                   <span className="text-[10px] font-black text-guaca-ink/50">{statusLabel[m.status] ?? m.status}</span>
                 </div>
                 <p className="mt-3 text-[13px] font-bold leading-snug text-guaca-ink">{m.brief}</p>
                 <p className="mt-2 flex items-center gap-1.5 text-[12px] font-black text-guaca-palm">
-                  <CircleDollarSign className="h-4 w-4" /> {t.reward}: {money(m.rewardMinor, m.currency)}
+                  <CircleDollarSign aria-hidden="true" className="h-4 w-4" /> {t.reward}: {money(m.rewardMinor, m.currency)}
                 </p>
                 {m.status === 'offered' && (
-                  <Button type="button" onClick={() => accept(m.id)} className="mt-4 h-11 w-full rounded-xl bg-guaca-coral text-xs font-black text-white hover:bg-guaca-coral-dark">
-                    <ClipboardCheck className="mr-1.5 h-4 w-4" /> {t.acceptCta}
+                  <Button type="button" disabled={busyIds.has(m.id)} onClick={() => accept(m.id)} className="mt-4 h-11 w-full rounded-xl bg-guaca-coral text-xs font-black text-white hover:bg-guaca-coral-dark disabled:opacity-60">
+                    <ClipboardCheck aria-hidden="true" className="mr-1.5 h-4 w-4" /> {t.acceptCta}
                   </Button>
                 )}
                 {m.status === 'accepted' && (
                   <Button type="button" onClick={() => setCapture(m)} className="mt-4 h-11 w-full rounded-xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark">
-                    <Camera className="mr-1.5 h-4 w-4" /> {t.startCta}
+                    <Camera aria-hidden="true" className="mr-1.5 h-4 w-4" /> {t.startCta}
                   </Button>
                 )}
               </article>
@@ -186,7 +277,7 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
           <div className="mt-5 space-y-3">
             {pending.length === 0 && (
               <div className="rounded-[28px] border border-dashed border-guaca-teal/30 bg-white/70 p-6 text-center">
-                <MapPin className="mx-auto h-8 w-8 text-guaca-teal/60" />
+                <MapPin aria-hidden="true" className="mx-auto h-8 w-8 text-guaca-teal/60" />
                 <p className="mx-auto mt-3 max-w-[260px] text-[12px] font-semibold leading-relaxed text-guaca-ink/55">
                   {t.confirmEmpty}
                 </p>
@@ -197,8 +288,8 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
                 <h3 className="text-[15px] font-black text-guaca-ink">{p.name}</h3>
                 <p className="mt-1 text-[12px] font-bold leading-snug text-guaca-ink/65">{p.landmark_description}</p>
                 <p className="mt-2 text-[10px] font-black text-guaca-ink/40">{Math.round(p.distanceM)} m</p>
-                <Button type="button" onClick={() => confirmPlace(p.id)} className="mt-3 h-11 w-full rounded-xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark">
-                  <BadgeCheck className="mr-1.5 h-4 w-4" /> {t.confirmCta}
+                <Button type="button" disabled={busyIds.has(p.id)} onClick={() => confirmPlace(p.id)} className="mt-3 h-11 w-full rounded-xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark disabled:opacity-60">
+                  <BadgeCheck aria-hidden="true" className="mr-1.5 h-4 w-4" /> {t.confirmCta}
                 </Button>
               </article>
             ))}
@@ -243,7 +334,7 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
             const active = tab === id
             return (
               <Button key={id} type="button" variant="ghost" onClick={() => setTab(id)} aria-current={active ? 'page' : undefined} className={`h-14 min-w-20 flex-col gap-1 rounded-2xl px-3 text-[10px] font-bold hover:bg-transparent ${active ? 'text-guaca-coral-dark' : 'text-guaca-ink/42'}`}>
-                <Icon className="h-5 w-5" />
+                <Icon aria-hidden="true" className="h-5 w-5" />
                 {label}
               </Button>
             )
@@ -264,6 +355,13 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Verdict | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Resumable submission state: a retry after a mid-flow failure continues
+  // from where it stopped instead of re-creating the place or re-uploading
+  // photos (duplicate phashes would hard-fail the diversity rung).
+  const [placeId, setPlaceId] = useState<string | null>(null)
+  const [uploaded, setUploaded] = useState<boolean[]>([false, false, false])
+
+  const reasonLabel = (code: string) => t.reasons[code] ?? code
 
   const locate = () => {
     navigator.geolocation.getCurrentPosition(
@@ -289,50 +387,62 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!coords) return setError(t.locationMissing)
-    const files = photos.filter((p): p is File => p !== null)
     setBusy(true)
     setError(null)
     try {
-      const placeRes = await fetch('/api/spotter/places', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name,
-          category: mission.targetCategory,
-          landmarkDescription: landmark,
-          lat: coords.lat,
-          lon: coords.lon,
-          missionId: mission.id,
-        }),
-      })
-      if (!placeRes.ok) throw new Error('submit')
-      const { placeId } = (await placeRes.json()) as { placeId: string }
-      for (const file of files) {
-        const imageBase64 = await fileToBase64(file)
-        const photoRes = await fetch('/api/photos', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            placeId,
-            imageBase64,
-            captureLat: coords.lat,
-            captureLon: coords.lon,
-            captureAccuracyM: coords.accuracy,
-            capturedAt: new Date().toISOString(),
+      let pid = placeId
+      if (!pid) {
+        const placeRes = guard401(
+          await fetch('/api/spotter/places', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              name,
+              category: mission.targetCategory,
+              landmarkDescription: landmark,
+              lat: coords.lat,
+              lon: coords.lon,
+              missionId: mission.id,
+            }),
           }),
-        })
-        if (!photoRes.ok) throw new Error('photo')
+        )
+        if (!placeRes.ok) throw new Error('submit')
+        pid = ((await placeRes.json()) as { placeId: string }).placeId
+        setPlaceId(pid)
       }
-      const completeRes = await fetch(`/api/spotter/submissions/${placeId}/complete`, {
-        method: 'POST',
-        credentials: 'include',
-      })
+      for (let i = 0; i < photos.length; i++) {
+        const file = photos[i]
+        if (!file || uploaded[i]) continue
+        const imageBase64 = await fileToBase64(file)
+        const photoRes = guard401(
+          await fetch('/api/photos', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              placeId: pid,
+              imageBase64,
+              captureLat: coords.lat,
+              captureLon: coords.lon,
+              captureAccuracyM: coords.accuracy,
+              capturedAt: new Date().toISOString(),
+            }),
+          }),
+        )
+        if (!photoRes.ok) throw new Error('photo')
+        setUploaded((prev) => prev.map((u, j) => (j === i ? true : u)))
+      }
+      const completeRes = guard401(
+        await fetch(`/api/spotter/submissions/${pid}/complete`, {
+          method: 'POST',
+          credentials: 'include',
+        }),
+      )
       if (!completeRes.ok) throw new Error('complete')
       setResult((await completeRes.json()) as Verdict)
-    } catch {
-      setError(t.error)
+    } catch (err) {
+      if (!String(err).includes('session')) setError(t.error)
     } finally {
       setBusy(false)
     }
@@ -345,7 +455,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
         <GuacaLogo className="h-12" />
         {!rejected ? (
           <>
-            <BadgeCheck className="h-12 w-12 text-guaca-teal" />
+            <BadgeCheck aria-hidden="true" className="h-12 w-12 text-guaca-teal" />
             <p className="max-w-[300px] text-[14px] font-bold leading-relaxed text-guaca-ink">
               {result.decision === 'needs_second_local' ? t.resultSecondLocal : t.resultOperator}
             </p>
@@ -355,7 +465,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
             <p className="text-[14px] font-black text-guaca-coral-dark">{t.resultRejected}</p>
             <ul className="text-[12px] font-bold text-guaca-ink/60">
               {result.reasons.map((r) => (
-                <li key={r}>{r}</li>
+                <li key={r}>{reasonLabel(r)}</li>
               ))}
             </ul>
           </>
@@ -370,7 +480,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
   return (
     <div className="h-full min-h-screen overflow-y-auto bg-guaca-sand-light px-5 pb-16 pt-12 sm:min-h-full">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-teal to-guaca-ocean p-6 text-white shadow-xl">
-        <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">{mission.targetCategory}</p>
+        <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">{categoryLabel(mission.targetCategory, lang)}</p>
         <h1 className="mt-2 text-2xl font-black tracking-[-.03em]">{t.captureTitle}</h1>
         <p className="mt-2 text-sm font-semibold text-white/85">{mission.brief}</p>
       </div>
@@ -378,11 +488,11 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
       <form onSubmit={submit} className="mt-5 space-y-4">
         <div>
           <label className="text-xs font-black text-guaca-ink/70" htmlFor="cap-name">{t.nameLabel}</label>
-          <Input id="cap-name" required value={name} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white" />
+          <Input id="cap-name" required value={name} disabled={placeId !== null} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white" />
         </div>
         <div>
           <label className="text-xs font-black text-guaca-ink/70" htmlFor="cap-landmark">{t.landmarkLabel}</label>
-          <Input id="cap-landmark" required value={landmark} onChange={(e) => setLandmark(e.target.value)} className="mt-1 bg-white" />
+          <Input id="cap-landmark" required value={landmark} disabled={placeId !== null} onChange={(e) => setLandmark(e.target.value)} className="mt-1 bg-white" />
           <p className="mt-1 text-[10px] font-semibold text-guaca-ink/45">{t.landmarkHint}</p>
         </div>
 
@@ -395,7 +505,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
               : 'border-guaca-teal/35 bg-white text-guaca-teal'
           }`}
         >
-          <Crosshair className="h-4 w-4" />
+          <Crosshair aria-hidden="true" className="h-4 w-4" />
           {coords ? `${t.locationOk} (±${Math.round(coords.accuracy)}m)` : t.locationCta}
         </button>
 
@@ -405,13 +515,15 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
           <div className="mt-2 grid grid-cols-3 gap-2">
             {photos.map((file, i) => (
               <label key={i} className={`flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border text-[10px] font-black ${file ? 'border-guaca-palm/40 bg-guaca-palm/10 text-guaca-palm-dark' : 'border-dashed border-guaca-ink/25 bg-white text-guaca-ink/45'}`}>
-                <Camera className="h-5 w-5" />
+                <Camera aria-hidden="true" className="h-5 w-5" />
                 {file ? '✓' : i + 1}
                 <input
                   type="file"
                   accept="image/*"
                   capture="environment"
                   className="sr-only"
+                  aria-label={`${t.photosLabel} — ${i + 1}/3`}
+                  disabled={uploaded[i]}
                   onChange={(e) => {
                     const f = e.target.files?.[0] ?? null
                     setPhotos((prev) => prev.map((p, j) => (j === i ? f : p)))
@@ -427,7 +539,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
         )}
 
         <Button type="submit" disabled={busy || photos.some((p) => p === null)} className="h-13 w-full rounded-xl bg-guaca-coral text-sm font-black text-white hover:bg-guaca-coral-dark disabled:opacity-50">
-          {busy ? t.submitting : t.submitCta}
+          {busy ? t.submitting : error ? t.retryCta : t.submitCta}
         </Button>
         <Button type="button" variant="ghost" onClick={onDone} className="h-10 w-full text-xs font-black text-guaca-ink/50">
           {t.backCta}

@@ -68,6 +68,10 @@ export interface AppCopy {
     earningsEmpty: string
     backCta: string
     error: string
+    confirmPending: string
+    geoDenied: string
+    alreadyDecided: string
+    reasons: Record<string, string>
   }
   tourist: {
     askPlaceholder: string
@@ -152,6 +156,21 @@ export const appCopy: Record<Lang, AppCopy> = {
       earningsEmpty: 'Completed missions and top-ups appear here.',
       backCta: 'Back',
       error: 'Connection failed — try again.',
+      confirmPending: 'This place is still in checks — it unlocks for confirmation once they pass.',
+      geoDenied: 'Location denied — showing places near the pilot centre instead.',
+      alreadyDecided: 'This submission was already processed.',
+      reasons: {
+        TOO_FEW_PHOTOS: 'Fewer than 3 photos',
+        STALE_CAPTURE: 'Photos taken outside the mission window',
+        GEO_TOO_FAR: 'Photos taken too far from the pin',
+        PHOTO_REUSE: 'A photo matches one already submitted',
+        NO_DIVERSITY: 'The photos are too similar to each other',
+        VISION_UNAVAILABLE: 'Image check unavailable — escalated to the operator',
+        PHOTO_BYTES_UNAVAILABLE: 'Photo storage unavailable — escalated to the operator',
+        MISSION_NOT_OPEN: 'The mission is no longer open',
+        LADDER_PASSED: 'All checks passed',
+        ALREADY_DECIDED: 'Already processed',
+      },
     },
     tourist: {
       askPlaceholder: 'Ask Guaca about a place…',
@@ -234,6 +253,21 @@ export const appCopy: Record<Lang, AppCopy> = {
       earningsEmpty: 'Las misiones completadas y las recargas aparecen aquí.',
       backCta: 'Volver',
       error: 'Falló la conexión — intenta de nuevo.',
+      confirmPending: 'Este lugar sigue en chequeos — se desbloquea para confirmar cuando pasen.',
+      geoDenied: 'Ubicación denegada — mostrando lugares cerca del centro del piloto.',
+      alreadyDecided: 'Este envío ya fue procesado.',
+      reasons: {
+        TOO_FEW_PHOTOS: 'Menos de 3 fotos',
+        STALE_CAPTURE: 'Fotos tomadas fuera de la ventana de la misión',
+        GEO_TOO_FAR: 'Fotos tomadas demasiado lejos del pin',
+        PHOTO_REUSE: 'Una foto coincide con otra ya enviada',
+        NO_DIVERSITY: 'Las fotos son demasiado parecidas entre sí',
+        VISION_UNAVAILABLE: 'Chequeo de imagen no disponible — escalado al operador',
+        PHOTO_BYTES_UNAVAILABLE: 'Almacenamiento de fotos no disponible — escalado al operador',
+        MISSION_NOT_OPEN: 'La misión ya no está abierta',
+        LADDER_PASSED: 'Todos los chequeos pasaron',
+        ALREADY_DECIDED: 'Ya fue procesado',
+      },
     },
     tourist: {
       askPlaceholder: 'Pregúntale a Guaca sobre un lugar…',

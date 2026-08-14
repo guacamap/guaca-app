@@ -15,7 +15,8 @@
     "lucide-react": "^0.563.0",
     "next": "^15.1.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "@guaca/shared": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
