@@ -1,16 +1,46 @@
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById } from '@guaca/db';
 import type { Inference } from '@guaca/agents';
 import { ask } from './plannerService.js';
 import { opsStreamPlugin } from './opsStream.js';
 import { spotterLogin, verifySpotterToken } from './spotterAuth.js';
+import { requestTouristCode, verifyTouristLogin, verifyTouristToken } from './touristAuth.js';
+import { createEmailSender, type EmailSender } from './email.js';
 
 export interface AppOptions {
   pool: Pool;
   inference?: Inference;
   minCandidates?: number;
+  /** Injected by tests to capture login codes instead of sending mail. */
+  emailSender?: EmailSender;
+}
+
+/** §4.1 — auth tokens arrive as an httpOnly cookie (web) or a Bearer
+ *  header (wrapper/native), through the same verification path. */
+function tokenFrom(req: FastifyRequest, cookieName: string): string | undefined {
+  const fromCookie = req.cookies?.[cookieName];
+  if (fromCookie) return fromCookie;
+  const auth = req.headers.authorization;
+  return auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
+}
+
+/** Fixed-window in-memory rate limit — deliberate §7 decision: no Redis
+ *  while a single API instance exists. */
+function rateLimiter(limit: number, windowMs: number) {
+  const hits = new Map<string, number[]>();
+  return (key: string): boolean => {
+    const now = Date.now();
+    const kept = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
+    if (kept.length >= limit) {
+      hits.set(key, kept);
+      return false;
+    }
+    kept.push(now);
+    hits.set(key, kept);
+    return true;
+  };
 }
 
 /**
@@ -118,6 +148,69 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.code(201).send(stored);
   });
 
+  const sessionSecret = () =>
+    new TextEncoder().encode(process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!');
+  const emailSender = options.emailSender ?? createEmailSender();
+  const askLimiter = rateLimiter(30, 60 * 60 * 1000); // 30 asks/hour/account
+  const codeLimiter = rateLimiter(5, 15 * 60 * 1000); // 5 codes/15min/email
+
+  app.post('/api/tourist/auth/request-code', async (req, reply) => {
+    const body = req.body as { email?: string; language?: string; propertyId?: string };
+    if (!body.email) return reply.code(400).send({ error: 'email is required' });
+    if (!codeLimiter(body.email.trim().toLowerCase())) {
+      return reply.code(429).send({ error: 'too many codes requested — wait a few minutes' });
+    }
+    const result = await requestTouristCode(
+      {
+        upsertLoginCode: (input) => upsertTouristLoginCode(options.pool, input),
+        consumeLoginCode: (email, hash) => consumeTouristLoginCode(options.pool, email, hash),
+      },
+      {
+        email: body.email,
+        ...(body.language ? { language: body.language } : {}),
+        attributedPropertyId: body.propertyId ?? null,
+      },
+      emailSender,
+    );
+    if (!result.ok) return reply.code(400).send({ error: 'invalid email' });
+    return { ok: true };
+  });
+
+  app.post('/api/tourist/auth/verify', async (req, reply) => {
+    const body = req.body as { email?: string; code?: string };
+    if (!body.email || !body.code) {
+      return reply.code(400).send({ error: 'email and code required' });
+    }
+    const result = await verifyTouristLogin(
+      {
+        upsertLoginCode: (input) => upsertTouristLoginCode(options.pool, input),
+        consumeLoginCode: (email, hash) => consumeTouristLoginCode(options.pool, email, hash),
+      },
+      { email: body.email, code: body.code },
+      sessionSecret(),
+    );
+    if (!result.ok) return reply.code(401).send({ error: result.reason });
+    return reply
+      .setCookie('guaca_tourist', result.token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60,
+      })
+      .send({ ok: true, token: result.token, language: result.tourist.language });
+  });
+
+  app.get('/api/tourist/me', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'unauthorized' });
+    const tourist = await touristById(options.pool, touristId);
+    if (!tourist) return reply.code(401).send({ error: 'unauthorized' });
+    return { email: tourist.email, language: tourist.language };
+  });
+
   app.post('/api/ask', async (req, reply) => {
     const body = req.body as {
       text?: string;
@@ -127,6 +220,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
     };
     if (!body.text) {
       return reply.code(400).send({ error: 'text is required' });
+    }
+    // §4.1 — asks are free and unlimited in product terms, but they belong
+    // to an account: identity is what makes demand signals gameable-proof.
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    if (!askLimiter(touristId)) {
+      return reply.code(429).send({ error: 'rate limited — try again soon' });
     }
     const inference =
       options.inference ??
@@ -167,6 +269,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return app.inject({
       method: 'POST',
       url: '/api/ask',
+      headers: {
+        // Forward the caller's identity — /api/ask is gated (§4.1).
+        ...(req.headers.cookie ? { cookie: req.headers.cookie } : {}),
+        ...(req.headers.authorization ? { authorization: req.headers.authorization } : {}),
+      },
       payload: { text: body.text, language: body.language, lat: 10.4716, lon: -68.0056 },
     }).then((res) => reply.code(res.statusCode).send(res.body));
   });
@@ -246,7 +353,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/spotter/missions', async (req, reply) => {
-    const token = req.cookies?.guaca_spotter;
+    const token = tokenFrom(req, 'guaca_spotter');
     if (!token) return reply.code(401).send({ error: 'unauthorized' });
     const secret = new TextEncoder().encode(
       process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!',
@@ -258,7 +365,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/spotter/missions/:id/accept', async (req, reply) => {
-    const token = req.cookies?.guaca_spotter;
+    const token = tokenFrom(req, 'guaca_spotter');
     if (!token) return reply.code(401).send({ error: 'unauthorized' });
     const secret = new TextEncoder().encode(
       process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!',
@@ -271,7 +378,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/spotter/earnings', async (req, reply) => {
-    const token = req.cookies?.guaca_spotter;
+    const token = tokenFrom(req, 'guaca_spotter');
     if (!token) return reply.code(401).send({ error: 'unauthorized' });
     const secret = new TextEncoder().encode(
       process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!',
@@ -293,7 +400,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!session) return reply.code(404).send({ error: 'qr not found' });
     return reply.send({
       sessionId: session.sessionId,
+      propertyId: session.propertyId,
       propertyName: session.propertyName,
+      language: session.language,
     });
   });
 

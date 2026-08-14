@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 import { buildApp } from '../../src/app.ts';
+import { authTourist, captureSender } from '../helpers/touristTestAuth.ts';
 import { runGapCycle } from '../../src/scheduler.ts';
 import {
   migrate,
@@ -41,6 +42,7 @@ const SPOTTER = '00000000-0000-4000-8000-0000000000c1';
  */
 describe('THE CORE LOOP closes end to end', () => {
   let app: ReturnType<typeof buildApp>;
+  const capture = captureSender();
 
   beforeAll(async () => {
     const admin = new pg.Pool({ connectionString: url('postgres') });
@@ -74,7 +76,7 @@ describe('THE CORE LOOP closes end to end', () => {
     );
     c.release();
 
-    app = buildApp({ pool, inference: new FakeInference(new Map()), minCandidates: 3 });
+    app = buildApp({ pool, inference: new FakeInference(new Map()), minCandidates: 3, emailSender: capture.sender });
     await app.ready();
   });
 
@@ -89,9 +91,11 @@ describe('THE CORE LOOP closes end to end', () => {
   it('step 1–3: an uncovered question is REFUSED and recorded as demand', async () => {
     // Three different guests ask about snorkelling. Nothing is verified here.
     for (let i = 0; i < 3; i++) {
+      const headers = await authTourist(app, capture.codes, `guest${i}@test.guaca.live`);
       const res = await app.inject({
         method: 'POST',
         url: '/api/ask',
+        headers,
         payload: {
           text: 'is there anywhere to snorkel near Isla Larga?',
           language: 'en',
