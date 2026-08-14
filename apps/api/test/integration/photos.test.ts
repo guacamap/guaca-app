@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 import { buildApp } from '../../src/app.ts';
+import { memoryObjectStore } from '../../src/objectStore.ts';
+import { SignJWT } from 'jose';
 import { migrate } from '@guaca/db';
 
 const TEST_DB = 'guaca_photos_api';
@@ -12,6 +14,15 @@ const pool = new pg.Pool({
 
 const AREA_ID = '00000000-0000-4000-8000-00000000000a';
 const SPOTTER_ID = '00000000-0000-4000-8000-0000000000c1';
+const SECRET = new TextEncoder().encode('changeme-32-bytes-min!');
+async function auth(): Promise<{ authorization: string }> {
+  const token = await new SignJWT({ sub: SPOTTER_ID, role: 'spotter' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(SECRET);
+  return { authorization: `Bearer ${token}` };
+}
 const PLACE_ID = '00000000-0000-4000-8000-0000000000d1';
 
 function tinyPng(): string {
@@ -62,13 +73,13 @@ describe('POST /api/photos', () => {
   });
 
   it('stores the photo and returns sha256 + phash', async () => {
-    const app = buildApp({ pool });
+    const app = buildApp({ pool, objectStore: memoryObjectStore() });
     const res = await app.inject({
       method: 'POST',
       url: '/api/photos',
+      headers: await auth(),
       payload: {
         placeId: PLACE_ID,
-        spotterId: SPOTTER_ID,
         imageBase64: tinyPng(),
         captureLat: 10.4716,
         captureLon: -68.0056,
@@ -92,16 +103,16 @@ describe('POST /api/photos', () => {
   });
 
   it('identical images produce identical phash', async () => {
-    const app = buildApp({ pool });
+    const app = buildApp({ pool, objectStore: memoryObjectStore() });
     const a = await app.inject({
       method: 'POST',
       url: '/api/photos',
-      payload: { placeId: PLACE_ID, spotterId: SPOTTER_ID, imageBase64: tinyPng() },
+      headers: await auth(), payload: { placeId: PLACE_ID, imageBase64: tinyPng() },
     });
     const b = await app.inject({
       method: 'POST',
       url: '/api/photos',
-      payload: { placeId: PLACE_ID, spotterId: SPOTTER_ID, imageBase64: tinyPng() },
+      headers: await auth(), payload: { placeId: PLACE_ID, imageBase64: tinyPng() },
     });
     expect((a.json() as { phash: string }).phash).toBe(
       (b.json() as { phash: string }).phash,
