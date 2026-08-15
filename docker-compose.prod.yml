@@ -8,7 +8,11 @@
 # blank secrets.
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    # PostGIS + h3 (see infra/postgres.Dockerfile) — the stock postgis image
+    # has no h3 and the first migration fails on it.
+    build:
+      context: .
+      dockerfile: infra/postgres.Dockerfile
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-guaca}

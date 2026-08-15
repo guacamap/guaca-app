@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    # Same image as production: PostGIS + h3 (infra/postgres.Dockerfile).
+    build:
+      context: .
+      dockerfile: infra/postgres.Dockerfile
     environment:
       POSTGRES_USER: guaca
       POSTGRES_PASSWORD: guaca
