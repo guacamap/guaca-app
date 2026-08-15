@@ -48,6 +48,8 @@ export interface AppCopy {
     storeTitle: string
     storeNote: string
     storeRedeem: string
+    becomeTourist: string
+    becomeTouristNote: string
     mapEmpty: string
     legendMissions: string
     legendConfirm: string
@@ -248,6 +250,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       storeTitle: 'Points store',
       storeNote: 'Redemptions launch after the pilot — keep earning.',
       storeRedeem: 'Redeem',
+      becomeTourist: 'Change to Tourist mode',
+      becomeTouristNote: 'Explore the map and plan with Guaca AI.',
       earningsEmpty: 'Completed missions and their points appear here.',
       backCta: 'Back',
       error: 'Connection failed — try again.',
@@ -434,6 +438,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       storeTitle: 'Tienda de puntos',
       storeNote: 'Los canjes llegan después del piloto — sigue sumando.',
       storeRedeem: 'Canjear',
+      becomeTourist: 'Cambiar a modo Turista',
+      becomeTouristNote: 'Explora el mapa y planifica con Guaca AI.',
       earningsEmpty: 'Las misiones completadas y sus puntos aparecen aquí.',
       backCta: 'Volver',
       error: 'Falló la conexión — intenta de nuevo.',
