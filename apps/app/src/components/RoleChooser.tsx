@@ -26,7 +26,7 @@ const roles = [
     id: 'spotter' as Role,
     title: 'Spotter',
     description: 'Help your community earn rewards',
-    helper: 'Photo missions · paid in airtime',
+    helper: 'Photo missions · earn points & rewards',
     icon: Trophy,
     accent: 'text-guaca-coral',
     ring: 'ring-guaca-coral/30',

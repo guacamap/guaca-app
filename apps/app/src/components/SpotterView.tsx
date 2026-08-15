@@ -47,11 +47,42 @@ interface Earning {
   payoutStatus: string | null
 }
 
+interface SpotterMe {
+  id: string
+  name: string
+  photoUrl: string | null
+  level: number
+  totalPoints: number
+}
+
+interface RankRow {
+  id: string
+  name: string
+  photo_url: string | null
+  level: number
+  points: number
+  missions: number
+  rank: number
+}
+
+const MEDALS = ['🥇', '🥈', '🥉']
+
+/** Dummy points store — catalog only, no real redemption yet. */
+const STORE_ITEMS = [
+  { id: 'airtime5', emoji: '📱', en: 'Phone airtime $5', es: 'Saldo telefónico $5', cost: 2000 },
+  { id: 'cap', emoji: '🧢', en: 'Guaca cap', es: 'Gorra Guaca', cost: 2500 },
+  { id: 'tee', emoji: '👕', en: 'Guaca t-shirt', es: 'Franela Guaca', cost: 4000 },
+  { id: 'spotify', emoji: '🎧', en: 'Spotify · 1 month', es: 'Spotify · 1 mes', cost: 5000 },
+  { id: 'amazon10', emoji: '🛒', en: 'Amazon card $10', es: 'Tarjeta Amazon $10', cost: 6000 },
+  { id: 'netflix', emoji: '🎬', en: 'Netflix · 1 month', es: 'Netflix · 1 mes', cost: 7000 },
+]
+
 type Verdict =
   | { decision: 'needs_second_local' | 'needs_operator'; reasons?: string[] }
   | { decision: 'rejected'; reasons: string[] }
 
-const money = (minor: number, currency: string) => `${(minor / 100).toFixed(2)} ${currency}`
+/** Spotters earn POINTS, not money — mission reward values are points. */
+const pts = (points: number) => `${points} pts`
 
 function categoryLabel(category: string, lang: Lang): string {
   const entry = TAXONOMY.find((t) => t.category === category)
@@ -80,6 +111,9 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
   const [banner, setBanner] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
   const [geoNote, setGeoNote] = useState(false)
+  const [me, setMe] = useState<SpotterMe | null>(null)
+  const [ranking, setRanking] = useState<RankRow[]>([])
+  const [myRank, setMyRank] = useState<{ rank: number; points: number } | null>(null)
 
   const reasonLabel = (code: string) => t.reasons[code] ?? code
 
@@ -169,10 +203,33 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
       })
   }, [t.error])
 
+  const loadProfile = useCallback(() => {
+    fetch('/api/spotter/me', { credentials: 'include' })
+      .then(guard401)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: SpotterMe | null) => {
+        if (d) setMe(d)
+      })
+      .catch(() => {})
+    fetch('/api/spotter/ranking', { credentials: 'include' })
+      .then(guard401)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { ranking: RankRow[]; me: { rank: number; points: number } | null } | null) => {
+        if (d) {
+          setRanking(d.ranking)
+          setMyRank(d.me)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     setBanner(null)
     if (tab === 'confirm') loadPending()
-    if (tab === 'earnings') loadEarnings()
+    if (tab === 'earnings') {
+      loadEarnings()
+      loadProfile()
+    }
     if (tab === 'map') {
       loadOpportunities()
       loadPending()
@@ -261,7 +318,7 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
                 id: o.id,
                 lat: o.lat,
                 lng: o.lon,
-                label: `${categoryLabel(o.category, lang)} · ${money(o.reward_minor, 'USD')}`,
+                label: `${categoryLabel(o.category, lang)} · ${pts(o.reward_minor)}`,
                 asks: o.question_count,
                 category: o.category,
               }))}
@@ -342,7 +399,7 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
                 </div>
                 <p className="mt-3 text-[13px] font-bold leading-snug text-guaca-ink">{m.brief}</p>
                 <p className="mt-2 flex items-center gap-1.5 text-[12px] font-black text-guaca-palm">
-                  <CircleDollarSign aria-hidden="true" className="h-4 w-4" /> {t.reward}: {money(m.rewardMinor, m.currency)}
+                  <CircleDollarSign aria-hidden="true" className="h-4 w-4" /> {t.reward}: {pts(m.rewardMinor)}
                 </p>
                 {m.status === 'offered' && (
                   <Button type="button" disabled={busyIds.has(m.id)} onClick={() => accept(m.id)} className="mt-4 h-11 w-full rounded-xl bg-guaca-coral text-xs font-black text-white hover:bg-guaca-coral-dark disabled:opacity-60">
@@ -383,7 +440,89 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
         )}
 
         {tab === 'earnings' && (
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 space-y-4">
+            {/* Identity + points */}
+            <div className="rounded-[28px] bg-white p-5 text-center shadow-sm ring-1 ring-guaca-sand/75">
+              {me?.photoUrl ? (
+                <img src={me.photoUrl} alt="" className="mx-auto h-16 w-16 rounded-full object-cover" />
+              ) : (
+                <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-guaca-coral text-2xl font-black text-white">
+                  {(me?.name?.[0] ?? '·').toUpperCase()}
+                </span>
+              )}
+              <h2 className="mt-3 text-[15px] font-black text-guaca-ink">{me?.name ?? '…'}</h2>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.1em] text-guaca-coral-dark">Spotter · Lv{me?.level ?? 1}</p>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="rounded-2xl bg-guaca-coral/8 px-2 py-3">
+                  <p className="text-lg font-black text-guaca-coral-dark">{me?.totalPoints ?? 0}</p>
+                  <p className="text-[9px] font-black text-guaca-ink/45">{t.pointsSuffix}</p>
+                </div>
+                <div className="rounded-2xl bg-guaca-mango/12 px-2 py-3">
+                  <p className="text-lg font-black text-guaca-mango-dark">{myRank?.points ?? 0}</p>
+                  <p className="text-[9px] font-black text-guaca-ink/45">{t.monthPoints}</p>
+                </div>
+                <div className="rounded-2xl bg-guaca-teal/8 px-2 py-3">
+                  <p className="text-lg font-black text-guaca-teal">{myRank ? `#${myRank.rank}` : '—'}</p>
+                  <p className="text-[9px] font-black text-guaca-ink/45">{t.rankLabel}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Dummy points store — catalog only; redemptions post-pilot. */}
+            <div>
+              <p className="px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">{t.storeTitle}</p>
+              <div className="mt-2 flex gap-2.5 overflow-x-auto pb-2 [scrollbar-width:none]">
+                {STORE_ITEMS.map((item) => {
+                  const affordable = (me?.totalPoints ?? 0) >= item.cost
+                  return (
+                    <div key={item.id} className="w-32 shrink-0 rounded-[22px] bg-white p-3 text-center shadow-sm ring-1 ring-guaca-sand/75">
+                      <p className="text-3xl">{item.emoji}</p>
+                      <p className="mt-1.5 h-8 text-[10px] font-black leading-tight text-guaca-ink">{lang === 'es' ? item.es : item.en}</p>
+                      <p className="mt-1 text-[11px] font-black text-guaca-coral-dark">{pts(item.cost)}</p>
+                      <button
+                        type="button"
+                        disabled={!affordable}
+                        onClick={() => setBanner({ kind: 'info', text: t.storeNote })}
+                        className={`mt-2 w-full rounded-full px-2 py-1.5 text-[9px] font-black ${affordable ? 'bg-guaca-coral text-white hover:bg-guaca-coral-dark' : 'bg-guaca-ink/6 text-guaca-ink/35'}`}
+                      >
+                        {t.storeRedeem}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <p className="px-1 text-[9px] font-semibold text-guaca-ink/40">{t.storeNote}</p>
+            </div>
+
+            {/* Monthly ranking */}
+            <div className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-guaca-sand/75">
+              <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+                <Trophy className="h-3.5 w-3.5 text-guaca-mango-dark" /> {t.rankingTitle}
+              </p>
+              <div className="mt-2 space-y-1">
+                {ranking.map((r) => (
+                  <div key={r.id} className={`flex items-center gap-2.5 rounded-2xl px-3 py-2 ${r.id === me?.id ? 'bg-guaca-coral/8 ring-1 ring-guaca-coral/25' : ''}`}>
+                    <span className="w-6 text-center text-[13px] font-black text-guaca-ink/60">
+                      {MEDALS[r.rank - 1] ?? `#${r.rank}`}
+                    </span>
+                    {r.photo_url ? (
+                      <img src={r.photo_url} alt="" className="h-7 w-7 rounded-full object-cover" />
+                    ) : (
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-guaca-teal text-[10px] font-black text-white">
+                        {(r.name[0] ?? '·').toUpperCase()}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-black text-guaca-ink">
+                      {r.name} <span className="text-[9px] font-bold text-guaca-ink/40">Lv{r.level}</span>
+                    </span>
+                    <span className="shrink-0 text-[12px] font-black text-guaca-coral-dark">{pts(r.points)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Points history */}
+            <p className="px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">{t.historyTitle}</p>
             {earnings.length === 0 && (
               <p className="rounded-[28px] border border-dashed border-guaca-sand bg-white/70 p-6 text-center text-[12px] font-semibold text-guaca-ink/55">
                 {t.earningsEmpty}
@@ -395,10 +534,9 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
                   <p className="truncate text-[12px] font-bold text-guaca-ink">{e.brief}</p>
                   <p className="mt-1 text-[10px] font-black text-guaca-ink/45">
                     {statusLabel[e.status] ?? e.status}
-                    {e.payoutStatus ? ` · ${e.payoutStatus}` : ''}
                   </p>
                 </div>
-                <span className="shrink-0 text-[13px] font-black text-guaca-palm">{money(e.rewardMinor, e.currency)}</span>
+                <span className="shrink-0 text-[13px] font-black text-guaca-palm">{pts(e.rewardMinor)}</span>
               </article>
             ))}
             <Button type="button" variant="ghost" onClick={onRoleChange} className="h-11 w-full rounded-2xl bg-guaca-teal/8 text-xs font-black text-guaca-teal hover:bg-guaca-teal/12">
