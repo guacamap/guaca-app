@@ -3,14 +3,19 @@ import {
   ArrowRight,
   BadgeCheck,
   Bell,
+  Check,
   Clock3,
   Globe,
   LogOut,
   MapPin,
   Megaphone,
+  Navigation,
+  Plus,
+  RefreshCcw,
   Route,
   Search,
   Send,
+  Share2,
   Sparkles,
   Store,
   Trash2,
@@ -25,6 +30,7 @@ import { appCopy } from '../lib/copy'
 const PILOT_CENTER: [number, number] = [-68.0056, 10.4716]
 const BBOX_HALF_DEG = 0.06 // ~6.5 km — the walkable pilot zone
 const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL ?? 'https://guaca.live'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.guaca.live'
 
 const THREAD_KEY = 'guaca:thread'
 const PLAN_KEY = 'guaca:plan'
@@ -46,7 +52,7 @@ type AskState =
   | { kind: 'idle' }
   | { kind: 'asking' }
   | { kind: 'answer'; text: string; placeIds: string[] }
-  | { kind: 'refusal'; text: string }
+  | { kind: 'refusal'; text: string; questionId?: string }
   | { kind: 'error' }
 
 interface ChatMsg {
@@ -55,6 +61,7 @@ interface ChatMsg {
   kind?: 'answer' | 'refusal' | 'error'
   text: string
   placeIds?: string[]
+  questionId?: string
 }
 
 interface SavedPlan {
@@ -126,6 +133,9 @@ export function TouristView() {
   const [plan, setPlan] = useState<SavedPlan | null>(null)
   const [planPlaces, setPlanPlaces] = useState<Record<string, ApiPlace>>({})
   const [me, setMe] = useState<Me | null>(null)
+  const [doubted, setDoubted] = useState<Set<string>>(new Set())
+  const [notified, setNotified] = useState<Set<string>>(new Set())
+  const [catFilter, setCatFilter] = useState<string | null>(null)
   const threadEndRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -189,7 +199,7 @@ export function TouristView() {
 
   const pins = useMemo(
     () =>
-      places.map((p) => {
+      (catFilter ? places.filter((p) => p.category === catFilter) : places).map((p) => {
         const glyph = CATEGORY_GLYPH[p.category] ?? { emoji: '📍', color: '#0D8B8B' }
         return {
           id: p.id,
@@ -202,13 +212,18 @@ export function TouristView() {
           verified: true,
         }
       }),
-    [places],
+    [places, catFilter],
   )
 
   /** One grounded call for the map box AND the Guaca thread (§7.3). */
   const askApi = async (
     text: string,
-  ): Promise<{ kind: 'answer' | 'refusal'; text: string; placeIds: string[] } | null> => {
+  ): Promise<{
+    kind: 'answer' | 'refusal'
+    text: string
+    placeIds: string[]
+    questionId?: string
+  } | null> => {
     const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -216,7 +231,78 @@ export function TouristView() {
       body: JSON.stringify({ text, language: lang, lat: center[1], lon: center[0] }),
     })
     if (!res.ok) return null
-    return (await res.json()) as { kind: 'answer' | 'refusal'; text: string; placeIds: string[] }
+    return (await res.json()) as {
+      kind: 'answer' | 'refusal'
+      text: string
+      placeIds: string[]
+      questionId?: string
+    }
+  }
+
+  const openWindow = (url: string) => window.open(url, '_blank', 'noopener')
+  const waShare = (text: string) => openWindow(`https://wa.me/?text=${encodeURIComponent(text)}`)
+
+  const sharePlace = (p: ApiPlace) =>
+    waShare(
+      `${p.name} — ${t.shareVia}${p.spotter_name ? ` (${t.verifiedBy} ${p.spotter_name})` : ''}. ${APP_URL}`,
+    )
+
+  const directionsTo = (p: ApiPlace) =>
+    openWindow(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`)
+
+  /** Prefill the Guaca tab with a question about this place — every tap is
+   *  a demand signal for exactly this spot. */
+  const askAboutPlace = (p: ApiPlace) => {
+    setSelected(null)
+    setGuacaText(t.askAboutPlace.replace('{name}', p.name))
+    setActiveTab('guaca')
+  }
+
+  /** A doubt, not a review: creates re-check demand, publishes nothing. */
+  const doubtPlace = (p: ApiPlace) => {
+    if (doubted.has(p.id)) return
+    setDoubted((prev) => new Set(prev).add(p.id))
+    fetch(`/api/places/${p.id}/doubt`, { method: 'POST', credentials: 'include' }).catch(() => {})
+  }
+
+  const notifyMe = (questionId: string) => {
+    if (notified.has(questionId)) return
+    setNotified((prev) => new Set(prev).add(questionId))
+    fetch(`/api/questions/${questionId}/notify`, { method: 'POST', credentials: 'include' }).catch(
+      () => {},
+    )
+  }
+
+  const addToPlan = (id: string) => {
+    setPlan((prev) => {
+      const next: SavedPlan = prev
+        ? prev.placeIds.includes(id)
+          ? prev
+          : { ...prev, placeIds: [...prev.placeIds, id] }
+        : { question: '', text: '', placeIds: [id], savedAt: new Date().toISOString() }
+      saveJson(PLAN_KEY, next)
+      return next
+    })
+  }
+
+  const removeStop = (id: string) => {
+    setPlan((prev) => {
+      if (!prev) return prev
+      const ids = prev.placeIds.filter((x) => x !== id)
+      if (ids.length === 0) {
+        try { localStorage.removeItem(PLAN_KEY) } catch { /* best-effort */ }
+        return null
+      }
+      const next = { ...prev, placeIds: ids }
+      saveJson(PLAN_KEY, next)
+      return next
+    })
+  }
+
+  const sharePlanWa = () => {
+    if (!plan) return
+    const stops = plan.placeIds.map((id) => placeById(id)?.name).filter(Boolean).join(' → ')
+    waShare(`${t.planTitle}: ${stops} — ${t.shareVia}. ${APP_URL}`)
   }
 
   const savePlanFromAnswer = (question: string, text: string, placeIds: string[]) => {
@@ -238,7 +324,11 @@ export function TouristView() {
         setAskState({ kind: 'answer', text: body.text, placeIds: body.placeIds })
         savePlanFromAnswer(text, body.text, body.placeIds)
       } else {
-        setAskState({ kind: 'refusal', text: body.text })
+        setAskState({
+          kind: 'refusal',
+          text: body.text,
+          ...(body.questionId ? { questionId: body.questionId } : {}),
+        })
       }
     } catch {
       setAskState({ kind: 'error' })
@@ -268,6 +358,7 @@ export function TouristView() {
           kind: body.kind,
           text: body.text,
           placeIds: body.placeIds,
+          ...(body.questionId ? { questionId: body.questionId } : {}),
         }
         if (body.kind === 'answer') savePlanFromAnswer(text, body.text, body.placeIds)
       }
@@ -357,6 +448,26 @@ export function TouristView() {
             {updates.length > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-guaca-coral ring-2 ring-white" />}
           </Button>
         </form>
+        {/* Category filter — browse without typing. */}
+        <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+          <button
+            type="button"
+            onClick={() => setCatFilter(null)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md ${catFilter === null ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70'}`}
+          >
+            {t.allCategories}
+          </button>
+          {Object.entries(CATEGORY_GLYPH).map(([key, glyph]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setCatFilter((prev) => (prev === key ? null : key))}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md ${catFilter === key ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70'}`}
+            >
+              {glyph.emoji} {t.categoryLabels[key] ?? key}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
@@ -400,6 +511,29 @@ export function TouristView() {
                 </p>
               </div>
             </div>
+
+            {/* Actions: navigate, ask, share, doubt — tourists can only
+                ask and doubt; nothing here publishes content. */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button type="button" onClick={() => directionsTo(selected)} className="h-10 rounded-xl bg-guaca-teal text-[11px] font-black text-white hover:bg-guaca-teal-dark">
+                <Navigation className="mr-1.5 h-3.5 w-3.5" /> {t.sheetDirections}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => askAboutPlace(selected)} className="h-10 rounded-xl bg-guaca-teal/8 text-[11px] font-black text-guaca-teal hover:bg-guaca-teal/15">
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {t.sheetAsk}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => sharePlace(selected)} className="h-10 rounded-xl bg-guaca-ocean/8 text-[11px] font-black text-guaca-ocean hover:bg-guaca-ocean/15">
+                <Share2 className="mr-1.5 h-3.5 w-3.5" /> {t.sheetShare}
+              </Button>
+              {doubted.has(selected.id) ? (
+                <span className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-guaca-mango/15 px-2 text-[10px] font-black text-guaca-mango-dark">
+                  <Check className="h-3.5 w-3.5" /> {t.sheetDoubtSent}
+                </span>
+              ) : (
+                <Button type="button" variant="ghost" onClick={() => doubtPlace(selected)} className="h-10 rounded-xl bg-guaca-ink/5 text-[11px] font-black text-guaca-ink/60 hover:bg-guaca-ink/10">
+                  <RefreshCcw className="mr-1.5 h-3.5 w-3.5" /> {t.sheetDoubt}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -423,6 +557,17 @@ export function TouristView() {
               </div>
               <p className="mt-2 text-[15px] font-black leading-snug">{askState.text}</p>
               <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/65">{t.refusalNote}</p>
+              {askState.questionId && (
+                notified.has(askState.questionId) ? (
+                  <p className="mt-3 flex items-center gap-1.5 text-[11px] font-black text-guaca-mango-light">
+                    <Check className="h-3.5 w-3.5" /> {t.refusalNotifySaved}
+                  </p>
+                ) : (
+                  <Button type="button" onClick={() => notifyMe(askState.questionId!)} className="mt-3 h-10 w-full rounded-xl bg-guaca-mango text-[11px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light">
+                    <Bell className="mr-1.5 h-3.5 w-3.5" /> {t.refusalNotify}
+                  </Button>
+                )
+              )}
             </div>
           )}
 
@@ -507,6 +652,17 @@ export function TouristView() {
                 <p className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-mango-light">{t.refusalTitle}</p>
                 <p className="mt-1.5 whitespace-pre-line text-[13px] font-black leading-snug">{m.text}</p>
                 <p className="mt-1.5 text-[10px] font-bold leading-relaxed text-white/65">{t.refusalNote}</p>
+                {m.questionId && (
+                  notified.has(m.questionId) ? (
+                    <p className="mt-2.5 flex items-center gap-1.5 text-[10px] font-black text-guaca-mango-light">
+                      <Check className="h-3 w-3" /> {t.refusalNotifySaved}
+                    </p>
+                  ) : (
+                    <button type="button" onClick={() => notifyMe(m.questionId!)} className="mt-2.5 flex items-center gap-1.5 rounded-full bg-guaca-mango px-3 py-2 text-[10px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light">
+                      <Bell className="h-3 w-3" /> {t.refusalNotify}
+                    </button>
+                  )
+                )}
               </div>
             ) : (
               <div key={m.id} className="guaca-card max-w-[92%] rounded-3xl rounded-bl-lg p-4">
@@ -521,10 +677,22 @@ export function TouristView() {
                     {(m.placeIds ?? []).map((id) => {
                       const p = placeById(id)
                       if (!p) return null
+                      const inPlan = plan?.placeIds.includes(id) ?? false
                       return (
-                        <button key={id} type="button" onClick={() => openPlaceOnMap(id)} className="rounded-full bg-guaca-teal/8 px-3 py-1.5 text-[10px] font-black text-guaca-teal hover:bg-guaca-teal/15">
-                          {(CATEGORY_GLYPH[p.category] ?? { emoji: '📍' }).emoji} {p.name}
-                        </button>
+                        <span key={id} className="inline-flex items-stretch overflow-hidden rounded-full bg-guaca-teal/8">
+                          <button type="button" onClick={() => openPlaceOnMap(id)} className="px-3 py-1.5 text-[10px] font-black text-guaca-teal hover:bg-guaca-teal/15">
+                            {(CATEGORY_GLYPH[p.category] ?? { emoji: '📍' }).emoji} {p.name}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={inPlan ? t.addedToPlan : t.addToPlan}
+                            title={inPlan ? t.addedToPlan : t.addToPlan}
+                            onClick={() => addToPlan(id)}
+                            className="border-l border-guaca-teal/15 px-2 text-guaca-teal hover:bg-guaca-teal/15"
+                          >
+                            {inPlan ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                          </button>
+                        </span>
                       )
                     })}
                   </div>
@@ -618,15 +786,28 @@ export function TouristView() {
                   <button type="button" onClick={() => openPlaceOnMap(id)} className="shrink-0 rounded-full bg-guaca-teal/8 px-3 py-2 text-[10px] font-black text-guaca-teal hover:bg-guaca-teal/15">
                     {t.planViewOnMap}
                   </button>
+                  <button
+                    type="button"
+                    aria-label={t.removeStop}
+                    title={t.removeStop}
+                    onClick={() => removeStop(id)}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-guaca-ink/5 text-guaca-ink/45 hover:bg-guaca-coral/12 hover:text-guaca-coral-dark"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               )
             })}
           </div>
 
+          <Button type="button" onClick={sharePlanWa} className="mt-4 h-11 w-full rounded-2xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark">
+            <Share2 className="mr-1.5 h-4 w-4" /> {t.sharePlan}
+          </Button>
+
           <button
             type="button"
-            onClick={() => { setPlan(null); saveJson(PLAN_KEY, null); localStorage.removeItem(PLAN_KEY) }}
-            className="mx-auto mt-5 block text-[10px] font-bold text-guaca-ink/38 underline-offset-2 hover:underline"
+            onClick={() => { setPlan(null); localStorage.removeItem(PLAN_KEY) }}
+            className="mx-auto mt-4 block text-[10px] font-bold text-guaca-ink/38 underline-offset-2 hover:underline"
           >
             {t.planClear}
           </button>
