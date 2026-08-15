@@ -21,7 +21,8 @@
     "@guaca/shared": "workspace:*",
     "sharp": "^0.35.3",
     "sharp-phash": "^2.2.0",
-    "zod": "^3.25.32"
+    "zod": "^3.25.32",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
