@@ -42,7 +42,17 @@ export async function requestTouristCode(
   // production, the code is always 000000 so testers never have to fish
   // it out of the API log. Same hashing, expiry and single-use semantics.
   const devBypass = sender.mode === 'dev' && process.env.NODE_ENV !== 'production';
-  const code = devBypass ? '000000' : String(randomInt(0, 1_000_000)).padStart(6, '0');
+  // Store-review account: app reviewers cannot receive our email codes, so
+  // ONE configured address gets a fixed code. Inert unless both env vars
+  // are set, and it still goes through the normal hash/expiry/single-use path.
+  const reviewEmail = process.env.REVIEW_EMAIL?.trim().toLowerCase();
+  const reviewCode = process.env.REVIEW_CODE?.trim();
+  const isReview = Boolean(reviewEmail && reviewCode && email === reviewEmail);
+  const code = isReview
+    ? reviewCode!
+    : devBypass
+      ? '000000'
+      : String(randomInt(0, 1_000_000)).padStart(6, '0');
   const language = input.language === 'es' ? 'es' : 'en';
   await db.upsertLoginCode({
     email,

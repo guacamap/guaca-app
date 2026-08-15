@@ -33,7 +33,13 @@ export async function spotterLogin(
   // spotter outside production, so teammates can test the mission flow
   // without minting CLI codes. Production always requires a real code.
   const devBypass = process.env.NODE_ENV !== 'production' && input.code === '000000';
-  if (!devBypass) {
+  // Store-review spotter account — inert unless both env vars are set.
+  const reviewPhone = process.env.REVIEW_SPOTTER_PHONE?.trim();
+  const reviewCode = process.env.REVIEW_CODE?.trim();
+  const isReview = Boolean(
+    reviewPhone && reviewCode && input.phone.trim() === reviewPhone && input.code === reviewCode,
+  );
+  if (!devBypass && !isReview) {
     if (!spotter.loginCodeHash) return { ok: false, reason: 'NO_CODE' };
     const hash = createHash('sha256').update(input.code).digest('hex');
     if (hash !== spotter.loginCodeHash) return { ok: false, reason: 'BAD_CODE' };

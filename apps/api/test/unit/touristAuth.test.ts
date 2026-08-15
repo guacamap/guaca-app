@@ -169,3 +169,43 @@ describe('dev bypass — fixed 000000 code without real email delivery', () => {
     }
   });
 });
+
+describe('store-review account', () => {
+  it('is inert unless both env vars are set', async () => {
+    const { db } = memoryDb();
+    const cap = capture();
+    await requestTouristCode(db, { email: 'review@example.com' }, cap.sender);
+    expect(cap.last()).toMatch(/^\d{6}$/);
+    expect(cap.last()).not.toBe('424242');
+  });
+
+  it('gives exactly the configured address the configured code', async () => {
+    const prevEmail = process.env.REVIEW_EMAIL;
+    const prevCode = process.env.REVIEW_CODE;
+    const prevEnv = process.env.NODE_ENV;
+    process.env.REVIEW_EMAIL = 'review@example.com';
+    process.env.REVIEW_CODE = '424242';
+    process.env.NODE_ENV = 'production';
+    try {
+      const { db } = memoryDb();
+      const cap = capture();
+      await requestTouristCode(db, { email: 'Review@Example.com' }, cap.sender);
+      expect(cap.last()).toBe('424242');
+      const login = await verifyTouristLogin(
+        db,
+        { email: 'review@example.com', code: '424242' },
+        SECRET,
+      );
+      expect(login.ok).toBe(true);
+
+      // Anyone else still gets a random code.
+      const other = capture();
+      await requestTouristCode(db, { email: 'someone@example.com' }, other.sender);
+      expect(other.last()).not.toBe('424242');
+    } finally {
+      process.env.REVIEW_EMAIL = prevEmail;
+      process.env.REVIEW_CODE = prevCode;
+      process.env.NODE_ENV = prevEnv;
+    }
+  });
+});
