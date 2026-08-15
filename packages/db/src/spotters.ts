@@ -11,12 +11,28 @@ export interface SpotterRosterRow {
 /** Operator-issued accounts only — there is deliberately no self-signup. */
 export async function addSpotter(
   pool: Pool,
-  input: { name: string; phone: string; areaId: string; language?: string },
+  input: {
+    name: string;
+    phone: string;
+    areaId: string;
+    language?: string;
+    /** Territory identity — the face shown on every pin they verify. */
+    photoUrl?: string;
+    /** The zone they own (home_h3). */
+    homeH3?: string;
+  },
 ): Promise<{ id: string }> {
   const res = await pool.query<{ id: string }>(
-    `insert into spotters (name, phone, area_id, language)
-     values ($1, $2, $3, $4) returning id`,
-    [input.name, input.phone, input.areaId, input.language ?? 'es'],
+    `insert into spotters (name, phone, area_id, language, photo_url, home_h3)
+     values ($1, $2, $3, $4, $5, $6) returning id`,
+    [
+      input.name,
+      input.phone,
+      input.areaId,
+      input.language ?? 'es',
+      input.photoUrl ?? null,
+      input.homeH3 ?? null,
+    ],
   );
   return { id: res.rows[0]!.id };
 }
