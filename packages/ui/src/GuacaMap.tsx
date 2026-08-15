@@ -66,6 +66,8 @@ interface GuacaMapProps {
   onPinClick?: (id: string) => void
   onGapClick?: (id: string) => void
   onDotClick?: (id: string) => void
+  /** Blue current-location marker with live tracking (GeolocateControl). */
+  showUserLocation?: boolean
   mapStyle?: MapStyleId
   center?: [number, number]
   zoom?: number
@@ -277,6 +279,7 @@ export function GuacaMap({
   onPinClick,
   onGapClick,
   onDotClick,
+  showUserLocation = false,
   mapStyle = 'satellite-streets',
   center = [-68.0075, 10.4665],
   zoom = 15,
@@ -314,7 +317,18 @@ export function GuacaMap({
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
 
+    let geolocate: mapboxgl.GeolocateControl | null = null
+    if (showUserLocation) {
+      geolocate = new mapboxgl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserHeading: true,
+      })
+      map.addControl(geolocate, 'bottom-right')
+    }
+
     map.on('load', () => {
+      if (geolocate) geolocate.trigger()
       // Slightly reduce label opacity for readability
       const layers = map.getStyle().layers
       if (layers) {
