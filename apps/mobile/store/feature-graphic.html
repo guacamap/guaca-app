@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@import url('');
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1024px;height:500px;overflow:hidden;font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+  background:linear-gradient(115deg,#0A1F24 0%,#0C4A5C 45%,#0D8B8B 100%);color:#fff;display:flex;align-items:center;padding:0 64px;position:relative}
+.glow{position:absolute;border-radius:50%;filter:blur(80px);opacity:.42}
+.g1{width:420px;height:420px;background:#0D8B8B;right:-60px;top:-120px}
+.g2{width:340px;height:340px;background:#E8735A;right:180px;bottom:-160px;opacity:.3}
+.wrap{position:relative;z-index:2;max-width:660px}
+.brand{font-family:Georgia,serif;font-style:italic;font-size:78px;font-weight:700;letter-spacing:-3px;line-height:1}
+.tag{margin-top:18px;font-size:33px;font-weight:800;line-height:1.24;letter-spacing:-.5px}
+.sub{margin-top:16px;font-size:19px;font-weight:600;color:rgba(255,255,255,.74);line-height:1.45}
+.pills{margin-top:26px;display:flex;gap:10px}
+.pill{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:9px 17px;font-size:14px;font-weight:800}
+.mark{position:absolute;right:78px;top:50%;transform:translateY(-50%);z-index:2;text-align:center}
+.pin{width:186px;height:186px;border-radius:50%;background:#E8735A;border:9px solid #fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 26px 60px rgba(0,0,0,.42)}
+.pin svg{width:78px;height:78px}
+.check{width:62px;height:62px;border-radius:50%;background:#22c55e;border:6px solid #fff;position:absolute;right:-4px;bottom:-4px;display:flex;align-items:center;justify-content:center}
+.check svg{width:28px;height:28px}
+.by{margin-top:20px;font-size:15px;font-weight:800;color:rgba(255,255,255,.8)}
+</style></head><body>
+<div class="glow g1"></div><div class="glow g2"></div>
+<div class="wrap">
+  <div class="brand">Guaca</div>
+  <div class="tag">Every place verified in person<br>by a local you can name.</div>
+  <div class="sub">Caribbean travel answers built only from places<br>someone actually stood in — never invented.</div>
+  <div class="pills"><span class="pill">Live map</span><span class="pill">AI that refuses to guess</span><span class="pill">Locals paid to verify</span></div>
+</div>
+<div class="mark">
+  <div style="position:relative;display:inline-block">
+    <div class="pin"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.8 7-11.3a7 7 0 1 0-14 0C5 15.2 12 21 12 21Z"/><circle cx="12" cy="9.7" r="2.4"/></svg></div>
+    <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+  </div>
+  <div class="by">Puerto Cabello · Venezuela</div>
+</div>
+</body></html>
