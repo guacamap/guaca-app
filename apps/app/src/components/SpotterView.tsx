@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Crosshair, MapPin, Trophy } from 'lucide-react'
-import { Button, GuacaLogo, Input, useLanguage, type Lang } from '@guaca/ui'
+import { BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Crosshair, Map as MapIcon, MapPin, Trophy } from 'lucide-react'
+import { Button, GuacaLogo, GuacaMap, Input, useLanguage, type Lang } from '@guaca/ui'
 import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 
@@ -23,6 +23,19 @@ interface PendingConfirmation {
   landmark_description: string
   category: string
   distanceM: number
+  lat: number
+  lon: number
+}
+
+/** A mission target on the map — the gap's h3 cell centre. */
+interface Opportunity {
+  id: string
+  status: string
+  category: string
+  reward_minor: number
+  question_count: number
+  lat: number
+  lon: number
 }
 
 interface Earning {
@@ -57,7 +70,9 @@ function guard401(r: Response): Response {
 export function SpotterView({ onRoleChange }: SpotterViewProps) {
   const { lang } = useLanguage()
   const t = appCopy[lang].spotter
-  const [tab, setTab] = useState<'missions' | 'confirm' | 'earnings'>('missions')
+  const [tab, setTab] = useState<'missions' | 'map' | 'confirm' | 'earnings'>('missions')
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-68.0056, 10.4716])
   const [missions, setMissions] = useState<Mission[]>([])
   const [pending, setPending] = useState<PendingConfirmation[]>([])
   const [earnings, setEarnings] = useState<Earning[]>([])
@@ -143,11 +158,33 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
   useEffect(() => {
     loadMissions()
   }, [loadMissions])
+  const loadOpportunities = useCallback(() => {
+    fetch('/api/spotter/opportunities', { credentials: 'include' })
+      .then(guard401)
+      .then((r) => (r.ok ? r.json() : { opportunities: [] }))
+      .then((d: { opportunities: Opportunity[] }) => setOpportunities(d.opportunities ?? []))
+      .catch((e) => {
+        if (String(e).includes('session')) return
+        setBanner({ kind: 'error', text: t.error })
+      })
+  }, [t.error])
+
   useEffect(() => {
     setBanner(null)
     if (tab === 'confirm') loadPending()
     if (tab === 'earnings') loadEarnings()
-  }, [tab, loadPending, loadEarnings])
+    if (tab === 'map') {
+      loadOpportunities()
+      loadPending()
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => setMapCenter([pos.coords.longitude, pos.coords.latitude]),
+          () => {},
+          { timeout: 3000, maximumAge: 300_000 },
+        )
+      }
+    }
+  }, [tab, loadPending, loadEarnings, loadOpportunities])
 
   const accept = (missionId: string) =>
     withBusy(missionId, async () => {
@@ -206,6 +243,55 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
 
   return (
     <div className="relative h-full min-h-screen overflow-hidden bg-guaca-sand-light sm:min-h-full">
+      {tab === 'map' && (
+        <>
+          <div className="absolute inset-0 z-0">
+            <GuacaMap
+              pins={pending.map((p) => ({
+                id: p.id,
+                lat: p.lat,
+                lng: p.lon,
+                emoji: '✓',
+                label: p.name,
+                spotterColor: '#0D8B8B',
+                spotterInitials: '✓',
+                verified: false,
+              }))}
+              gapPins={opportunities.map((o) => ({
+                id: o.id,
+                lat: o.lat,
+                lng: o.lon,
+                label: `${categoryLabel(o.category, lang)} · ${money(o.reward_minor, 'USD')}`,
+                asks: o.question_count,
+                category: o.category,
+              }))}
+              onPinClick={() => setTab('confirm')}
+              onGapClick={() => setTab('missions')}
+              showUserLocation
+              mapStyle="streets"
+              center={mapCenter}
+              zoom={13.8}
+            />
+          </div>
+          <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/60 via-guaca-ocean/15 to-transparent px-5 pb-12 pt-10">
+            <p className="text-[13px] font-black text-white drop-shadow">{t.mapLede}</p>
+            <div className="mt-2 flex gap-1.5">
+              <span className="flex items-center gap-1.5 rounded-full bg-guaca-sand-light/92 px-3 py-1.5 text-[10px] font-black text-guaca-coral-dark shadow-md">
+                <span className="h-2 w-2 rounded-full bg-guaca-coral" /> {t.legendMissions} ({opportunities.length})
+              </span>
+              <span className="flex items-center gap-1.5 rounded-full bg-guaca-sand-light/92 px-3 py-1.5 text-[10px] font-black text-guaca-teal shadow-md">
+                <span className="h-2 w-2 rounded-full bg-guaca-teal" /> {t.legendConfirm} ({pending.length})
+              </span>
+            </div>
+          </div>
+          {opportunities.length === 0 && pending.length === 0 && (
+            <div className="absolute bottom-[92px] left-4 right-4 z-[450]">
+              <p className="guaca-card rounded-[24px] p-4 text-center text-[11px] font-semibold text-guaca-ink/55">{t.mapEmpty}</p>
+            </div>
+          )}
+        </>
+      )}
+      {tab !== 'map' && (
       <div className="h-full overflow-y-auto px-5 pb-28 pt-12">
         <div className="rounded-[32px] bg-gradient-to-br from-guaca-coral to-guaca-sunset p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
@@ -321,12 +407,14 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
           </div>
         )}
       </div>
+      )}
 
       <div className="absolute bottom-0 left-0 right-0 z-[500] border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md">
         <div className="flex items-center justify-around">
           {(
             [
               { id: 'missions', label: t.tabMissions, icon: Trophy },
+              { id: 'map', label: t.tabMap, icon: MapIcon },
               { id: 'confirm', label: t.tabConfirm, icon: BadgeCheck },
               { id: 'earnings', label: t.tabEarnings, icon: CircleDollarSign },
             ] as const

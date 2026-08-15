@@ -36,8 +36,13 @@ export interface AppCopy {
     loginCta: string
     loginFailed: string
     tabMissions: string
+    tabMap: string
     tabConfirm: string
     tabEarnings: string
+    mapLede: string
+    mapEmpty: string
+    legendMissions: string
+    legendConfirm: string
     missionsTitle: string
     missionsEmpty: string
     acceptCta: string
@@ -189,8 +194,13 @@ export const appCopy: Record<Lang, AppCopy> = {
       loginCta: 'Enter',
       loginFailed: 'Phone or code not recognised — codes are single-use; ask your operator for a new one.',
       tabMissions: 'Missions',
+      tabMap: 'Map',
       tabConfirm: 'Confirm',
       tabEarnings: 'Earnings',
+      mapLede: 'Your earning opportunities, where you are.',
+      mapEmpty: 'No opportunities near you right now — they appear when travellers ask about unverified places.',
+      legendMissions: 'Missions',
+      legendConfirm: 'To confirm',
       missionsTitle: 'Your missions',
       missionsEmpty: 'No missions yet — they arrive when travellers ask about places nobody has verified.',
       acceptCta: 'Accept mission',
@@ -362,6 +372,11 @@ export const appCopy: Record<Lang, AppCopy> = {
       loginCta: 'Entrar',
       loginFailed: 'Teléfono o código no reconocido — los códigos son de un solo uso; pide otro a tu operador.',
       tabMissions: 'Misiones',
+      tabMap: 'Mapa',
+      mapLede: 'Tus oportunidades de ganar, donde estás.',
+      mapEmpty: 'No hay oportunidades cerca por ahora — aparecen cuando los viajeros preguntan por lugares sin verificar.',
+      legendMissions: 'Misiones',
+      legendConfirm: 'Por confirmar',
       tabConfirm: 'Confirmar',
       tabEarnings: 'Ganancias',
       missionsTitle: 'Tus misiones',

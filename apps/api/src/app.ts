@@ -723,6 +723,29 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return { pending };
   });
 
+  /*
+   * Spotter map: earning opportunities with real coordinates. Mission
+   * targets come from the gap's h3 cell centre (h3-pg does the inverse of
+   * the clustering function); confirmables carry the place's own point.
+   */
+  app.get('/api/spotter/opportunities', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const res = await options.pool.query(
+      `select m.id, m.status, m.target_category as category, m.reward_minor,
+              g.question_count,
+              (h3_cell_to_lat_lng(g.h3_8::h3index))[1] as lat,
+              (h3_cell_to_lat_lng(g.h3_8::h3index))[0] as lon
+       from missions m
+       join gaps g on g.id = m.gap_id
+       where m.spotter_id = $1 and m.status in ('offered', 'accepted')`,
+      [spotterId],
+    );
+    return { opportunities: res.rows };
+  });
+
   // The submission is complete — run the check ladder (§7.4). The cheap
   // rungs run always; if vision is unreachable the case escalates to the
   // operator instead of silently passing.

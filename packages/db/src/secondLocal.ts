@@ -15,6 +15,8 @@ export interface PendingProvisional {
   category: string;
   distanceM: number;
   createdBySpotterId: string;
+  lat: number;
+  lon: number;
 }
 
 /**
@@ -32,7 +34,8 @@ export async function pendingProvisionalNear(
   const res = await pool.query(
     `select p.id, p.name, p.landmark_description, p.category,
             ST_Distance(p.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography)::float8 as "distanceM",
-            p.created_by_spotter_id
+            p.created_by_spotter_id,
+            ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon
      from places p
      where p.verification_status = 'provisional'
        and p.witness_count = 1
