@@ -97,7 +97,8 @@ the current set shows `[DEV]` place names.
 | Location | Collected — precise, only while verifying a place and to show nearby places. Not shared with third parties for ads. |
 | User-generated content | Collected (tips, links, ratings). Displayed publicly in the app. |
 | Data encrypted in transit? | Yes (TLS via Caddy) |
-| Users can request deletion? | Yes — in app (Profile → Delete my account) and at `guaca.live/delete-account` |
+| Users can request deletion? | Yes — travellers in app (Profile → Delete my account) and at `guaca.live/delete-account`; spotter accounts are operator-issued and deleted on request to hola@guaca.live (stated in the privacy policy) |
+| Approximate location | Also declare it — `ACCESS_COARSE_LOCATION` is in the manifest |
 | Data shared with third parties? | No. Processors only: Mapbox (map tiles), Resend (email), the inference provider (question text and verification photos). |
 
 ## Policy notes
@@ -107,9 +108,9 @@ the current set shows `[DEV]` place names.
 - **Account deletion URL:** `https://guaca.live/delete-account` — Play
   requires both an in-app path and a public web URL; both exist.
 - **User-generated content:** posts and social links are user content, so
-  Play expects a moderation mechanism. `place_posts.status` supports
-  hiding, but there is **no report button in the app and no operator
-  command yet** — see "Remaining work".
+  Play expects a moderation mechanism. Every post carries a Report control;
+  two distinct reporters auto-hide a post, and operators review the queue
+  with `guaca posts reported` / `posts hide` / `posts show`.
 - **WebView policy:** Play rejects pure website wrappers. The wrapper adds
   native camera and geolocation permission handling for the verification
   flow, hardware back-navigation, an offline state, and same-origin
