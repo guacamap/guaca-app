@@ -255,7 +255,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
         : {}),
     });
   const askLimiter = rateLimiter(30, 60 * 60 * 1000); // 30 asks/hour/account
-  const codeLimiter = rateLimiter(5, 15 * 60 * 1000); // 5 codes/15min/email
+  // 5 codes/15min/email in production; generous in dev so the bypass button
+  // and repeated test runs don't lock testers out of their own build.
+  const codeLimiter = rateLimiter(
+    process.env.NODE_ENV === 'production' ? 5 : 200,
+    15 * 60 * 1000,
+  );
 
   app.post('/api/tourist/auth/request-code', async (req, reply) => {
     const body = req.body as { email?: string; language?: string; propertyId?: string };
@@ -530,6 +535,85 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.code(201).send({ ok: true });
   });
 
+  /** Cancel a watch — the tourist stops waiting on that question. */
+  app.delete('/api/questions/:id/notify', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { id } = req.params as { id: string };
+    await options.pool.query(
+      `delete from question_notifications where question_id = $1 and tourist_id = $2`,
+      [id, touristId],
+    );
+    return { ok: true };
+  });
+
+  /**
+   * What this tourist is waiting on, and what already came back. Questions
+   * stay anonymous: the only link is the opt-in row the tourist created.
+   */
+  app.get('/api/tourist/watching', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const res = await options.pool.query(
+      `select qn.question_id, qn.notified_at, qu.raw_text, qu.created_at
+       from question_notifications qn
+       join questions qu on qu.id = qn.question_id
+       where qn.tourist_id = $1
+       order by qu.created_at desc
+       limit 50`,
+      [touristId],
+    );
+    const rows = res.rows as Array<{
+      question_id: string;
+      notified_at: string | null;
+      raw_text: string;
+      created_at: string;
+    }>;
+    return {
+      pending: rows
+        .filter((r) => !r.notified_at)
+        .map((r) => ({ questionId: r.question_id, text: r.raw_text, askedAt: r.created_at })),
+      fulfilled: rows.filter((r) => r.notified_at).length,
+    };
+  });
+
+  /** The tourist's own posts — their contribution record ("passport"). */
+  app.get('/api/tourist/posts', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const res = await options.pool.query(
+      `select pp.id, pp.body, pp.media_url, pp.visited, pp.rating, pp.created_at,
+              p.id as place_id, p.name as place_name, p.category
+       from place_posts pp
+       join places p on p.id = pp.place_id
+       where pp.tourist_id = $1 and pp.status = 'visible'
+       order by pp.created_at desc
+       limit 50`,
+      [touristId],
+    );
+    return { posts: res.rows };
+  });
+
+  /**
+   * Attach a villa after the fact — for guests who never scanned the QR.
+   * First writer wins, mirroring the QR attribution rule.
+   */
+  app.post('/api/tourist/villa-code', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const body = req.body as { code?: string };
+    const code = body.code?.trim().toLowerCase();
+    if (!code) return reply.code(400).send({ error: 'code is required' });
+    const property = await propertyByQrToken(options.pool, code.startsWith('qr-') ? code : `qr-${code}`);
+    if (!property) return reply.code(404).send({ error: 'code not found' });
+    await options.pool.query(
+      `update tourists set attributed_property_id = coalesce(attributed_property_id, $1)
+       where id = $2`,
+      [property.id, touristId],
+    );
+    return { ok: true, propertyName: property.name };
+  });
+
   app.post('/api/ask', async (req, reply) => {
     const body = req.body as {
       text?: string;
@@ -778,6 +862,94 @@ export function buildApp(options: AppOptions): FastifyInstance {
     };
   });
 
+  /** The pins that carry this spotter's name — their body of work. */
+  app.get('/api/spotter/places', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const res = await options.pool.query(
+      `select id, name, category, verified_at,
+              ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon
+       from places
+       where created_by_spotter_id = $1 and verification_status = 'verified'
+       order by verified_at desc nulls last
+       limit 50`,
+      [spotterId],
+    );
+    return { places: res.rows };
+  });
+
+  /**
+   * Quality record — the counterweight to points: being right matters more
+   * than being fast. Counts decisive verification runs on this spotter's
+   * own submissions.
+   */
+  app.get('/api/spotter/stats', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const res = await options.pool.query(
+      `select
+         count(*) filter (where p.verification_status = 'verified')::int as verified,
+         count(*) filter (where p.verification_status = 'rejected')::int as rejected,
+         count(*) filter (where p.verification_status = 'provisional')::int as awaiting,
+         (select count(*)::int from verification_runs vr
+           join places p2 on p2.id = vr.place_id
+          where p2.created_by_spotter_id = $1 and vr.decision = 'rejected') as rejected_runs,
+         (select count(*)::int from places p3
+           where p3.confirmed_by_spotter_id = $1) as confirmed_for_others
+       from places p
+       where p.created_by_spotter_id = $1`,
+      [spotterId],
+    );
+    const r = res.rows[0] as {
+      verified: number; rejected: number; awaiting: number;
+      rejected_runs: number; confirmed_for_others: number;
+    };
+    const decided = r.verified + r.rejected_runs;
+    return {
+      verified: r.verified,
+      rejected: r.rejected_runs,
+      awaiting: r.awaiting,
+      confirmedForOthers: r.confirmed_for_others,
+      firstPassRate: decided > 0 ? Math.round((r.verified / decided) * 100) : null,
+    };
+  });
+
+  /** Their face rides every pin they verify — let them set it themselves. */
+  app.post('/api/spotter/me/photo', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const body = req.body as { imageBase64?: string };
+    if (!body.imageBase64) return reply.code(400).send({ error: 'imageBase64 is required' });
+    const bytes = Buffer.from(body.imageBase64, 'base64');
+    if (bytes.byteLength === 0 || bytes.byteLength > 4_000_000) {
+      return reply.code(400).send({ error: 'image must be 1 byte to 4 MB' });
+    }
+    const key = `spotters/${spotterId}.jpg`;
+    await objectStore.put(key, bytes, 'image/jpeg');
+    // Cache-busting suffix so the new face shows up immediately.
+    const url = `/api/spotter/${spotterId}/photo?v=${Date.now()}`;
+    await options.pool.query(`update spotters set photo_url = $1 where id = $2`, [url, spotterId]);
+    return reply.code(201).send({ ok: true, photoUrl: url });
+  });
+
+  /** Public: spotter faces appear on pins and in the posts feed. */
+  app.get('/api/spotter/:id/photo', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return reply.code(400).send({ error: 'bad id' });
+    const bytes = await objectStore.get(`spotters/${id}.jpg`);
+    if (!bytes) return reply.code(404).send({ error: 'not found' });
+    return reply
+      .header('content-type', 'image/jpeg')
+      .header('cache-control', 'public, max-age=86400')
+      .send(bytes);
+  });
+
   /*
    * Spotter map: earning opportunities with real coordinates. Mission
    * targets come from the gap's h3 cell centre (h3-pg does the inverse of
@@ -951,14 +1123,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
           | undefined;
         if (!place || !emailSender.sendPlaceVerified) return;
         const optIns = await options.pool.query(
-          `delete from question_notifications qn
-           using questions qu, tourists t
-           where qu.id = qn.question_id
-             and t.id = qn.tourist_id
-             and qu.answered = false
-             and qu.area_id = $1
-             and qu.intent->>'category' = $2
-           returning t.email, t.language`,
+          `update question_notifications qn
+              set notified_at = now()
+             from questions qu, tourists t
+            where qu.id = qn.question_id
+              and t.id = qn.tourist_id
+              and qn.notified_at is null
+              and qu.answered = false
+              and qu.area_id = $1
+              and qu.intent->>'category' = $2
+          returning t.email, t.language`,
           [place.area_id, place.category],
         );
         for (const row of optIns.rows as Array<{ email: string; language: string }>) {
