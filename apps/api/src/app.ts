@@ -263,10 +263,29 @@ export function buildApp(options: AppOptions): FastifyInstance {
   );
 
   app.post('/api/tourist/auth/request-code', async (req, reply) => {
-    const body = req.body as { email?: string; language?: string; propertyId?: string };
+    const body = req.body as {
+      email?: string;
+      language?: string;
+      propertyId?: string;
+      /** Delete flow: never create an account just to send a code. */
+      existingOnly?: boolean;
+    };
     if (!body.email) return reply.code(400).send({ error: 'email is required' });
     if (!codeLimiter(body.email.trim().toLowerCase())) {
       return reply.code(429).send({ error: 'too many codes requested — wait a few minutes' });
+    }
+    /*
+     * The delete-account flow must not CREATE the account it is about to
+     * delete: an unknown address used to get a row, a real sign-in code by
+     * mail, and then "your account has been deleted" for something that
+     * never existed. With existingOnly we answer identically either way
+     * (no account enumeration) but touch nothing.
+     */
+    if (body.existingOnly) {
+      const known = await options.pool.query(`select 1 from tourists where email = $1`, [
+        body.email.trim().toLowerCase(),
+      ]);
+      if (known.rows.length === 0) return { ok: true };
     }
     const result = await requestTouristCode(
       {
