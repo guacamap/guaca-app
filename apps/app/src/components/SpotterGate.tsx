@@ -46,6 +46,27 @@ export function SpotterGate({ children }: { children: ReactNode }) {
     }
   }
 
+  /** One tap into the seeded test spotter — the API only honours 000000
+   *  outside production, so this button is inert even if it ever rendered. */
+  const devBypass = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/spotter/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ phone: '+58 412 999 0001', code: '000000' }),
+      })
+      if (res.ok) setStep('authed')
+      else setError(t.loginFailed)
+    } catch {
+      setError(t.error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-6 p-7">
       <GuacaLogo className="h-14" />
@@ -86,6 +107,11 @@ export function SpotterGate({ children }: { children: ReactNode }) {
             {t.loginCta}
           </Button>
         </form>
+        {process.env.NODE_ENV !== 'production' && (
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => void devBypass()} className="mt-2 h-11 w-full rounded-xl border border-dashed border-guaca-mango bg-guaca-mango/10 text-xs font-black text-guaca-mango-dark hover:bg-guaca-mango/20">
+            {t.devBypassCta}
+          </Button>
+        )}
         {error && (
           <p role="alert" className="mt-3 rounded-xl bg-guaca-coral/10 px-3 py-2 text-xs font-bold text-guaca-coral-dark">
             {error}

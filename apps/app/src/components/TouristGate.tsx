@@ -56,6 +56,34 @@ export function TouristGate({ children }: { children: ReactNode }) {
     }
   }
 
+  /** One tap in as a dev tourist: request-code + verify with the fixed
+   *  000000 — the API only issues that code outside production. */
+  const devBypass = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const devEmail = 'dev@guaca.live'
+      await fetch('/api/tourist/auth/request-code', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: devEmail, language: lang }),
+      })
+      const res = await fetch('/api/tourist/auth/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: devEmail, code: '000000' }),
+      })
+      if (res.ok) setStep('authed')
+      else setError(t.badCode)
+    } catch {
+      setError(t.networkError)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const verify = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
@@ -103,6 +131,11 @@ export function TouristGate({ children }: { children: ReactNode }) {
             <Button type="submit" disabled={busy} className="h-12 w-full rounded-xl bg-guaca-teal font-black text-white hover:bg-guaca-teal-dark">
               <MailPlus className="mr-2 h-4 w-4" /> {t.emailCta}
             </Button>
+            {process.env.NODE_ENV !== 'production' && (
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => void devBypass()} className="h-11 w-full rounded-xl border border-dashed border-guaca-mango bg-guaca-mango/10 text-xs font-black text-guaca-mango-dark hover:bg-guaca-mango/20">
+                {t.devBypassCta}
+              </Button>
+            )}
           </form>
         )}
 
