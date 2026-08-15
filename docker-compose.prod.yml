@@ -1,3 +1,8 @@
+# GUACA — app stack (api + postgres + redis + minio) for ONE tier.
+# §4.3: the same file runs twice on the VM as separate compose projects:
+#   ./infra/deploy.sh prod      → project guaca-prod,    infra/env/prod.env
+#   ./infra/deploy.sh staging   → project guaca-staging, infra/env/staging.env
+# TLS/routing lives in docker-compose.edge.yml (shared Caddy on guaca-edge).
 services:
   postgres:
     image: postgis/postgis:16-3.4
@@ -50,14 +55,16 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-guaca}:${POSTGRES_PASSWORD}@postgres:5432/guaca
       REDIS_URL: redis://redis:6379
       API_PORT: 3001
-      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL}
       NODE_ENV: production
+      WEB_ORIGIN: ${WEB_ORIGIN}
       INFERENCE_BASE_URL: ${INFERENCE_BASE_URL}
       INFERENCE_API_KEY: ${INFERENCE_API_KEY}
       INFERENCE_MODEL: ${INFERENCE_MODEL:-Qwen/Qwen3-VL-8B-Instruct}
       INFERENCE_VISION_MODEL: ${INFERENCE_VISION_MODEL:-Qwen/Qwen3-VL-8B-Instruct}
       INFERENCE_TIMEOUT_MS: 30000
       INFERENCE_MAX_RETRIES: 2
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: ${S3_BUCKET:-guaca-photos}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
@@ -84,27 +91,21 @@ services:
       minio:
         condition: service_healthy
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:${API_HOST_PORT:-3001}:3001"
+    networks:
+      default: {}
+      edge:
+        # Caddy proxies to this name (guaca-prod-api / guaca-staging-api).
+        aliases:
+          - ${EDGE_ALIAS:-guaca-prod-api}
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      API_HOST: api
-      API_PORT: 3001
-    volumes:
-      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddydata:/data
-      - caddyconfig:/config
-    depends_on:
-      - api
+networks:
+  default: {}
+  edge:
+    external: true
+    name: guaca-edge
 
 volumes:
   pgdata:
   redisdata:
   miniodata:
-  caddydata:
-  caddyconfig:

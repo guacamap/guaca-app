@@ -94,8 +94,42 @@ does not depend on provider capability.
 
 ## Production compose
 
-`docker-compose.prod.yml` runs api + postgis + redis + minio + Caddy (TLS) on
-a small VM. `apps/web` deploys to Vercel pointing at the API host.
+The VM runs three compose projects:
+
+- `guaca-edge` — `docker-compose.edge.yml`: one Caddy terminating TLS for
+  both tiers, proxying over the external `guaca-edge` docker network.
+- `guaca-prod` / `guaca-staging` — the same `docker-compose.prod.yml`
+  instantiated twice with different env files (`infra/env/prod.env`,
+  `infra/env/staging.env`). Volumes and DBs are namespaced per project;
+  Caddy reaches each tier's api by its network alias
+  (`guaca-prod-api` / `guaca-staging-api`, set via `EDGE_ALIAS`).
+
+`apps/web` and `apps/app` deploy to Vercel pointing at the API domains.
+
+### VM bring-up (NoInfra or any Ubuntu/Debian box)
+
+```bash
+# 1. docker + compose plugin
+curl -fsSL https://get.docker.com | sh
+
+# 2. code + secrets
+git clone <repo> guaca && cd guaca
+cp infra/env/edge.env.example    infra/env/edge.env      # domains + ACME email
+cp infra/env/prod.env.example    infra/env/prod.env      # fill: openssl rand -hex 32
+cp infra/env/staging.env.example infra/env/staging.env   # DIFFERENT secrets than prod
+
+# 3. DNS first (Caddy needs it to issue certs):
+#    api.guaca.live + staging.api.guaca.live → A record → VM IP
+
+# 4. bring up
+./infra/deploy.sh edge
+./infra/deploy.sh prod
+SEED=1 ./infra/deploy.sh staging   # staging gets demo data; prod stays clean
+```
+
+Migrations run automatically at the end of each tier deploy
+(`packages/db/dist/migrate-cli.js`, forward-only). Seeding is opt-in via
+`SEED=1` so [DEV] demo data never lands in prod.
 
 ### Verify from a phone
 
@@ -117,5 +151,12 @@ The project domain is **`guaca.live`** (chosen 2026-08-08): `app.` /
 
 ## Redeploy
 
-`infra/deploy.sh` builds the images on the VM and runs
-`docker compose -f docker-compose.prod.yml up -d`. See T2.5 for the CI hook.
+`./infra/deploy.sh prod` (or `staging`) — pulls bases, rebuilds the api
+image, `up -d`, migrates, prints health. `./infra/deploy.sh edge` only when
+the Caddyfile or domains change. See T2.5 for the CI hook.
+
+## Local dev with real inference
+
+Copy `apps/api/.env.example` to `apps/api/.env` and fill `INFERENCE_*`;
+`pnpm dev` picks it up via node's `--env-file-if-exists`. The CLI reads the
+same vars from the shell: `set -a; . apps/api/.env; set +a`.

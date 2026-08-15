@@ -1,0 +1,29 @@
+# GUACA — shared edge: one Caddy terminates TLS for BOTH tiers and proxies
+# by container alias over the external guaca-edge network.
+#   ./infra/deploy.sh edge   (run once, and again whenever the Caddyfile changes)
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:-admin@guaca.live}
+      API_DOMAIN: ${API_DOMAIN:-api.guaca.live}
+      STAGING_API_DOMAIN: ${STAGING_API_DOMAIN:-staging.api.guaca.live}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true
+    name: guaca-edge
+
+volumes:
+  caddydata:
+  caddyconfig:
