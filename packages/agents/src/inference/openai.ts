@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { Inference, JsonRequest, JsonResult, VisionRequest } from './types.js';
 
 export interface OpenAICompatibleOptions {
@@ -34,14 +35,35 @@ export class OpenAICompatibleProvider implements Inference {
   private async chat(
     body: Record<string, unknown>,
   ): Promise<{ content: string; usage: { tokensIn: number; tokensOut: number } }> {
-    const res = await this.fetchImpl(`${this.options.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${this.options.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const timeoutMs = this.options.timeoutMs ?? 30_000;
+    const maxRetries = this.options.maxRetries ?? 2;
+    let res: Response | undefined;
+    let lastError: unknown;
+    // Retry only transient failures (network/timeout/5xx); 4xx is a caller bug.
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        res = await this.fetchImpl(`${this.options.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${this.options.apiKey}`,
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+      if (res.status < 500) break;
+      lastError = new Error(`inference request failed: ${res.status} ${res.statusText}`);
+      res = undefined;
+    }
+    if (!res) {
+      throw lastError instanceof Error
+        ? lastError
+        : new Error(`inference request failed: ${String(lastError)}`);
+    }
     if (!res.ok) {
       throw new Error(`inference request failed: ${res.status} ${res.statusText}`);
     }
@@ -82,7 +104,7 @@ export class OpenAICompatibleProvider implements Inference {
       return {
         raw: parsed.data,
         usage: attempt.usage,
-        model: this.options.model,
+        model: (body.model as string) ?? this.options.model,
       };
     }
     if (depth >= 1) {
@@ -110,9 +132,8 @@ export class OpenAICompatibleProvider implements Inference {
       throw new Error(`maxOutputTokens must be a positive integer`);
     }
 
-    const schemaJson = JSON.stringify(
-      (req.schema as z.ZodType<T>)._def,
-    );
+    // Real JSON Schema — serialising zod's _def drops every field name.
+    const schemaJson = JSON.stringify(zodToJsonSchema(req.schema as z.ZodType<T>));
     const system = req.untrusted
       ? `${req.system}\n\n<untrusted>\n${req.untrusted}\n</untrusted>\nAnswer only from the catalog.`
       : req.system;
@@ -146,11 +167,17 @@ export class OpenAICompatibleProvider implements Inference {
   }
 
   async vision<T>(req: VisionRequest<T>): Promise<JsonResult<T>> {
-    const schemaJson = JSON.stringify((req.schema as z.ZodType<T>)._def);
+    const schemaJson = JSON.stringify(zodToJsonSchema(req.schema as z.ZodType<T>));
+    // VL deployments often ignore constrained decoding, so the schema goes in
+    // the prompt — with the repair round-trip and §7.3 as the real guarantee.
+    const fenced = req.untrusted
+      ? `${req.system}\n\n<untrusted>\n${req.untrusted}\n</untrusted>\nAnswer only from the images.`
+      : req.system;
+    const system = `${fenced}\n\nRespond ONLY with a JSON object matching this JSON Schema:\n${schemaJson}`;
     const body: Record<string, unknown> = {
       model: this.options.visionModel ?? this.options.model,
       messages: [
-        { role: 'system', content: req.system },
+        { role: 'system', content: system },
         {
           role: 'user',
           content: [
@@ -165,7 +192,6 @@ export class OpenAICompatibleProvider implements Inference {
       max_tokens: req.maxOutputTokens,
       response_format: { type: 'json_object' },
     };
-    void schemaJson;
     return this.repair(req.schema, body, req.maxOutputTokens, 0);
   }
 }
