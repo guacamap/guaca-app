@@ -6,7 +6,7 @@ import { TouristView } from '../components/TouristView'
 export default function MapScreen() {
   return (
     <Providers>
-      <PhoneShell showRoleSwitch>
+      <PhoneShell>
         <TouristGate>
           <TouristView />
         </TouristGate>

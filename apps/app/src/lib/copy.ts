@@ -115,6 +115,21 @@ export interface AppCopy {
     profileSignOut: string
     profileDelete: string
     profileDeleteNote: string
+    sheetDirections: string
+    sheetAsk: string
+    sheetShare: string
+    sheetDoubt: string
+    sheetDoubtSent: string
+    askAboutPlace: string
+    refusalNotify: string
+    refusalNotifySaved: string
+    addToPlan: string
+    addedToPlan: string
+    removeStop: string
+    sharePlan: string
+    shareVia: string
+    categoryLabels: Record<string, string>
+    allCategories: string
   }
 }
 
@@ -247,6 +262,28 @@ export const appCopy: Record<Lang, AppCopy> = {
       profileSignOut: 'Sign out',
       profileDelete: 'Delete my account',
       profileDeleteNote: 'Removes your email — your anonymous questions stay as map demand.',
+      sheetDirections: 'Take me there',
+      sheetAsk: 'Ask Guaca',
+      sheetShare: 'Share',
+      sheetDoubt: 'Still accurate?',
+      sheetDoubtSent: 'A local will re-check it',
+      askAboutPlace: 'Tell me about {name} — is it still open and worth visiting?',
+      refusalNotify: 'Tell me when it’s verified',
+      refusalNotifySaved: 'We’ll email you when a local verifies it',
+      addToPlan: 'Add to plan',
+      addedToPlan: 'In your plan',
+      removeStop: 'Remove stop',
+      sharePlan: 'Share plan',
+      shareVia: 'Verified by locals on Guaca',
+      categoryLabels: {
+        eat_drink: 'Eat & drink',
+        beach_water: 'Beaches',
+        nature_walk: 'Nature',
+        culture_history: 'Culture',
+        market_shop: 'Markets',
+        services: 'Services',
+      },
+      allCategories: 'All',
     },
   },
   es: {
@@ -377,6 +414,28 @@ export const appCopy: Record<Lang, AppCopy> = {
       profileSignOut: 'Cerrar sesión',
       profileDelete: 'Eliminar mi cuenta',
       profileDeleteNote: 'Elimina tu correo — tus preguntas anónimas quedan como demanda del mapa.',
+      sheetDirections: 'Llévame allí',
+      sheetAsk: 'Pregunta a Guaca',
+      sheetShare: 'Compartir',
+      sheetDoubt: '¿Sigue siendo así?',
+      sheetDoubtSent: 'Un local lo va a re-verificar',
+      askAboutPlace: 'Cuéntame de {name} — ¿sigue abierto y vale la pena?',
+      refusalNotify: 'Avísame cuando esté verificado',
+      refusalNotifySaved: 'Te enviaremos un correo cuando un local lo verifique',
+      addToPlan: 'Agregar al plan',
+      addedToPlan: 'En tu plan',
+      removeStop: 'Quitar parada',
+      sharePlan: 'Compartir plan',
+      shareVia: 'Verificado por locales en Guaca',
+      categoryLabels: {
+        eat_drink: 'Comer y beber',
+        beach_water: 'Playas',
+        nature_walk: 'Naturaleza',
+        culture_history: 'Cultura',
+        market_shop: 'Mercados',
+        services: 'Servicios',
+      },
+      allCategories: 'Todo',
     },
   },
 }
