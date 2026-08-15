@@ -46,9 +46,14 @@ dc up -d
 echo "==> [$TIER] applying migrations"
 dc exec -T api node packages/db/dist/migrate-cli.js
 
+# Reference geography (the pilot area and its zones) always: without it
+# questions have no area and the gap agent cannot cluster. Idempotent.
+echo "==> [$TIER] seeding reference geography"
+dc exec -T api node packages/db/dist/seed-cli.js
+
 if [[ "${SEED:-0}" == "1" ]]; then
-  echo "==> [$TIER] seeding demo data (SEED=1)"
-  dc exec -T api node packages/db/dist/seed-cli.js
+  echo "==> [$TIER] seeding DEMO spotters and villas (SEED=1)"
+  dc exec -T api node packages/db/dist/seed-cli.js --demo
 fi
 
 echo "==> [$TIER] health"

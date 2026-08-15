@@ -74,4 +74,21 @@ describe('seed', () => {
     const props = await pool.query('select count(*)::int as n from properties');
     expect(props.rows[0]!.n).toBe(3);
   });
+
+  it('creates the area and zones but no invented people or villas', async () => {
+    await pool.query('truncate properties, spotters, zones, areas cascade');
+    await seed(pool, { demo: false });
+
+    const areas = await pool.query('select count(*)::int as n from areas');
+    const zones = await pool.query('select count(*)::int as n from zones');
+    const spotters = await pool.query('select count(*)::int as n from spotters');
+    const properties = await pool.query('select count(*)::int as n from properties');
+
+    expect(areas.rows[0].n).toBeGreaterThan(0);
+    expect(zones.rows[0].n).toBeGreaterThan(0);
+    // The demo roster is invented people with fake phone numbers — a
+    // production deploy must never create them.
+    expect(spotters.rows[0].n).toBe(0);
+    expect(properties.rows[0].n).toBe(0);
+  });
 });

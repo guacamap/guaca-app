@@ -40,7 +40,20 @@ const PROPERTIES = [
  * spotters (one per zone), and 3 properties (2 paid, 1 free) with QR
  * tokens. Idempotent — re-running upserts nothing new.
  */
-export async function seed(pool: Pool): Promise<void> {
+export interface SeedOptions {
+  /** Demo spotters, villas and their QR tokens. NEVER true in production —
+   *  they are invented people with fake phone numbers. */
+  demo?: boolean;
+}
+
+/**
+ * `demo: false` (the production default) seeds only the reference geography
+ * — the pilot area and its zones — which the loop needs to attribute
+ * questions and cluster gaps. Real spotters and villas are added by an
+ * operator with `guaca spotter add` / `guaca property add`.
+ */
+export async function seed(pool: Pool, options: SeedOptions = {}): Promise<void> {
+  const demo = options.demo ?? true;
   await pool.query(
     `insert into areas (id, name, slug, country, timezone, geom) values
        ($1, 'Puerto Cabello', 'puerto-cabello', 'VE', 'America/Caracas',
@@ -57,6 +70,8 @@ export async function seed(pool: Pool): Promise<void> {
       [zone.id, AREA_ID, zone.name, zone.geom, zone.access],
     );
   }
+
+  if (!demo) return;
 
   for (const s of SPOTTERS) {
     await pool.query(
