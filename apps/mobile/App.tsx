@@ -88,9 +88,9 @@ export default function App() {
         onHttpError={(e) => {
           if (e.nativeEvent.statusCode >= 500) setFailed(true);
         }}
-        // Spotter capture: auto-grant camera/mic to guaca.live pages only
-        // (native layer grants when the app holds the Android permissions);
-        // geolocation for the map and the L2 distance check.
+        // iOS-only: auto-grant camera to same-host pages. On Android the
+        // native WebView prompts for camera itself when the spotter capture
+        // form opens; geolocation is gated by the prop below on both.
         mediaCapturePermissionGrantType="grantIfSameHostElsePrompt"
         geolocationEnabled
         allowsBackForwardNavigationGestures

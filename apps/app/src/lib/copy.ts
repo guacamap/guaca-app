@@ -64,6 +64,8 @@ export interface AppCopy {
     photoBusy: string
     zoneLabel: string
     contactOperator: string
+    signOut: string
+    deleteNote: string
     legalPrivacy: string
     legalTerms: string
     mapEmpty: string
@@ -184,6 +186,11 @@ export interface AppCopy {
     candidateBody: string
     candidateCta: string
     candidateAsk: string
+    offline: string
+    geoTitle: string
+    geoBody: string
+    geoAllow: string
+    geoSkip: string
     impactTitle: string
     impactAsked: string
     impactCommissioned: string
@@ -299,6 +306,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       photoBusy: 'Uploading…',
       zoneLabel: 'Zone',
       contactOperator: 'Contact your operator',
+      signOut: 'Sign out',
+      deleteNote: 'To delete your Spotter account, write to hola@guaca.live from your registered number.',
       legalPrivacy: 'Privacy',
       legalTerms: 'Terms',
       earningsEmpty: 'Completed missions and their points appear here.',
@@ -407,6 +416,11 @@ export const appCopy: Record<Lang, AppCopy> = {
       candidateBody: 'This spot is on OpenStreetMap, but no local has physically checked it. Ask Guaca and your question can send a paid Spotter.',
       candidateCta: 'Ask Guaca about it',
       candidateAsk: 'Is {name} open and worth visiting?',
+      offline: 'Can’t reach Guaca — check your connection.',
+      geoTitle: 'Use your location?',
+      geoBody: 'Guaca uses your location while the app is open to show verified places near you and to build plans around where you are. It is never shared or used for ads. You can say no and browse the pilot area instead.',
+      geoAllow: 'Use my location',
+      geoSkip: 'Not now',
       impactTitle: 'Your impact',
       impactAsked: 'Questions asked',
       impactCommissioned: 'Locals sent to check',
@@ -520,6 +534,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       photoBusy: 'Subiendo…',
       zoneLabel: 'Zona',
       contactOperator: 'Contactar a tu operador',
+      signOut: 'Cerrar sesión',
+      deleteNote: 'Para eliminar tu cuenta de Spotter, escribe a hola@guaca.live desde tu número registrado.',
       legalPrivacy: 'Privacidad',
       legalTerms: 'Términos',
       earningsEmpty: 'Las misiones completadas y sus puntos aparecen aquí.',
@@ -628,6 +644,11 @@ export const appCopy: Record<Lang, AppCopy> = {
       candidateBody: 'Este punto está en OpenStreetMap, pero ningún local lo ha comprobado físicamente. Pregúntale a Guaca y tu pregunta puede enviar a un Spotter pagado.',
       candidateCta: 'Pregúntale a Guaca',
       candidateAsk: '¿{name} está abierto y vale la pena?',
+      offline: 'No se puede conectar con Guaca — revisa tu conexión.',
+      geoTitle: '¿Usar tu ubicación?',
+      geoBody: 'Guaca usa tu ubicación mientras la app está abierta para mostrarte lugares verificados cerca y armar planes desde donde estás. Nunca se comparte ni se usa para publicidad. Puedes decir que no y explorar la zona piloto.',
+      geoAllow: 'Usar mi ubicación',
+      geoSkip: 'Ahora no',
       impactTitle: 'Tu impacto',
       impactAsked: 'Preguntas hechas',
       impactCommissioned: 'Locales enviados a comprobar',

@@ -59,7 +59,8 @@ const COPY: Record<'en' | 'es', Record<LegalDoc, DocCopy>> = {
         {
           heading: 'Your choices',
           body: [
-            'You can delete your account at any time from your profile, or at guaca.live/delete-account. Deleting removes your email and personal records. Your past questions remain, permanently anonymous, because the map coverage they created belongs to the community.',
+            'Travellers can delete their account at any time from the app profile, or at guaca.live/delete-account. Deleting removes your email and personal records. Your past questions remain, permanently anonymous, because the map coverage they created belongs to the community.',
+            'Spotter accounts are issued by an operator, so deletion is handled by us: write to hola@guaca.live from your registered number or email and we remove your name, phone and photo. Verification photos already attached to a verified place are kept as evidence that the place was really visited, with your name removed.',
             'You can cancel a "tell me when verified" watch, remove saved places, and switch language at any time.',
           ],
         },
@@ -147,7 +148,8 @@ const COPY: Record<'en' | 'es', Record<LegalDoc, DocCopy>> = {
         {
           heading: 'Tus opciones',
           body: [
-            'Puedes eliminar tu cuenta cuando quieras desde tu perfil o en guaca.live/delete-account. Al eliminarla borramos tu correo y tus registros personales. Tus preguntas anteriores quedan, permanentemente anónimas, porque la cobertura del mapa que crearon pertenece a la comunidad.',
+            'Los viajeros pueden eliminar su cuenta cuando quieran desde el perfil de la app o en guaca.live/delete-account. Al eliminarla borramos tu correo y tus registros personales. Tus preguntas anteriores quedan, permanentemente anónimas, porque la cobertura del mapa que crearon pertenece a la comunidad.',
+            'Las cuentas de Spotter las emite un operador, así que la eliminación la gestionamos nosotros: escribe a hola@guaca.live desde tu número o correo registrado y quitamos tu nombre, teléfono y foto. Las fotos de verificación ya asociadas a un lugar verificado se conservan como evidencia de que el lugar fue visitado, sin tu nombre.',
             'Puedes cancelar un aviso de «avísame cuando esté verificado», quitar lugares guardados y cambiar de idioma cuando quieras.',
           ],
         },

@@ -55,6 +55,11 @@ services:
       INFERENCE_MAX_RETRIES: 2
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # Store-review sign-in: app reviewers cannot receive email codes.
+      # Inert unless set (see docs/PLAY_RELEASE.md).
+      REVIEW_EMAIL: ${REVIEW_EMAIL:-}
+      REVIEW_CODE: ${REVIEW_CODE:-}
+      REVIEW_SPOTTER_PHONE: ${REVIEW_SPOTTER_PHONE:-}
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: ${S3_BUCKET:-guaca-photos}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY}
