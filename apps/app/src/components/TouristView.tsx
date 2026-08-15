@@ -26,7 +26,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import { Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage } from '@guaca/ui'
+import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage } from '@guaca/ui'
 import { appCopy } from '../lib/copy'
 
 /** Puerto Cabello — the pilot area; also the geolocation fallback. */
@@ -37,6 +37,14 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.guaca.live'
 
 const THREAD_KEY = 'guaca:thread'
 const PLAN_KEY = 'guaca:plan'
+const STATS_KEY = 'guaca:stats'
+
+/** Device-local impact counters. Questions are anonymous on the server by
+ *  design (COMPLIANCE.md), so the personal tally lives here, not there. */
+interface LocalStats {
+  asked: number
+  commissioned: number
+}
 
 interface ApiPlace {
   id: string
@@ -114,6 +122,24 @@ interface Favorite {
   lon: number
 }
 
+interface Watch {
+  questionId: string
+  text: string
+  askedAt: string
+}
+
+interface MyPost {
+  id: string
+  body: string
+  media_url: string | null
+  visited: boolean
+  rating: number | null
+  created_at: string
+  place_id: string
+  place_name: string
+  category: string
+}
+
 function mediaPlatform(url: string): string {
   if (url.includes('tiktok')) return 'TikTok'
   if (url.includes('instagram')) return 'Instagram'
@@ -143,7 +169,7 @@ function initials(name: string | null): string {
  *  phones on a LAN IP get plain http, so these local keys need a fallback. */
 function localId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return localId()
+    return crypto.randomUUID()
   }
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
@@ -199,13 +225,31 @@ export function TouristView() {
   const [favorites, setFavorites] = useState<Favorite[]>([])
   const [candidates, setCandidates] = useState<CandidatePlace[]>([])
   const [selectedCandidate, setSelectedCandidate] = useState<CandidatePlace | null>(null)
+  const [stats, setStats] = useState<LocalStats>({ asked: 0, commissioned: 0 })
+  const [watching, setWatching] = useState<Watch[]>([])
+  const [fulfilled, setFulfilled] = useState(0)
+  const [myPosts, setMyPosts] = useState<MyPost[]>([])
+  const [villaCode, setVillaCode] = useState('')
+  const [villaErr, setVillaErr] = useState(false)
   const threadEndRef = useRef<HTMLDivElement | null>(null)
   const favIds = useMemo(() => new Set(favorites.map((f) => f.placeId)), [favorites])
 
   useEffect(() => {
     setThread(loadJson<ChatMsg[]>(THREAD_KEY) ?? [])
     setPlan(loadJson<SavedPlan>(PLAN_KEY))
+    setStats(loadJson<LocalStats>(STATS_KEY) ?? { asked: 0, commissioned: 0 })
   }, [])
+
+  const bumpStats = (refused: boolean) => {
+    setStats((prev) => {
+      const next = {
+        asked: prev.asked + 1,
+        commissioned: prev.commissioned + (refused ? 1 : 0),
+      }
+      saveJson(STATS_KEY, next)
+      return next
+    })
+  }
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -269,16 +313,31 @@ export function TouristView() {
       .catch(() => {})
   }, [selected?.id])
 
-  // Account details for the Profile tab.
+  // Account details, watches and posts for the Profile tab.
   useEffect(() => {
-    if (activeTab !== 'profile' || me) return
+    if (activeTab !== 'profile') return
     fetch('/api/tourist/me', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: Me | null) => {
         if (data) setMe(data)
       })
       .catch(() => {})
-  }, [activeTab, me])
+    fetch('/api/tourist/watching', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { pending: Watch[]; fulfilled: number } | null) => {
+        if (d) {
+          setWatching(d.pending)
+          setFulfilled(d.fulfilled)
+        }
+      })
+      .catch(() => {})
+    fetch('/api/tourist/posts', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { posts: MyPost[] } | null) => {
+        if (d) setMyPosts(d.posts)
+      })
+      .catch(() => {})
+  }, [activeTab])
 
   // Resolve plan stops that are outside the current map bbox.
   useEffect(() => {
@@ -487,6 +546,7 @@ export function TouristView() {
     try {
       const body = await askApi(text)
       if (!body) return setAskState({ kind: 'error' })
+      bumpStats(body.kind === 'refusal')
       if (body.kind === 'answer') {
         setAskState({ kind: 'answer', text: body.text, placeIds: body.placeIds })
         savePlanFromAnswer(text, body.text, body.placeIds)
@@ -519,6 +579,7 @@ export function TouristView() {
       if (!body) {
         reply = { id: localId(), role: 'guaca', kind: 'error', text: t.askError }
       } else {
+        bumpStats(body.kind === 'refusal')
         reply = {
           id: localId(),
           role: 'guaca',
@@ -566,6 +627,34 @@ export function TouristView() {
       credentials: 'include',
       body: JSON.stringify({ language: next }),
     }).catch(() => {})
+  }
+
+  const cancelWatch = (questionId: string) => {
+    setWatching((prev) => prev.filter((w) => w.questionId !== questionId))
+    fetch(`/api/questions/${questionId}/notify`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }).catch(() => {})
+  }
+
+  const linkVilla = async () => {
+    const code = villaCode.trim()
+    if (!code) return
+    setVillaErr(false)
+    try {
+      const res = await fetch('/api/tourist/villa-code', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code }),
+      })
+      if (!res.ok) return setVillaErr(true)
+      const body = (await res.json()) as { propertyName: string }
+      setMe((prev) => (prev ? { ...prev, propertyName: body.propertyName } : prev))
+      setVillaCode('')
+    } catch {
+      setVillaErr(true)
+    }
   }
 
   const signOut = async () => {
@@ -682,13 +771,7 @@ export function TouristView() {
               <p className="mt-2 text-[11px] font-medium leading-relaxed text-guaca-ink/60">{selected.description}</p>
             )}
             <div className="mt-4 flex items-center gap-3 rounded-2xl bg-guaca-teal/7 p-3">
-              {selected.spotter_photo_url ? (
-                <img src={selected.spotter_photo_url} alt="" className="h-10 w-10 rounded-full object-cover" />
-              ) : (
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-guaca-teal text-xs font-black text-white">
-                  {initials(selected.spotter_name)}
-                </span>
-              )}
+              <Avatar url={selected.spotter_photo_url} name={selected.spotter_name} className="h-10 w-10" textClassName="text-xs" />
               <div className="min-w-0">
                 <p className="flex items-center gap-1 text-[10px] font-black text-guaca-teal">
                   <BadgeCheck className="h-3.5 w-3.5" /> {t.verifiedBy}
@@ -750,13 +833,13 @@ export function TouristView() {
                   {posts.map((p) => (
                     <div key={p.id} className="rounded-2xl bg-guaca-ink/4 p-3">
                       <div className="flex items-center gap-2">
-                        {p.author.photoUrl ? (
-                          <img src={p.author.photoUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
-                        ) : (
-                          <span className={`grid h-6 w-6 place-items-center rounded-full text-[9px] font-black text-white ${p.author.kind === 'spotter' ? 'bg-guaca-teal' : 'bg-guaca-ink/30'}`}>
-                            {initials(p.author.name ?? t.postsTraveler)}
-                          </span>
-                        )}
+                        <Avatar
+                          url={p.author.photoUrl}
+                          name={p.author.name ?? t.postsTraveler}
+                          className="h-6 w-6"
+                          textClassName="text-[9px]"
+                          fallbackClassName={p.author.kind === 'spotter' ? 'bg-guaca-teal text-white' : 'bg-guaca-ink/30 text-white'}
+                        />
                         <span className="truncate text-[11px] font-black text-guaca-ink">
                           {p.author.name ?? t.postsTraveler}
                         </span>
@@ -1176,6 +1259,82 @@ export function TouristView() {
         )}
       </div>
 
+      {/* Impact — the loop, made personal. */}
+      <div className="mt-4 rounded-[28px] bg-gradient-to-br from-guaca-ocean to-guaca-ocean-deep p-5 text-white shadow-lg">
+        <p className="text-[10px] font-black uppercase tracking-[.14em] text-white/75">{t.impactTitle}</p>
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-2xl bg-white/10 px-2 py-3">
+            <p className="text-xl font-black">{stats.asked}</p>
+            <p className="mt-0.5 text-[9px] font-bold leading-tight text-white/70">{t.impactAsked}</p>
+          </div>
+          <div className="rounded-2xl bg-white/10 px-2 py-3">
+            <p className="text-xl font-black text-guaca-mango-light">{stats.commissioned}</p>
+            <p className="mt-0.5 text-[9px] font-bold leading-tight text-white/70">{t.impactCommissioned}</p>
+          </div>
+          <div className="rounded-2xl bg-white/10 px-2 py-3">
+            <p className="text-xl font-black text-guaca-mango-light">{fulfilled}</p>
+            <p className="mt-0.5 text-[9px] font-bold leading-tight text-white/70">{t.impactVerified}</p>
+          </div>
+        </div>
+        <p className="mt-2.5 text-[9px] font-semibold leading-relaxed text-white/55">{t.impactNote}</p>
+      </div>
+
+      {/* Watches — questions a local is going out to answer. */}
+      <div className="mt-4">
+        <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+          <Bell className="h-3.5 w-3.5 text-guaca-mango-dark" /> {t.watchingTitle}
+        </p>
+        {watching.length === 0 ? (
+          <p className="mt-2 rounded-[24px] border border-dashed border-guaca-sand bg-white/60 px-4 py-4 text-center text-[11px] font-semibold text-guaca-ink/45">{t.watchingEmpty}</p>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {watching.map((w) => (
+              <div key={w.questionId} className="flex items-center gap-3 rounded-[24px] bg-white p-3.5 shadow-sm ring-1 ring-guaca-sand/75">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-guaca-mango/15 text-guaca-mango-dark">
+                  <Clock3 className="h-4 w-4" />
+                </span>
+                <p className="min-w-0 flex-1 truncate text-[12px] font-bold text-guaca-ink">{w.text}</p>
+                <button type="button" onClick={() => cancelWatch(w.questionId)} className="shrink-0 rounded-full bg-guaca-ink/5 px-3 py-1.5 text-[9px] font-black text-guaca-ink/50 hover:bg-guaca-ink/10">
+                  {t.watchingCancel}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Their own posts — the travel passport. */}
+      <div className="mt-4">
+        <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+          <MessageCircle className="h-3.5 w-3.5 text-guaca-teal" /> {t.myPostsTitle}
+        </p>
+        {myPosts.length === 0 ? (
+          <p className="mt-2 rounded-[24px] border border-dashed border-guaca-sand bg-white/60 px-4 py-4 text-center text-[11px] font-semibold text-guaca-ink/45">{t.myPostsEmpty}</p>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {myPosts.map((p) => (
+              <button key={p.id} type="button" onClick={() => openPlaceOnMap(p.place_id)} className="flex w-full items-center gap-3 rounded-[24px] bg-white p-3.5 text-left shadow-sm ring-1 ring-guaca-sand/75 hover:bg-guaca-sand/20">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-guaca-teal/10 text-base">
+                  {(CATEGORY_GLYPH[p.category] ?? { emoji: '📍' }).emoji}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-[12px] font-black text-guaca-ink">{p.place_name}</span>
+                    {p.visited && <MapPin className="h-3 w-3 shrink-0 text-guaca-mango-dark" />}
+                    {p.rating != null && (
+                      <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-black text-guaca-mango-dark">
+                        <Star className="h-3 w-3 fill-guaca-mango text-guaca-mango" />{p.rating}
+                      </span>
+                    )}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[10px] font-semibold text-guaca-ink/50">{p.body}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="mt-4 overflow-hidden rounded-[28px] bg-white shadow-sm ring-1 ring-guaca-sand/75">
         <div className="flex items-center justify-between gap-3 px-5 py-4">
           <span className="flex items-center gap-2.5 text-[13px] font-black text-guaca-ink">
@@ -1232,6 +1391,39 @@ export function TouristView() {
             <span className="block text-[13px] font-black text-guaca-coral-dark">{t.profileDelete}</span>
             <span className="mt-0.5 block text-[10px] font-semibold leading-relaxed text-guaca-ink/45">{t.profileDeleteNote}</span>
           </span>
+        </a>
+      </div>
+
+      {/* Link a stay after the fact — for guests who never scanned the QR. */}
+      {!me?.propertyName && (
+        <div className="mt-4 rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-guaca-sand/75">
+          <label htmlFor="villa-code" className="block text-[11px] font-black text-guaca-ink/70">
+            {t.villaCodeLabel}
+          </label>
+          <div className="mt-2 flex gap-2">
+            <Input
+              id="villa-code"
+              value={villaCode}
+              onChange={(e) => setVillaCode(e.target.value)}
+              placeholder="qr-XXXXXXXX"
+              className="h-10 flex-1 rounded-xl border-guaca-sand text-[12px]"
+            />
+            <Button type="button" onClick={() => void linkVilla()} disabled={!villaCode.trim()} className="h-10 rounded-xl bg-guaca-teal px-4 text-[11px] font-black text-white hover:bg-guaca-teal-dark">
+              {t.villaCodeCta}
+            </Button>
+          </div>
+          {villaErr && <p className="mt-2 text-[10px] font-bold text-guaca-coral-dark">{t.villaCodeBad}</p>}
+        </div>
+      )}
+
+      {/* Legal — Play requires a reachable privacy policy. */}
+      <div className="mt-5 flex items-center justify-center gap-4 text-[11px] font-bold text-guaca-ink/45">
+        <a href={`${LANDING_URL}/privacy`} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+          {t.legalPrivacy}
+        </a>
+        <span aria-hidden="true">·</span>
+        <a href={`${LANDING_URL}/terms`} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+          {t.legalTerms}
         </a>
       </div>
     </div>
