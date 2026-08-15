@@ -27,7 +27,7 @@ export { VerificationAgent } from './verification/agent.js';
 export type { VerificationInput, VerificationOutcome, VerificationRunEvent } from './verification/agent.js';
 export { Runner, InterruptSignal } from './runtime/runner.js';
 export type { Node, NodeState, RunnerOptions } from './runtime/runner.js';
-export { extractIntent, parseIntent, IntentSchema } from './planner/intent.js';
+export { extractIntent, classifiesIntent, parseIntent, IntentSchema } from './planner/intent.js';
 export type { Intent } from './planner/intent.js';
 export { answerDeterministic, greedyRoute } from './planner/fastPath.js';
 export type { FastPathPlace, FastPathPlan, FastPathStop, FastPathResult } from './planner/fastPath.js';

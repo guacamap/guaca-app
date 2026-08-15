@@ -522,6 +522,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
    */
   const REPORTS_TO_HIDE = 2;
 
+  /** How close a second local must physically be to confirm a place. */
+  const CONFIRM_RADIUS_M = Number(process.env.CONFIRM_RADIUS_M ?? 150);
+
   app.post('/api/posts/:id/report', async (req, reply) => {
     const spotterToken = tokenFrom(req, 'guaca_spotter');
     const touristToken = tokenFrom(req, 'guaca_tourist');
@@ -1123,6 +1126,23 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!(await confirmAllowed(options.pool, id))) {
       return reply.code(409).send({ error: 'VERIFICATION_PENDING' });
     }
+    /*
+     * "A second local confirms it ON THE GROUND" is the product's core
+     * claim, and it was enforced nowhere: the route took no coordinates,
+     * so a place 120 km away could be confirmed. The confirming spotter
+     * must now prove proximity, server-side, exactly like the L2 rung.
+     */
+    const body = (req.body ?? {}) as { lat?: number; lon?: number };
+    if (typeof body.lat !== 'number' || typeof body.lon !== 'number') {
+      return reply.code(400).send({ error: 'LOCATION_REQUIRED' });
+    }
+    const near = await options.pool.query(
+      `select ST_DWithin(location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography, $3) as ok
+       from places where id = $4`,
+      [body.lat, body.lon, CONFIRM_RADIUS_M, id],
+    );
+    if (near.rows.length === 0) return reply.code(404).send({ error: 'place not found' });
+    if (!near.rows[0]!.ok) return reply.code(422).send({ error: 'TOO_FAR_TO_CONFIRM' });
     // Atomic: witness-2, the audit row, the mission and the gap move
     // together or not at all (review finding).
     const client = await options.pool.connect();

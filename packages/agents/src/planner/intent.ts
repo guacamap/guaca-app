@@ -51,12 +51,14 @@ const LEXICON: Record<string, PlaceCategory> = {
   culture: 'culture_history', plaza: 'culture_history',
   // market_shop
   mercado: 'market_shop', market: 'market_shop', tienda: 'market_shop', shop: 'market_shop',
-  comprar: 'market_shop', buy: 'market_shop', farmacia: 'market_shop', pharmacy: 'market_shop',
+  comprar: 'market_shop', buy: 'market_shop',
   souvenir: 'market_shop', artisan: 'market_shop', artesania: 'market_shop',
   // services
   cajero: 'services', atm: 'services', clinica: 'services', clinic: 'services',
   hospital: 'services', lavanderia: 'services', laundry: 'services', gasolina: 'services',
   fuel: 'services', gasolinera: 'services', doctor: 'services',
+  farmacia: 'services', pharmacy: 'services', medicina: 'services', medicine: 'services',
+  botiquin: 'services', emergencia: 'services', emergency: 'services',
   // nightlife_music
   musica: 'nightlife_music', music: 'nightlife_music', baile: 'nightlife_music', dance: 'nightlife_music',
   discoteca: 'nightlife_music', nightclub: 'nightlife_music', rumba: 'nightlife_music',
@@ -72,8 +74,20 @@ const WHEN: Record<string, Intent['when']> = {
 };
 
 /**
+ * Did the lexicon actually recognise the question? Callers MUST check this
+ * before answering: falling back to the broad category turned "where is the
+ * best sushi in Tokyo?" and "asdfghjkl" into a confident, verified-looking
+ * arepa plan. An unrecognised question is unmet demand, not a plan.
+ */
+export function classifiesIntent(text: string): boolean {
+  const words = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  return words.some((w) => LEXICON[w] !== undefined);
+}
+
+/**
  * Deterministic intent extraction (plan §7.8: lexicon first, ~60% of answers
- * use zero inference). Unparseable input degrades to the broad category.
+ * use zero inference). Unparseable input degrades to the broad category —
+ * see classifiesIntent for whether that degradation happened.
  */
 export function extractIntent(text: string): Intent {
   const words = text

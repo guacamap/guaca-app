@@ -203,6 +203,10 @@ export function TouristView() {
   const [askText, setAskText] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('map')
   const [center, setCenter] = useState<[number, number]>(PILOT_CENTER)
+  // A real device fix, or null. `center` falls back to the pilot centre for
+  // display; sending that as evidence let a 5-star "Visited" review be
+  // posted with location denied.
+  const [fix, setFix] = useState<[number, number] | null>(null)
   const [places, setPlaces] = useState<ApiPlace[]>([])
   const [askState, setAskState] = useState<AskState>({ kind: 'idle' })
   const [selected, setSelected] = useState<ApiPlace | null>(null)
@@ -269,8 +273,11 @@ export function TouristView() {
     try { localStorage.setItem(GEO_KEY, 'asked') } catch { /* ignore */ }
     if (!('geolocation' in navigator)) return
     navigator.geolocation.getCurrentPosition(
-      (pos) => setCenter([pos.coords.longitude, pos.coords.latitude]),
-      () => {},
+      (pos) => {
+        setCenter([pos.coords.longitude, pos.coords.latitude])
+        setFix([pos.coords.longitude, pos.coords.latitude])
+      },
+      () => setFix(null),
       { timeout: 5000, maximumAge: 300_000 },
     )
   }
@@ -286,8 +293,11 @@ export function TouristView() {
     if (!seen) return setGeoAsked(false)
     if (seen === 'asked' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setCenter([pos.coords.longitude, pos.coords.latitude]),
-        () => {},
+        (pos) => {
+          setCenter([pos.coords.longitude, pos.coords.latitude])
+          setFix([pos.coords.longitude, pos.coords.latitude])
+        },
+        () => setFix(null),
         { timeout: 5000, maximumAge: 300_000 },
       )
     }
@@ -538,8 +548,7 @@ export function TouristView() {
           text: postText.trim(),
           ...(postLink.trim() ? { mediaUrl: postLink.trim() } : {}),
           ...(postRating > 0 ? { rating: postRating } : {}),
-          lat: center[1],
-          lon: center[0],
+          ...(fix ? { lat: fix[1], lon: fix[0] } : {}),
         }),
       })
       if (!res.ok) {
@@ -803,7 +812,7 @@ export function TouristView() {
 
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
       {selected && (
-        <div className="absolute bottom-[82px] left-4 right-4 z-[650]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650]">
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-black leading-tight text-guaca-ink">{selected.name}</h3>
@@ -983,7 +992,7 @@ export function TouristView() {
 
       {/* Candidate card — an OSM dot: known to open data, unknown to us. */}
       {!selected && selectedCandidate && (
-        <div className="absolute bottom-[82px] left-4 right-4 z-[650]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650]">
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1016,7 +1025,7 @@ export function TouristView() {
 
       {/* Ask result / teaser card. */}
       {!selected && !selectedCandidate && (
-        <div className="absolute bottom-[82px] left-4 right-4 z-[650]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650]">
           {askState.kind === 'asking' && (
             <div className="guaca-card rounded-[30px] p-4">
               <p className="text-[12px] font-black text-guaca-ink/55">{t.asking}</p>
@@ -1196,7 +1205,7 @@ export function TouristView() {
 
       <form
         onSubmit={(e) => { e.preventDefault(); void askGuaca() }}
-        className="shrink-0 px-4 pb-[92px]"
+        className="shrink-0 px-4 pb-4"
       >
         <div className="flex items-center gap-2 rounded-full border border-guaca-sand bg-white px-3 py-2 shadow-lg shadow-guaca-ocean-deep/8">
           <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0 text-guaca-teal/60" />
@@ -1216,7 +1225,7 @@ export function TouristView() {
   )
 
   const renderPlan = () => (
-    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-28 pt-12">
+    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-ocean to-guaca-ocean-deep p-6 text-white shadow-xl">
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-white/75">
           <Route className="h-3.5 w-3.5" /> {t.planTitle}
@@ -1326,7 +1335,7 @@ export function TouristView() {
   )
 
   const renderProfile = () => (
-    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-28 pt-12">
+    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12">
       <div className="rounded-[32px] bg-white p-6 text-center shadow-sm ring-1 ring-guaca-sand/75">
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-guaca-teal text-2xl font-black text-white">
           {(me?.email?.[0] ?? '·').toUpperCase()}
@@ -1519,7 +1528,7 @@ export function TouristView() {
   }, [query, updates])
 
   const renderUpdates = () => (
-    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-28 pt-14">
+    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-14">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-teal to-guaca-ocean p-6 text-white shadow-xl shadow-guaca-teal/18">
         <GuacaMark className="h-12 w-auto" />
         <h1 className="mt-3 text-3xl font-black tracking-[-.04em]">Local updates</h1>
@@ -1568,9 +1577,11 @@ export function TouristView() {
   }
 
   return (
-    <div className="relative h-full min-h-screen overflow-hidden bg-guaca-paper sm:min-h-full">
-      {tabScreens[activeTab]()}
-      <div className="absolute bottom-0 left-0 right-0 z-[500] border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-4 pb-5 pt-2 backdrop-blur-md">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-guaca-paper sm:h-full">
+      {/* min-h-0 lets this region scroll instead of growing the page and
+          pushing the tab bar past the fold. */}
+      <div className="relative min-h-0 flex-1">{tabScreens[activeTab]()}</div>
+      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-4 pb-5 pt-2 backdrop-blur-md">
         <div className="flex items-center justify-around">
           {[
             { id: 'map' as const, label: t.tabMap, icon: MapPin },

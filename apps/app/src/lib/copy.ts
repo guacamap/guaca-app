@@ -106,6 +106,7 @@ export interface AppCopy {
     backCta: string
     error: string
     confirmPending: string
+    confirmTooFar: string
     geoDenied: string
     alreadyDecided: string
     reasons: Record<string, string>
@@ -314,6 +315,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       backCta: 'Back',
       error: 'Connection failed — try again.',
       confirmPending: 'This place is still in checks — it unlocks for confirmation once they pass.',
+      confirmTooFar: 'You have to be at the place to confirm it — turn on location and try again there.',
       geoDenied: 'Location denied — showing places near the pilot centre instead.',
       alreadyDecided: 'This submission was already processed.',
       reasons: {
@@ -542,6 +544,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       backCta: 'Volver',
       error: 'Falló la conexión — intenta de nuevo.',
       confirmPending: 'Este lugar sigue en chequeos — se desbloquea para confirmar cuando pasen.',
+      confirmTooFar: 'Tienes que estar en el lugar para confirmarlo — activa la ubicación e inténtalo allí.',
       geoDenied: 'Ubicación denegada — mostrando lugares cerca del centro del piloto.',
       alreadyDecided: 'Este envío ya fue procesado.',
       reasons: {

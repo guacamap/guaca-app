@@ -310,7 +310,7 @@ export function GuacaMap({
       pitch: 0,
       bearing: 0,
       projection: 'mercator',
-      attributionControl: false,
+      attributionControl: true,
       maxZoom: 19,
       minZoom: zoom < 12 ? 2.5 : 12,
     })
@@ -498,7 +498,7 @@ export function GuacaMapTreasure({
       pitch: 0,
       bearing: 0,
       projection: 'mercator',
-      attributionControl: false,
+      attributionControl: true,
       maxZoom: 19,
       minZoom: 12,
     })

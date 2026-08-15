@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import {
   answerDeterministic,
+  classifiesIntent,
   extractIntent,
   groundFromVerifiedRows,
   renderItinerary,
@@ -83,6 +84,14 @@ export async function ask(
       ...(questionId ? { questionId } : {}),
     };
   };
+
+  // An unrecognised question must not inherit the broad default category:
+  // "best sushi in Tokyo" and "asdfghjkl" both used to come back as a
+  // confident, verified-looking arepa plan. Refusing records the demand
+  // honestly instead (§7.3).
+  if (!classifiesIntent(input.text)) {
+    return refuse('UNCLEAR_QUESTION');
+  }
 
   const rows = await q.places.findVerifiedNear(pool, input.lat, input.lon, 5000, undefined);
   const verifiedIds = new Set(rows.map((r) => r.id));

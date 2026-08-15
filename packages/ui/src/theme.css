@@ -341,3 +341,18 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+@layer components {
+  /* Mapbox/OSM attribution is required by their terms — keep it legible and
+     clear of the tab bar and map controls. */
+  .mapboxgl-ctrl-bottom-right,
+  .mapboxgl-ctrl-bottom-left {
+    z-index: 300;
+  }
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-group {
+    margin-bottom: 34px;
+  }
+  .mapboxgl-ctrl-attrib.mapboxgl-compact {
+    background: rgba(255, 255, 255, 0.82);
+  }
+}
