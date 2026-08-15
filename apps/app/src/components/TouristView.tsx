@@ -5,6 +5,7 @@ import {
   Bell,
   Check,
   Clock3,
+  Flag,
   Globe,
   Heart,
   LogOut,
@@ -229,6 +230,7 @@ export function TouristView() {
   const [watching, setWatching] = useState<Watch[]>([])
   const [fulfilled, setFulfilled] = useState(0)
   const [myPosts, setMyPosts] = useState<MyPost[]>([])
+  const [reported, setReported] = useState<Set<string>>(new Set())
   const [villaCode, setVillaCode] = useState('')
   const [villaErr, setVillaErr] = useState(false)
   const threadEndRef = useRef<HTMLDivElement | null>(null)
@@ -629,6 +631,18 @@ export function TouristView() {
     }).catch(() => {})
   }
 
+  /** Flag a post — two reports auto-hide it and the operator reviews. */
+  const reportPost = (postId: string) => {
+    if (reported.has(postId)) return
+    setReported((prev) => new Set(prev).add(postId))
+    fetch(`/api/posts/${postId}/report`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ reason: 'other' }),
+    }).catch(() => {})
+  }
+
   const cancelWatch = (questionId: string) => {
     setWatching((prev) => prev.filter((w) => w.questionId !== questionId))
     fetch(`/api/questions/${questionId}/notify`, {
@@ -860,11 +874,21 @@ export function TouristView() {
                         )}
                       </div>
                       <p className="mt-1.5 text-[11px] font-semibold leading-relaxed text-guaca-ink/75">{p.body}</p>
-                      {p.mediaUrl && (
-                        <a href={p.mediaUrl} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep px-3 py-1.5 text-[9px] font-black text-white hover:bg-guaca-ocean">
-                          ▶ {t.postsWatch} · {mediaPlatform(p.mediaUrl)}
-                        </a>
-                      )}
+                      <div className="mt-1.5 flex items-center gap-2">
+                        {p.mediaUrl && (
+                          <a href={p.mediaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep px-3 py-1.5 text-[9px] font-black text-white hover:bg-guaca-ocean">
+                            ▶ {t.postsWatch} · {mediaPlatform(p.mediaUrl)}
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => reportPost(p.id)}
+                          disabled={reported.has(p.id)}
+                          className="ml-auto flex items-center gap-1 text-[9px] font-black text-guaca-ink/35 hover:text-guaca-coral-dark disabled:text-guaca-ink/25"
+                        >
+                          <Flag className="h-3 w-3" /> {reported.has(p.id) ? t.postsReported : t.postsReport}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -174,6 +174,8 @@ export interface AppCopy {
     postsVisited: string
     postsRatingHint: string
     postsError: string
+    postsReport: string
+    postsReported: string
     favSave: string
     favSaved: string
     favTitle: string
@@ -395,6 +397,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       postsVisited: 'Visited',
       postsRatingHint: 'Stars only count when you post from the place.',
       postsError: 'Could not post — check the link (TikTok, Instagram or YouTube).',
+      postsReport: 'Report',
+      postsReported: 'Reported',
       favSave: 'Save',
       favSaved: 'Saved',
       favTitle: 'Saved places',
@@ -614,6 +618,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       postsVisited: 'Estuvo aquí',
       postsRatingHint: 'Las estrellas solo cuentan si publicas desde el lugar.',
       postsError: 'No se pudo publicar — revisa el enlace (TikTok, Instagram o YouTube).',
+      postsReport: 'Reportar',
+      postsReported: 'Reportado',
       favSave: 'Guardar',
       favSaved: 'Guardado',
       favTitle: 'Lugares guardados',

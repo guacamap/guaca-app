@@ -512,6 +512,51 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   /*
+   * Report a post. Play requires both a way to flag user content and action
+   * on flags, so a post auto-hides at the threshold and lands in the
+   * operator's queue either way. Hiding is reversible — an operator decides.
+   */
+  const REPORTS_TO_HIDE = 2;
+
+  app.post('/api/posts/:id/report', async (req, reply) => {
+    const spotterToken = tokenFrom(req, 'guaca_spotter');
+    const touristToken = tokenFrom(req, 'guaca_tourist');
+    let key: string | null = null;
+    if (spotterToken) {
+      const { spotterId } = await verifySpotterToken(spotterToken, sessionSecret());
+      if (spotterId) key = `spotter:${spotterId}`;
+    }
+    if (!key && touristToken) {
+      const { touristId } = await verifyTouristToken(touristToken, sessionSecret());
+      if (touristId) key = `tourist:${touristId}`;
+    }
+    if (!key) return reply.code(401).send({ error: 'login required' });
+
+    const { id } = req.params as { id: string };
+    const body = req.body as { reason?: string };
+    const reason = ['spam', 'wrong', 'offensive', 'other'].includes(body.reason ?? '')
+      ? body.reason!
+      : 'other';
+    const post = await options.pool.query(`select id from place_posts where id = $1`, [id]);
+    if (post.rows.length === 0) return reply.code(404).send({ error: 'post not found' });
+
+    await options.pool.query(
+      `insert into place_post_reports (post_id, reporter_key, reason)
+       values ($1, $2, $3) on conflict (post_id, reporter_key) do nothing`,
+      [id, key, reason],
+    );
+    const count = await options.pool.query(
+      `select count(*)::int as n from place_post_reports where post_id = $1`,
+      [id],
+    );
+    const n = (count.rows[0]?.n as number) ?? 0;
+    if (n >= REPORTS_TO_HIDE) {
+      await options.pool.query(`update place_posts set status = 'hidden' where id = $1`, [id]);
+    }
+    return reply.code(201).send({ ok: true, hidden: n >= REPORTS_TO_HIDE });
+  });
+
+  /*
    * "Tell me when it's verified" — opt-in link between an anonymous question
    * and the account, held in its own cascade-deleted table so questions stay
    * anonymous unless the tourist explicitly asks to hear back.
