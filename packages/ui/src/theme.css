@@ -177,7 +177,15 @@
     background: var(--guaca-paper);
   }
 
-  @media (min-width: 480px) {
+  .guaca-screen {
+    position: relative;
+    min-height: 100vh;
+  }
+
+  /* 640px — the same breakpoint as Tailwind's sm:, which the screens use
+     for their inside-the-frame height rules. A frame that appears earlier
+     than sm: leaves a gap where content overflows the chrome. */
+  @media (min-width: 640px) {
     .guaca-phone {
       min-height: min(920px, calc(100vh - 32px));
       height: min(920px, calc(100vh - 32px));
@@ -185,6 +193,16 @@
       border: 10px solid #101010;
       border-radius: 48px;
       box-shadow: 0 30px 80px rgba(44, 30, 16, 0.24), inset 0 0 0 1px rgba(255,255,255,0.18);
+    }
+
+    /* overflow:hidden alone lets composited children (the Mapbox WebGL
+       canvas) escape the frame's rounded corners in Chromium. The screen
+       layer hard-clips content at the inner radius (48px − 10px border)
+       so the frame keeps its own drop shadow. */
+    .guaca-screen {
+      min-height: 0;
+      height: 100%;
+      clip-path: inset(0 round 38px);
     }
 
     .guaca-phone::before {

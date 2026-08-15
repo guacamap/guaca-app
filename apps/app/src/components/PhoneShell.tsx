@@ -15,19 +15,21 @@ export function PhoneShell({
   return (
     <div className="guaca-page">
       <div className="guaca-phone">
-        {children}
-        {/* Top-right, below each screen's header band — bottom edges belong
-            to cards, sheets and CTAs, which the pill must never cover. */}
-        {showRoleSwitch && (
-          <Button
-            type="button"
-            onClick={() => router.push('/')}
-            className="absolute right-4 top-28 z-[600] h-10 rounded-full bg-guaca-ocean-deep/82 px-3 text-[11px] font-bold text-white shadow-xl shadow-guaca-ocean-deep/25 backdrop-blur-md hover:bg-guaca-ocean-deep"
-          >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            Role
-          </Button>
-        )}
+        <div className="guaca-screen">
+          {children}
+          {/* Top-right, below each screen's header band — bottom edges belong
+              to cards, sheets and CTAs, which the pill must never cover. */}
+          {showRoleSwitch && (
+            <Button
+              type="button"
+              onClick={() => router.push('/')}
+              className="absolute right-4 top-28 z-[600] h-10 rounded-full bg-guaca-ocean-deep/82 px-3 text-[11px] font-bold text-white shadow-xl shadow-guaca-ocean-deep/25 backdrop-blur-md hover:bg-guaca-ocean-deep"
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Role
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )
