@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Crosshair, Map as MapIcon, MapPin, Trophy } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Compass, Crosshair, Map as MapIcon, MapPin, Trophy } from 'lucide-react'
 import { Button, GuacaLogo, GuacaMap, Input, useLanguage, type Lang } from '@guaca/ui'
 import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
-
-interface SpotterViewProps {
-  onRoleChange: () => void
-}
 
 interface Mission {
   id: string
@@ -98,7 +94,7 @@ function guard401(r: Response): Response {
   return r
 }
 
-export function SpotterView({ onRoleChange }: SpotterViewProps) {
+export function SpotterView() {
   const { lang } = useLanguage()
   const t = appCopy[lang].spotter
   const [tab, setTab] = useState<'missions' | 'map' | 'confirm' | 'earnings'>('missions')
@@ -539,9 +535,22 @@ export function SpotterView({ onRoleChange }: SpotterViewProps) {
                 <span className="shrink-0 text-[13px] font-black text-guaca-palm">{pts(e.rewardMinor)}</span>
               </article>
             ))}
-            <Button type="button" variant="ghost" onClick={onRoleChange} className="h-11 w-full rounded-2xl bg-guaca-teal/8 text-xs font-black text-guaca-teal hover:bg-guaca-teal/12">
-              {t.backCta}
-            </Button>
+            {/* Mode switch — mirrors the tourist profile's card; the map
+                has no floating Role pill anymore. */}
+            <button
+              type="button"
+              onClick={() => { window.location.href = '/map' }}
+              className="flex w-full items-center gap-3 rounded-[28px] bg-gradient-to-r from-guaca-teal to-guaca-ocean p-4 text-left shadow-lg shadow-guaca-teal/20 transition-transform hover:-translate-y-0.5"
+            >
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/20 text-white">
+                <Compass className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-black text-white">{t.becomeTourist}</span>
+                <span className="mt-0.5 block text-[10px] font-bold leading-relaxed text-white/85">{t.becomeTouristNote}</span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-white/80" />
+            </button>
           </div>
         )}
       </div>
