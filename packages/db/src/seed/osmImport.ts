@@ -105,9 +105,18 @@ export async function importOsmCandidates(
 ): Promise<OsmImportResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const bbox = DEFAULT_BBOX;
-  const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(QUERY(bbox))}`;
+  // POST + explicit User-Agent: overpass-api.de rejects anonymous GETs
+  // (406) and rate-limits hard; the kumi mirror is the reliable default.
+  const endpoint = options.overpassUrl ?? 'https://overpass.kumi.systems/api/interpreter';
 
-  const res = await fetchImpl(url);
+  const res = await fetchImpl(endpoint, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      'user-agent': 'guaca-app/0.1 (pilot; contact via guaca.live)',
+    },
+    body: `data=${encodeURIComponent(QUERY(bbox))}`,
+  });
   if (!res.ok) {
     throw new Error(`overpass request failed: ${res.status} ${res.statusText}`);
   }

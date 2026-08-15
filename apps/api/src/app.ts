@@ -117,7 +117,54 @@ export function buildApp(options: AppOptions): FastifyInstance {
       radiusM,
       category,
     );
-    return { places };
+    // Review activity per place — powers the ★ pin badges and the heatmap.
+    const stats = await options.pool.query(
+      `select place_id,
+              count(*)::int as posts_count,
+              avg(rating)::float as avg_rating,
+              count(rating)::int as rating_count
+       from place_posts where status = 'visible' group by place_id`,
+    );
+    const byPlace = new Map(
+      stats.rows.map((r) => [
+        r.place_id as string,
+        {
+          postsCount: r.posts_count as number,
+          avgRating: (r.avg_rating as number) ?? null,
+          ratingCount: r.rating_count as number,
+        },
+      ]),
+    );
+    return {
+      places: places.map((p) => ({
+        ...p,
+        ...(byPlace.get(p.id) ?? { postsCount: 0, avgRating: null, ratingCount: 0 }),
+      })),
+    };
+  });
+
+  /*
+   * OSM candidates — the open-data backdrop (§DATA_SOURCES). Rendered as
+   * small dots, never pins: a dot has NOT been verified by anyone. The only
+   * road from dot to pin is the witness pipeline.
+   */
+  app.get('/api/places/candidates', async (req, reply) => {
+    const { bbox } = req.query as { bbox?: string };
+    if (!bbox) return reply.code(400).send({ error: 'bbox is required' });
+    const [lonMin, latMin, lonMax, latMax] = bbox.split(',').map(Number);
+    if ([lonMin, latMin, lonMax, latMax].some((n) => !Number.isFinite(n))) {
+      return reply.code(400).send({ error: 'invalid bbox' });
+    }
+    const res = await options.pool.query(
+      `select id, name, category,
+              ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon
+       from places
+       where verification_status = 'candidate' and source = 'osm_candidate'
+         and ST_Intersects(location::geometry, ST_MakeEnvelope($1, $2, $3, $4, 4326))
+       limit 800`,
+      [lonMin, latMin, lonMax, latMax],
+    );
+    return { candidates: res.rows };
   });
 
   app.post('/api/photos', async (req, reply) => {
