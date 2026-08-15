@@ -54,3 +54,5 @@ export type { PlacePhotoRow } from './photos.js';
 export { addProperty, listProperties, propertyByQrToken } from './properties.js';
 export { deleteTourist } from './tourists.js';
 export type { PropertyRow } from './properties.js';
+export { addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites } from './posts.js';
+export type { PlacePostRow, FavoriteRow } from './posts.js';
