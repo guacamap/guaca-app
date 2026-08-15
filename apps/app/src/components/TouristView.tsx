@@ -139,6 +139,15 @@ function initials(name: string | null): string {
     .join('')
 }
 
+/** crypto.randomUUID only exists in secure contexts (HTTPS/localhost) —
+ *  phones on a LAN IP get plain http, so these local keys need a fallback. */
+function localId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return localId()
+  }
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 function loadJson<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key)
@@ -498,7 +507,7 @@ export function TouristView() {
     if (!text || guacaBusy) return
     setGuacaText('')
     setGuacaBusy(true)
-    const userMsg: ChatMsg = { id: crypto.randomUUID(), role: 'user', text }
+    const userMsg: ChatMsg = { id: localId(), role: 'user', text }
     setThread((prev) => {
       const next = [...prev, userMsg]
       saveJson(THREAD_KEY, next)
@@ -508,10 +517,10 @@ export function TouristView() {
     try {
       const body = await askApi(text)
       if (!body) {
-        reply = { id: crypto.randomUUID(), role: 'guaca', kind: 'error', text: t.askError }
+        reply = { id: localId(), role: 'guaca', kind: 'error', text: t.askError }
       } else {
         reply = {
-          id: crypto.randomUUID(),
+          id: localId(),
           role: 'guaca',
           kind: body.kind,
           text: body.text,
@@ -521,7 +530,7 @@ export function TouristView() {
         if (body.kind === 'answer') savePlanFromAnswer(text, body.text, body.placeIds)
       }
     } catch {
-      reply = { id: crypto.randomUUID(), role: 'guaca', kind: 'error', text: t.askError }
+      reply = { id: localId(), role: 'guaca', kind: 'error', text: t.askError }
     }
     setThread((prev) => {
       const next = [...prev, reply].slice(-60)
