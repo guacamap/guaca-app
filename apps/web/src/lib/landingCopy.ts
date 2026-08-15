@@ -84,6 +84,7 @@ export interface LandingCopy {
   }
   businesses: { title: string; lede: string; comingSoon: string }
   footer: string
+  legal: { privacy: string; terms: string; deleteAccount: string }
   deleteAccount: {
     title: string
     lede: string
@@ -96,6 +97,8 @@ export interface LandingCopy {
     confirmCta: string
     done: string
     error: string
+    invalidEmail: string
+    rateLimited: string
     badCode: string
   }
 }
@@ -201,6 +204,7 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       comingSoon: 'App preview coming soon',
     },
     footer: 'The Caribbean, mapped by the people who know it.',
+    legal: { privacy: 'Privacy', terms: 'Terms', deleteAccount: 'Delete account' },
     deleteAccount: {
       title: 'Delete your account',
       lede: 'Sign in with your email code, then confirm. Your email — the only personal data we hold — is deleted immediately and permanently.',
@@ -213,6 +217,8 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       confirmCta: 'Delete my account',
       done: 'Your account has been deleted. Thank you for travelling with locals.',
       error: 'Connection failed — try again.',
+    invalidEmail: 'That email doesn’t look right.',
+    rateLimited: 'Too many attempts — wait a few minutes.',
       badCode: 'Wrong or expired code — try again.',
     },
   },
@@ -316,6 +322,7 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       comingSoon: 'Vista previa muy pronto',
     },
     footer: 'El Caribe, mapeado por la gente que lo conoce.',
+    legal: { privacy: 'Privacidad', terms: 'Términos', deleteAccount: 'Eliminar cuenta' },
     deleteAccount: {
       title: 'Eliminar tu cuenta',
       lede: 'Inicia sesión con tu código de correo y confirma. Tu correo — el único dato personal que guardamos — se elimina de inmediato y para siempre.',
@@ -328,6 +335,8 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       confirmCta: 'Eliminar mi cuenta',
       done: 'Tu cuenta fue eliminada. Gracias por viajar con locales.',
       error: 'Falló la conexión — intenta de nuevo.',
+    invalidEmail: 'Ese correo no parece válido.',
+    rateLimited: 'Demasiados intentos — espera unos minutos.',
       badCode: 'Código incorrecto o vencido — intenta de nuevo.',
     },
   },

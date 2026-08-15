@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 /**
  * Privacy policy and terms. Google Play requires a reachable privacy policy
@@ -208,7 +208,23 @@ const COPY: Record<'en' | 'es', Record<LegalDoc, DocCopy>> = {
 function LegalBody({ doc }: { doc: LegalDoc }) {
   // Local state, not the shared provider: these pages must stay tiny —
   // importing the UI barrel would pull Mapbox into a static legal page.
+  // The choice is still shared with the rest of the site through the same
+  // storage key, so arriving from an ES page keeps Spanish.
   const [lang, setLang] = useState<'en' | 'es'>('en')
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('guaca-lang')
+      if (stored === 'es' || stored === 'en') setLang(stored)
+    } catch {
+      /* storage blocked — English is a fine default */
+    }
+  }, [])
+
+  useEffect(() => {
+    try { localStorage.setItem('guaca-lang', lang) } catch { /* ignore */ }
+    document.documentElement.lang = lang
+  }, [lang])
   const t = COPY[lang][doc]
 
   return (

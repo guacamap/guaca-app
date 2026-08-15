@@ -252,7 +252,7 @@ export function MarketingLanding() {
         <section id="businesses" className="bg-guaca-ocean-deep py-20 text-white"><div className="mx-auto flex w-[min(960px,calc(100%_-_32px))] flex-col items-center px-4 text-center sm:px-0"><MessageCircle className="h-9 w-9 text-guaca-mango-light" /><h2 className="mt-5 text-4xl font-black tracking-[-.055em] sm:text-5xl">{t.businesses.title}</h2><p className="mt-4 max-w-xl text-white/68">{t.businesses.lede}</p><span className="mt-8 inline-flex h-13 items-center rounded-xl border border-dashed border-white/40 bg-white/10 px-7 font-black text-white/85">{t.businesses.comingSoon}</span></div></section>
       </main>
 
-      <footer className="bg-guaca-paper py-10"><div className="mx-auto flex w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-between gap-5 px-4 text-center sm:flex-row sm:px-0 sm:text-left"><GuacaLogo className="h-11" /><p className="text-xs font-bold text-guaca-ink/45">{t.footer}</p></div></footer>
+      <footer className="bg-guaca-paper py-10"><div className="mx-auto flex w-[min(1180px,calc(100%_-_32px))] flex-col items-center justify-between gap-5 px-4 text-center sm:flex-row sm:px-0 sm:text-left"><GuacaLogo className="h-11" /><div className="flex flex-col items-center gap-2 sm:items-end"><nav className="flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-guaca-ink/55"><a href="/privacy" className="underline-offset-2 hover:underline">{t.legal.privacy}</a><a href="/terms" className="underline-offset-2 hover:underline">{t.legal.terms}</a><a href="/delete-account" className="underline-offset-2 hover:underline">{t.legal.deleteAccount}</a></nav><p className="text-xs font-bold text-guaca-ink/45">{t.footer}</p></div></div></footer>
     </div>
   )
 }
