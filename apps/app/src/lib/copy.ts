@@ -11,6 +11,7 @@ export interface AppCopy {
     codeLabel: string
     codeLede: string
     devCodeHint: string
+    devBypassCta: string
     codeCta: string
     resend: string
     invalidEmail: string
@@ -29,6 +30,7 @@ export interface AppCopy {
     gateTitle: string
     gateLede: string
     devCodeHint: string
+    devBypassCta: string
     phoneLabel: string
     codeLabel: string
     loginCta: string
@@ -162,6 +164,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       codeLabel: '6-digit code',
       codeLede: 'We sent a code to',
       devCodeHint: 'Dev build — the code is always 000000.',
+      devBypassCta: '⚡ Dev bypass — skip sign-in',
       codeCta: 'Enter',
       resend: 'Send a new code',
       invalidEmail: 'That email doesn’t look right.',
@@ -180,6 +183,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       gateTitle: 'Spotter sign in',
       gateLede: 'Phone + the one-time code your operator gave you. No self-signup — every Spotter is invited.',
       devCodeHint: 'Dev build — any roster phone signs in with code 000000.',
+      devBypassCta: '⚡ Dev bypass — enter as Carlos Test [DEV]',
       phoneLabel: 'Phone',
       codeLabel: 'Code',
       loginCta: 'Enter',
@@ -333,6 +337,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       codeLabel: 'Código de 6 dígitos',
       codeLede: 'Enviamos un código a',
       devCodeHint: 'Versión de desarrollo — el código siempre es 000000.',
+      devBypassCta: '⚡ Bypass dev — saltar el registro',
       codeCta: 'Entrar',
       resend: 'Enviar un código nuevo',
       invalidEmail: 'Ese correo no parece válido.',
@@ -351,6 +356,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       gateTitle: 'Entrada de Spotter',
       gateLede: 'Teléfono + el código de un solo uso que te dio tu operador. No hay registro abierto — cada Spotter es invitado.',
       devCodeHint: 'Versión de desarrollo — cualquier teléfono del roster entra con el código 000000.',
+      devBypassCta: '⚡ Bypass dev — entrar como Carlos Test [DEV]',
       phoneLabel: 'Teléfono',
       codeLabel: 'Código',
       loginCta: 'Entrar',
