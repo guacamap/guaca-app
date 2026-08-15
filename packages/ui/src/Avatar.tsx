@@ -19,6 +19,16 @@ export function Avatar({
   textClassName?: string
 }) {
   const [failed, setFailed] = useState(false)
+  /*
+   * Only render images we serve. photo_url is operator-writable, and
+   * pointing it at an arbitrary host would leak every viewer's IP there
+   * (and render whatever that host chose). Spotters upload through
+   * /api/spotter/:id/photo, which is same-origin.
+   */
+  const sameOrigin =
+    !!url &&
+    (url.startsWith('/') ||
+      (typeof window !== 'undefined' && url.startsWith(window.location.origin)))
   const initials = (name ?? '')
     .split(/\s+/)
     .filter(Boolean)
@@ -26,7 +36,7 @@ export function Avatar({
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('') || '·'
 
-  if (url && !failed) {
+  if (url && sameOrigin && !failed) {
     return (
       <img
         src={url}
