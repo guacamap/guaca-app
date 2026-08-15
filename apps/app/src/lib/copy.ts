@@ -28,6 +28,7 @@ export interface AppCopy {
   spotter: {
     gateTitle: string
     gateLede: string
+    devCodeHint: string
     phoneLabel: string
     codeLabel: string
     loginCta: string
@@ -178,6 +179,7 @@ export const appCopy: Record<Lang, AppCopy> = {
     spotter: {
       gateTitle: 'Spotter sign in',
       gateLede: 'Phone + the one-time code your operator gave you. No self-signup — every Spotter is invited.',
+      devCodeHint: 'Dev build — any roster phone signs in with code 000000.',
       phoneLabel: 'Phone',
       codeLabel: 'Code',
       loginCta: 'Enter',
@@ -348,6 +350,7 @@ export const appCopy: Record<Lang, AppCopy> = {
     spotter: {
       gateTitle: 'Entrada de Spotter',
       gateLede: 'Teléfono + el código de un solo uso que te dio tu operador. No hay registro abierto — cada Spotter es invitado.',
+      devCodeHint: 'Versión de desarrollo — cualquier teléfono del roster entra con el código 000000.',
       phoneLabel: 'Teléfono',
       codeLabel: 'Código',
       loginCta: 'Entrar',

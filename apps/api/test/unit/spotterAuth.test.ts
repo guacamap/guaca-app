@@ -65,3 +65,39 @@ describe('T7.1 — spotter login (phone + code → httpOnly JWT)', () => {
     expect(crossed.spotterId).toBeNull();
   });
 });
+
+describe('dev bypass — 000000 signs in any known spotter outside production', () => {
+  it('accepts 000000 in dev even with a different minted code', async () => {
+    const r = await spotterLogin(db, { phone: PHONE, code: '000000' }, SECRET);
+    expect(r.ok).toBe(true);
+  });
+
+  it('accepts 000000 in dev even when no code was minted', async () => {
+    const noCodeDb = {
+      findSpotterByPhone: async () => ({
+        id: SPOTTER_ID,
+        phone: PHONE,
+        name: 'Yorman',
+        loginCodeHash: null,
+      }),
+    };
+    const r = await spotterLogin(noCodeDb, { phone: PHONE, code: '000000' }, SECRET);
+    expect(r.ok).toBe(true);
+  });
+
+  it('never bypasses in production', async () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const r = await spotterLogin(db, { phone: PHONE, code: '000000' }, SECRET);
+      expect(r.ok).toBe(false);
+    } finally {
+      process.env.NODE_ENV = prev;
+    }
+  });
+
+  it('still requires a known phone', async () => {
+    const r = await spotterLogin(db, { phone: '+58 999 999 9999', code: '000000' }, SECRET);
+    expect(r.ok).toBe(false);
+  });
+});

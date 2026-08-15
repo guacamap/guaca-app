@@ -28,10 +28,16 @@ export async function spotterLogin(
 ): Promise<LoginResult> {
   const spotter = await db.findSpotterByPhone(input.phone);
   if (!spotter) return { ok: false, reason: 'NOT_FOUND' };
-  if (!spotter.loginCodeHash) return { ok: false, reason: 'NO_CODE' };
 
-  const hash = createHash('sha256').update(input.code).digest('hex');
-  if (hash !== spotter.loginCodeHash) return { ok: false, reason: 'BAD_CODE' };
+  // Dev bypass, mirroring the tourist gate: 000000 signs in any active
+  // spotter outside production, so teammates can test the mission flow
+  // without minting CLI codes. Production always requires a real code.
+  const devBypass = process.env.NODE_ENV !== 'production' && input.code === '000000';
+  if (!devBypass) {
+    if (!spotter.loginCodeHash) return { ok: false, reason: 'NO_CODE' };
+    const hash = createHash('sha256').update(input.code).digest('hex');
+    if (hash !== spotter.loginCodeHash) return { ok: false, reason: 'BAD_CODE' };
+  }
 
   const token = await new SignJWT({ sub: spotter.id, name: spotter.name, role: 'spotter' })
     .setProtectedHeader({ alg: 'HS256' })
