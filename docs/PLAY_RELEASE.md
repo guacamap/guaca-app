@@ -80,10 +80,11 @@ Piloting in Puerto Cabello, Venezuela. Coverage grows where travellers ask.
 declare the moderation mechanism) · **Contains ads:** no · **In-app
 purchases:** no.
 
-**Screenshots** — generate fresh from the running app at 1080×1920 with
-`scratchpad/shot-play.mjs`; the strongest five are map, place sheet with
-the verifying local, Guaca answer, the refusal card, spotter profile.
-A 1024×500 feature graphic is still **missing** and must be designed.
+**Assets** — all in `apps/mobile/store/` (see its README): 1024×500 feature
+graphic, eight 1080×1920 phone screenshots, and a 512×512 listing icon **with
+alpha** (`apps/mobile/assets/icon.png` is RGB with no alpha and would be
+rejected). Re-shoot the screenshots against production data before uploading —
+the current set shows `[DEV]` place names.
 
 ## Data safety form (answer truthfully — this matches the code)
 
@@ -132,10 +133,30 @@ Spotter accounts are issued by our operators; there is no public signup,
 which is why we supply the credentials above.
 ```
 
+## App Links (villa QR codes)
+
+`apps/mobile/app.json` declares an `autoVerify` intent filter for
+`app.guaca.live/v/*`, so a scanned villa QR opens the app instead of Chrome.
+Android only trusts it once `https://app.guaca.live/.well-known/assetlinks.json`
+serves the signing-key fingerprint. After the first EAS build:
+
+```bash
+eas credentials -p android          # copy the SHA-256 fingerprint
+```
+
+Then add `apps/app/public/.well-known/assetlinks.json`:
+
+```json
+[{"relation":["delegate_permission/common.handle_all_urls"],
+  "target":{"namespace":"android_app","package_name":"live.guaca.app",
+            "sha256_cert_fingerprints":["<FINGERPRINT>"]}}]
+```
+
+Until that file exists the links simply open in the browser — no breakage.
+
 ## Remaining work before the closed test
 
-1. Feature graphic 1024×500 (designer asset, not code).
-2. Content reporting: a "report" action on posts + an operator command to
-   hide them (`place_posts.status = 'hidden'` already exists).
-3. Verify the real device flow once deployed: camera capture and
-   geolocation inside the WebView on a physical Android phone over HTTPS.
+1. Verify on a physical Android phone over HTTPS: camera capture and
+   geolocation inside the WebView (they cannot be tested over plain-HTTP LAN).
+2. `assetlinks.json` above, after the first build produces a fingerprint.
+3. Re-shoot store screenshots once production has non-`[DEV]` places.
