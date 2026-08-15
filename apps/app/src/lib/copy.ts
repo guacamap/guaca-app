@@ -87,6 +87,33 @@ export interface AppCopy {
     askError: string
     emptyMapTitle: string
     emptyMapBody: string
+    tabMap: string
+    tabGuaca: string
+    tabPlan: string
+    tabProfile: string
+    guacaTitle: string
+    guacaLede: string
+    guacaPlaceholder: string
+    guacaEmptyTitle: string
+    guacaEmptyBody: string
+    guacaSuggestions: string[]
+    guacaClear: string
+    planTitle: string
+    planLede: string
+    planEmptyTitle: string
+    planEmptyBody: string
+    planEmptyCta: string
+    planFromQuestion: string
+    planViewOnMap: string
+    planClear: string
+    profileTitle: string
+    profileGuestOf: string
+    profileLanguage: string
+    profileUpdates: string
+    profileSwitchRole: string
+    profileSignOut: string
+    profileDelete: string
+    profileDeleteNote: string
   }
 }
 
@@ -187,6 +214,37 @@ export const appCopy: Record<Lang, AppCopy> = {
       askError: 'Couldn’t reach Guaca — try again.',
       emptyMapTitle: 'Coverage grows locally',
       emptyMapBody: 'Verified places appear as Spotters confirm them on the ground.',
+      tabMap: 'Map',
+      tabGuaca: 'Guaca',
+      tabPlan: 'Plan',
+      tabProfile: 'Profile',
+      guacaTitle: 'Guaca AI',
+      guacaLede: 'Plans and answers built only from places locals have physically verified. When nobody has checked, Guaca says so — and sends a local.',
+      guacaPlaceholder: 'Plan my day, find a beach…',
+      guacaEmptyTitle: 'Ask anything about this coast',
+      guacaEmptyBody: 'Every recommendation is backed by a named local who stood there. No inventions, ever.',
+      guacaSuggestions: [
+        'Plan my day near the malecón',
+        'Where can I eat arepas nearby?',
+        'Which beach is best this afternoon?',
+      ],
+      guacaClear: 'Clear conversation',
+      planTitle: 'Your plan',
+      planLede: 'The latest plan Guaca built for you — every stop physically verified.',
+      planEmptyTitle: 'No plan yet',
+      planEmptyBody: 'Ask Guaca to plan your day and the itinerary will live here.',
+      planEmptyCta: 'Plan my day with Guaca',
+      planFromQuestion: 'From your question',
+      planViewOnMap: 'View on map',
+      planClear: 'Clear plan',
+      profileTitle: 'Profile',
+      profileGuestOf: 'Guest of',
+      profileLanguage: 'Language',
+      profileUpdates: 'Local updates',
+      profileSwitchRole: 'Switch role',
+      profileSignOut: 'Sign out',
+      profileDelete: 'Delete my account',
+      profileDeleteNote: 'Removes your email — your anonymous questions stay as map demand.',
     },
   },
   es: {
@@ -285,6 +343,37 @@ export const appCopy: Record<Lang, AppCopy> = {
       askError: 'No pudimos conectar con Guaca — intenta de nuevo.',
       emptyMapTitle: 'La cobertura crece localmente',
       emptyMapBody: 'Los lugares verificados aparecen cuando los Spotters los confirman en el terreno.',
+      tabMap: 'Mapa',
+      tabGuaca: 'Guaca',
+      tabPlan: 'Plan',
+      tabProfile: 'Perfil',
+      guacaTitle: 'Guaca AI',
+      guacaLede: 'Planes y respuestas construidos solo con lugares que locales verificaron físicamente. Si nadie lo ha comprobado, Guaca lo dice — y envía a un local.',
+      guacaPlaceholder: 'Planifica mi día, busca una playa…',
+      guacaEmptyTitle: 'Pregunta lo que sea sobre esta costa',
+      guacaEmptyBody: 'Cada recomendación está respaldada por un local con nombre que estuvo allí. Nunca inventamos.',
+      guacaSuggestions: [
+        'Planifica mi día cerca del malecón',
+        '¿Dónde puedo comer arepas cerca?',
+        '¿Qué playa es mejor esta tarde?',
+      ],
+      guacaClear: 'Borrar conversación',
+      planTitle: 'Tu plan',
+      planLede: 'El último plan que Guaca armó para ti — cada parada verificada físicamente.',
+      planEmptyTitle: 'Aún no hay plan',
+      planEmptyBody: 'Pídele a Guaca que planifique tu día y el itinerario vivirá aquí.',
+      planEmptyCta: 'Planificar mi día con Guaca',
+      planFromQuestion: 'De tu pregunta',
+      planViewOnMap: 'Ver en el mapa',
+      planClear: 'Borrar plan',
+      profileTitle: 'Perfil',
+      profileGuestOf: 'Huésped de',
+      profileLanguage: 'Idioma',
+      profileUpdates: 'Novedades locales',
+      profileSwitchRole: 'Cambiar de rol',
+      profileSignOut: 'Cerrar sesión',
+      profileDelete: 'Eliminar mi cuenta',
+      profileDeleteNote: 'Elimina tu correo — tus preguntas anónimas quedan como demanda del mapa.',
     },
   },
 }

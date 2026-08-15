@@ -77,7 +77,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
     if (req.method === 'OPTIONS') {
       reply
-        .header('access-control-allow-methods', 'GET,POST,DELETE,OPTIONS')
+        .header('access-control-allow-methods', 'GET,POST,PATCH,DELETE,OPTIONS')
         .header(
           'access-control-allow-headers',
           req.headers['access-control-request-headers'] ?? 'content-type',
@@ -278,7 +278,34 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!touristId) return reply.code(401).send({ error: 'unauthorized' });
     const tourist = await touristById(options.pool, touristId);
     if (!tourist) return reply.code(401).send({ error: 'unauthorized' });
-    return { email: tourist.email, language: tourist.language };
+    let propertyName: string | null = null;
+    if (tourist.attributedPropertyId) {
+      const r = await options.pool.query(`select name from properties where id = $1`, [
+        tourist.attributedPropertyId,
+      ]);
+      propertyName = (r.rows[0]?.name as string) ?? null;
+    }
+    return { email: tourist.email, language: tourist.language, propertyName };
+  });
+
+  app.patch('/api/tourist/me', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'unauthorized' });
+    const body = req.body as { language?: string };
+    if (body.language !== 'en' && body.language !== 'es') {
+      return reply.code(400).send({ error: 'language must be en or es' });
+    }
+    await options.pool.query(`update tourists set language = $1 where id = $2`, [
+      body.language,
+      touristId,
+    ]);
+    return { ok: true, language: body.language };
+  });
+
+  app.post('/api/tourist/logout', async (_req, reply) => {
+    return reply.clearCookie('guaca_tourist', { path: '/' }).send({ ok: true });
   });
 
   app.post('/api/ask', async (req, reply) => {
