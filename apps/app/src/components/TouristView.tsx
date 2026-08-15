@@ -6,8 +6,10 @@ import {
   Check,
   Clock3,
   Globe,
+  Heart,
   LogOut,
   MapPin,
+  MessageCircle,
   Megaphone,
   Navigation,
   Plus,
@@ -17,6 +19,7 @@ import {
   Send,
   Share2,
   Sparkles,
+  Star,
   Store,
   Trash2,
   Trophy,
@@ -75,6 +78,36 @@ interface Me {
   email: string
   language: string
   propertyName: string | null
+}
+
+interface PlacePost {
+  id: string
+  body: string
+  mediaUrl: string | null
+  createdAt: string
+  visited: boolean
+  rating: number | null
+  author: {
+    kind: 'spotter' | 'traveler'
+    name: string | null
+    level: number
+    photoUrl: string | null
+  }
+}
+
+interface Favorite {
+  placeId: string
+  name: string
+  category: string
+  lat: number
+  lon: number
+}
+
+function mediaPlatform(url: string): string {
+  if (url.includes('tiktok')) return 'TikTok'
+  if (url.includes('instagram')) return 'Instagram'
+  if (url.includes('youtu')) return 'YouTube'
+  return 'Video'
 }
 
 const CATEGORY_GLYPH: Record<string, { emoji: string; color: string }> = {
@@ -136,7 +169,16 @@ export function TouristView() {
   const [doubted, setDoubted] = useState<Set<string>>(new Set())
   const [notified, setNotified] = useState<Set<string>>(new Set())
   const [catFilter, setCatFilter] = useState<string | null>(null)
+  const [posts, setPosts] = useState<PlacePost[]>([])
+  const [postsOpen, setPostsOpen] = useState(false)
+  const [postText, setPostText] = useState('')
+  const [postLink, setPostLink] = useState('')
+  const [postRating, setPostRating] = useState(0)
+  const [postBusy, setPostBusy] = useState(false)
+  const [postErr, setPostErr] = useState(false)
+  const [favorites, setFavorites] = useState<Favorite[]>([])
   const threadEndRef = useRef<HTMLDivElement | null>(null)
+  const favIds = useMemo(() => new Set(favorites.map((f) => f.placeId)), [favorites])
 
   useEffect(() => {
     setThread(loadJson<ChatMsg[]>(THREAD_KEY) ?? [])
@@ -171,6 +213,34 @@ export function TouristView() {
       .then((data: { places: ApiPlace[] }) => setPlaces(data.places ?? []))
       .catch(() => {})
   }, [center])
+
+  // Saved places ride the session.
+  useEffect(() => {
+    fetch('/api/tourist/favorites', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { favorites: Favorite[] } | null) => {
+        if (data) setFavorites(data.favorites)
+      })
+      .catch(() => {})
+  }, [])
+
+  // "What locals say" for the open place — fetched eagerly so the toggle
+  // can show a count before it is opened.
+  useEffect(() => {
+    if (!selected) return
+    setPosts([])
+    setPostsOpen(false)
+    setPostText('')
+    setPostLink('')
+    setPostRating(0)
+    setPostErr(false)
+    fetch(`/api/places/${selected.id}/posts`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { posts: PlacePost[] } | null) => {
+        if (data) setPosts(data.posts)
+      })
+      .catch(() => {})
+  }, [selected?.id])
 
   // Account details for the Profile tab.
   useEffect(() => {
@@ -297,6 +367,52 @@ export function TouristView() {
       saveJson(PLAN_KEY, next)
       return next
     })
+  }
+
+  const toggleFavorite = (p: ApiPlace) => {
+    const saved = favIds.has(p.id)
+    setFavorites((prev) =>
+      saved
+        ? prev.filter((f) => f.placeId !== p.id)
+        : [{ placeId: p.id, name: p.name, category: p.category, lat: p.lat, lon: p.lon }, ...prev],
+    )
+    fetch(`/api/places/${p.id}/favorite`, {
+      method: saved ? 'DELETE' : 'POST',
+      credentials: 'include',
+    }).catch(() => {})
+  }
+
+  const submitPost = async () => {
+    if (!selected || postBusy || postText.trim().length === 0) return
+    setPostBusy(true)
+    setPostErr(false)
+    try {
+      const res = await fetch(`/api/places/${selected.id}/posts`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          text: postText.trim(),
+          ...(postLink.trim() ? { mediaUrl: postLink.trim() } : {}),
+          ...(postRating > 0 ? { rating: postRating } : {}),
+          lat: center[1],
+          lon: center[0],
+        }),
+      })
+      if (!res.ok) {
+        setPostErr(true)
+        return
+      }
+      setPostText('')
+      setPostLink('')
+      setPostRating(0)
+      const list = await fetch(`/api/places/${selected.id}/posts`, { credentials: 'include' })
+      if (list.ok) setPosts(((await list.json()) as { posts: PlacePost[] }).posts)
+    } catch {
+      setPostErr(true)
+    } finally {
+      setPostBusy(false)
+    }
   }
 
   const sharePlanWa = () => {
@@ -476,9 +592,20 @@ export function TouristView() {
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-black leading-tight text-guaca-ink">{selected.name}</h3>
-              <button type="button" aria-label={t.close} onClick={() => setSelected(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10">
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label={favIds.has(selected.id) ? t.favSaved : t.favSave}
+                  aria-pressed={favIds.has(selected.id)}
+                  onClick={() => toggleFavorite(selected)}
+                  className={`grid h-8 w-8 place-items-center rounded-full ${favIds.has(selected.id) ? 'bg-guaca-coral/12 text-guaca-coral' : 'bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10'}`}
+                >
+                  <Heart className={`h-4 w-4 ${favIds.has(selected.id) ? 'fill-guaca-coral' : ''}`} />
+                </button>
+                <button type="button" aria-label={t.close} onClick={() => setSelected(null)} className="grid h-8 w-8 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             {selected.landmark_description && (
               <>
@@ -534,6 +661,96 @@ export function TouristView() {
                 </Button>
               )}
             </div>
+
+            {/* "What locals say" — commentary + social videos, spotters first. */}
+            <button
+              type="button"
+              onClick={() => setPostsOpen((v) => !v)}
+              aria-expanded={postsOpen}
+              className="mt-3 flex w-full items-center justify-between rounded-xl bg-guaca-ink/4 px-3.5 py-2.5 text-[11px] font-black text-guaca-ink/70 hover:bg-guaca-ink/8"
+            >
+              <span className="flex items-center gap-1.5">
+                <MessageCircle className="h-3.5 w-3.5 text-guaca-teal" /> {t.postsTitle}
+                {posts.length > 0 && <span className="rounded-full bg-guaca-teal/10 px-1.5 py-0.5 text-[9px] text-guaca-teal">{posts.length}</span>}
+              </span>
+              <ArrowRight className={`h-3.5 w-3.5 transition-transform ${postsOpen ? 'rotate-90' : ''}`} />
+            </button>
+
+            {postsOpen && (
+              <div className="mt-2">
+                <div className="max-h-44 space-y-2 overflow-y-auto">
+                  {posts.length === 0 && (
+                    <p className="px-1 py-2 text-[11px] font-semibold text-guaca-ink/45">{t.postsEmpty}</p>
+                  )}
+                  {posts.map((p) => (
+                    <div key={p.id} className="rounded-2xl bg-guaca-ink/4 p-3">
+                      <div className="flex items-center gap-2">
+                        {p.author.photoUrl ? (
+                          <img src={p.author.photoUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        ) : (
+                          <span className={`grid h-6 w-6 place-items-center rounded-full text-[9px] font-black text-white ${p.author.kind === 'spotter' ? 'bg-guaca-teal' : 'bg-guaca-ink/30'}`}>
+                            {initials(p.author.name ?? t.postsTraveler)}
+                          </span>
+                        )}
+                        <span className="truncate text-[11px] font-black text-guaca-ink">
+                          {p.author.name ?? t.postsTraveler}
+                        </span>
+                        {p.author.kind === 'spotter' && (
+                          <span className="flex items-center gap-0.5 rounded-full bg-guaca-teal/10 px-1.5 py-0.5 text-[8px] font-black text-guaca-teal">
+                            <BadgeCheck className="h-2.5 w-2.5" /> Spotter · Lv{p.author.level}
+                          </span>
+                        )}
+                        {p.visited && (
+                          <span className="flex items-center gap-0.5 rounded-full bg-guaca-mango/15 px-1.5 py-0.5 text-[8px] font-black text-guaca-mango-dark">
+                            <MapPin className="h-2.5 w-2.5" /> {t.postsVisited}
+                          </span>
+                        )}
+                        {p.rating != null && (
+                          <span className="ml-auto flex items-center gap-0.5 text-[9px] font-black text-guaca-mango-dark">
+                            <Star className="h-3 w-3 fill-guaca-mango text-guaca-mango" /> {p.rating}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1.5 text-[11px] font-semibold leading-relaxed text-guaca-ink/75">{p.body}</p>
+                      {p.mediaUrl && (
+                        <a href={p.mediaUrl} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep px-3 py-1.5 text-[9px] font-black text-white hover:bg-guaca-ocean">
+                          ▶ {t.postsWatch} · {mediaPlatform(p.mediaUrl)}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-2 space-y-1.5 rounded-2xl bg-white p-2.5 ring-1 ring-guaca-sand">
+                  <Input
+                    value={postText}
+                    onChange={(e) => setPostText(e.target.value)}
+                    placeholder={t.postsPlaceholder}
+                    maxLength={500}
+                    className="h-9 rounded-xl border-guaca-sand text-[12px]"
+                  />
+                  <Input
+                    value={postLink}
+                    onChange={(e) => setPostLink(e.target.value)}
+                    placeholder={t.postsLinkPlaceholder}
+                    className="h-9 rounded-xl border-guaca-sand text-[11px]"
+                  />
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-0.5" title={t.postsRatingHint}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <button key={n} type="button" aria-label={`${n}★`} onClick={() => setPostRating((r) => (r === n ? 0 : n))}>
+                          <Star className={`h-4 w-4 ${n <= postRating ? 'fill-guaca-mango text-guaca-mango' : 'text-guaca-ink/25'}`} />
+                        </button>
+                      ))}
+                    </div>
+                    <Button type="button" onClick={() => void submitPost()} disabled={postBusy || postText.trim().length === 0} className="h-8 rounded-xl bg-guaca-teal px-4 text-[11px] font-black text-white hover:bg-guaca-teal-dark">
+                      {t.postsSend}
+                    </Button>
+                  </div>
+                  <p className="text-[9px] font-semibold text-guaca-ink/40">{postErr ? t.postsError : t.postsRatingHint}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -813,6 +1030,39 @@ export function TouristView() {
           </button>
         </>
       )}
+
+      {/* Saved places — the ♥ list, private to this account. */}
+      <div className="mt-6">
+        <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+          <Heart className="h-3.5 w-3.5 text-guaca-coral" /> {t.favTitle}
+        </p>
+        {favorites.length === 0 ? (
+          <p className="mt-2 rounded-[24px] border border-dashed border-guaca-sand bg-white/60 px-4 py-4 text-center text-[11px] font-semibold text-guaca-ink/45">{t.favEmpty}</p>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {favorites.map((f) => {
+              const glyph = CATEGORY_GLYPH[f.category] ?? { emoji: '📍', color: '#0D8B8B' }
+              return (
+                <div key={f.placeId} className="flex items-center gap-3 rounded-[24px] bg-white p-3 shadow-sm ring-1 ring-guaca-sand/75">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base" style={{ backgroundColor: `${glyph.color}18` }}>{glyph.emoji}</span>
+                  <p className="min-w-0 flex-1 truncate text-[13px] font-black text-guaca-ink">{f.name}</p>
+                  <button type="button" onClick={() => openPlaceOnMap(f.placeId)} className="shrink-0 rounded-full bg-guaca-teal/8 px-3 py-2 text-[10px] font-black text-guaca-teal hover:bg-guaca-teal/15">
+                    {t.planViewOnMap}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t.favSaved}
+                    onClick={() => toggleFavorite({ id: f.placeId, name: f.name, category: f.category, lat: f.lat, lon: f.lon } as ApiPlace)}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-guaca-coral/10 text-guaca-coral hover:bg-guaca-coral/20"
+                  >
+                    <Heart className="h-3.5 w-3.5 fill-guaca-coral" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 

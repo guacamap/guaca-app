@@ -130,6 +130,20 @@ export interface AppCopy {
     shareVia: string
     categoryLabels: Record<string, string>
     allCategories: string
+    postsTitle: string
+    postsEmpty: string
+    postsPlaceholder: string
+    postsLinkPlaceholder: string
+    postsSend: string
+    postsTraveler: string
+    postsWatch: string
+    postsVisited: string
+    postsRatingHint: string
+    postsError: string
+    favSave: string
+    favSaved: string
+    favTitle: string
+    favEmpty: string
   }
 }
 
@@ -284,6 +298,20 @@ export const appCopy: Record<Lang, AppCopy> = {
         services: 'Services',
       },
       allCategories: 'All',
+      postsTitle: 'What locals say',
+      postsEmpty: 'No posts yet — be the first.',
+      postsPlaceholder: 'Share a tip about this place…',
+      postsLinkPlaceholder: 'Reel / TikTok link (optional)',
+      postsSend: 'Post',
+      postsTraveler: 'Traveler',
+      postsWatch: 'Watch video',
+      postsVisited: 'Visited',
+      postsRatingHint: 'Stars only count when you post from the place.',
+      postsError: 'Could not post — check the link (TikTok, Instagram or YouTube).',
+      favSave: 'Save',
+      favSaved: 'Saved',
+      favTitle: 'Saved places',
+      favEmpty: 'Tap ♥ on any place to keep it here.',
     },
   },
   es: {
@@ -436,6 +464,20 @@ export const appCopy: Record<Lang, AppCopy> = {
         services: 'Servicios',
       },
       allCategories: 'Todo',
+      postsTitle: 'Lo que dice la gente',
+      postsEmpty: 'Aún no hay publicaciones — sé la primera persona.',
+      postsPlaceholder: 'Comparte un dato de este lugar…',
+      postsLinkPlaceholder: 'Enlace de Reel / TikTok (opcional)',
+      postsSend: 'Publicar',
+      postsTraveler: 'Viajero',
+      postsWatch: 'Ver video',
+      postsVisited: 'Estuvo aquí',
+      postsRatingHint: 'Las estrellas solo cuentan si publicas desde el lugar.',
+      postsError: 'No se pudo publicar — revisa el enlace (TikTok, Instagram o YouTube).',
+      favSave: 'Guardar',
+      favSaved: 'Guardado',
+      favTitle: 'Lugares guardados',
+      favEmpty: 'Toca ♥ en cualquier lugar para tenerlo aquí.',
     },
   },
 }
