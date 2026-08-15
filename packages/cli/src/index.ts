@@ -11,7 +11,7 @@ program
   .option('--json', 'output a single JSON line')
   .hook('preAction', (thisCommand, actionCommand) => {
     // Mutation commands authenticate up front; read-only commands warn.
-    const mutating = ['verify', 'commission', 'override', 'pay', 'spotter', 'property'];
+    const mutating = ['verify', 'commission', 'override', 'pay', 'spotter', 'property', 'posts'];
     const name = actionCommand.name();
     if (mutating.includes(name)) {
       requireOperatorToken(process.env.OPERATOR_TOKEN);
@@ -313,6 +313,64 @@ program
       process.exit(1);
     };
     await new Promise(() => {}); // run until Ctrl-C
+  });
+
+/**
+ * Post moderation — the human half of the Play user-content requirement.
+ * Reports auto-hide at a threshold; an operator reviews and decides.
+ */
+const posts = program.command('posts').description('user posts — moderation');
+
+posts
+  .command('reported')
+  .description('posts with reports, most-reported first')
+  .action(async (_opts, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const rows = await withPool(async (pool) => {
+      const res = await pool.query(
+        `select pp.id, pp.body, pp.media_url, pp.status, p.name as place,
+                count(r.*)::int as reports,
+                array_agg(distinct r.reason) as reasons
+         from place_posts pp
+         join places p on p.id = pp.place_id
+         join place_post_reports r on r.post_id = pp.id
+         group by pp.id, pp.body, pp.media_url, pp.status, p.name
+         order by reports desc, pp.created_at desc`,
+      );
+      return res.rows;
+    });
+    process.stdout.write(render(rows, { json }) + '\n');
+  });
+
+posts
+  .command('hide <postId>')
+  .description('hide a post from every feed')
+  .action(async (postId: string, _opts, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const row = await withPool(async (pool) => {
+      const res = await pool.query(
+        `update place_posts set status = 'hidden' where id = $1 returning id, status`,
+        [postId],
+      );
+      return res.rows[0] ?? null;
+    });
+    process.stdout.write(render(row ?? { error: 'not found' }, { json }) + '\n');
+  });
+
+posts
+  .command('show <postId>')
+  .description('restore a hidden post and clear its reports')
+  .action(async (postId: string, _opts, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const row = await withPool(async (pool) => {
+      await pool.query(`delete from place_post_reports where post_id = $1`, [postId]);
+      const res = await pool.query(
+        `update place_posts set status = 'visible' where id = $1 returning id, status`,
+        [postId],
+      );
+      return res.rows[0] ?? null;
+    });
+    process.stdout.write(render(row ?? { error: 'not found' }, { json }) + '\n');
   });
 
 export async function main(argv: string[]): Promise<void> {
