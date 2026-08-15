@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Compass, Crosshair, Map as MapIcon, MapPin, Trophy } from 'lucide-react'
-import { Button, GuacaLogo, GuacaMap, Input, useLanguage, type Lang } from '@guaca/ui'
+import { Avatar, Button, GuacaLogo, GuacaMap, Input, useLanguage, type Lang } from '@guaca/ui'
 import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 
@@ -63,6 +63,42 @@ interface RankRow {
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
+const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL ?? 'https://guaca.live'
+const OPERATOR_WHATSAPP = process.env.NEXT_PUBLIC_OPERATOR_WHATSAPP ?? ''
+
+/** Points needed to reach each level — the guide ladder (§ product brief). */
+const LEVEL_THRESHOLDS = [0, 500, 1500, 3000]
+
+function levelProgress(points: number, level: number) {
+  const next = LEVEL_THRESHOLDS[level] // level is 1-based, so this is the next rung
+  if (next === undefined) return null
+  const floor = LEVEL_THRESHOLDS[level - 1] ?? 0
+  const span = Math.max(next - floor, 1)
+  return {
+    next,
+    nextLevel: level + 1,
+    remaining: Math.max(next - points, 0),
+    percent: Math.min(Math.round(((points - floor) / span) * 100), 100),
+  }
+}
+
+interface SpotterStats {
+  verified: number
+  rejected: number
+  awaiting: number
+  confirmedForOthers: number
+  firstPassRate: number | null
+}
+
+interface MyPlace {
+  id: string
+  name: string
+  category: string
+  verified_at: string | null
+  lat: number
+  lon: number
+}
+
 /** Dummy points store — catalog only, no real redemption yet. */
 const STORE_ITEMS = [
   { id: 'airtime5', emoji: '📱', en: 'Phone airtime $5', es: 'Saldo telefónico $5', cost: 2000 },
@@ -110,6 +146,9 @@ export function SpotterView() {
   const [me, setMe] = useState<SpotterMe | null>(null)
   const [ranking, setRanking] = useState<RankRow[]>([])
   const [myRank, setMyRank] = useState<{ rank: number; points: number } | null>(null)
+  const [stats, setStats] = useState<SpotterStats | null>(null)
+  const [myPlaces, setMyPlaces] = useState<MyPlace[]>([])
+  const [photoBusy, setPhotoBusy] = useState(false)
 
   const reasonLabel = (code: string) => t.reasons[code] ?? code
 
@@ -217,7 +256,48 @@ export function SpotterView() {
         }
       })
       .catch(() => {})
+    fetch('/api/spotter/stats', { credentials: 'include' })
+      .then(guard401)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: SpotterStats | null) => {
+        if (d) setStats(d)
+      })
+      .catch(() => {})
+    fetch('/api/spotter/places', { credentials: 'include' })
+      .then(guard401)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { places: MyPlace[] } | null) => {
+        if (d) setMyPlaces(d.places)
+      })
+      .catch(() => {})
   }, [])
+
+  /** Their face rides every pin they verify — let them set it here. */
+  const uploadPhoto = async (file: File) => {
+    setPhotoBusy(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+        reader.onerror = () => reject(new Error('read failed'))
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/spotter/me/photo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ imageBase64: base64 }),
+      })
+      if (res.ok) {
+        const body = (await res.json()) as { photoUrl: string }
+        setMe((prev) => (prev ? { ...prev, photoUrl: body.photoUrl } : prev))
+      } else setBanner({ kind: 'error', text: t.error })
+    } catch {
+      setBanner({ kind: 'error', text: t.error })
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
 
   useEffect(() => {
     setBanner(null)
@@ -439,15 +519,40 @@ export function SpotterView() {
           <div className="mt-5 space-y-4">
             {/* Identity + points */}
             <div className="rounded-[28px] bg-white p-5 text-center shadow-sm ring-1 ring-guaca-sand/75">
-              {me?.photoUrl ? (
-                <img src={me.photoUrl} alt="" className="mx-auto h-16 w-16 rounded-full object-cover" />
-              ) : (
-                <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-guaca-coral text-2xl font-black text-white">
-                  {(me?.name?.[0] ?? '·').toUpperCase()}
-                </span>
-              )}
-              <h2 className="mt-3 text-[15px] font-black text-guaca-ink">{me?.name ?? '…'}</h2>
+              <div className="flex justify-center">
+                <Avatar url={me?.photoUrl} name={me?.name} className="h-16 w-16" fallbackClassName="bg-guaca-coral text-white" textClassName="text-2xl" />
+              </div>
+              <label className="mx-auto mt-2 block w-max cursor-pointer text-[10px] font-black text-guaca-teal underline-offset-2 hover:underline">
+                {photoBusy ? t.photoBusy : t.photoCta}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  className="sr-only"
+                  disabled={photoBusy}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) void uploadPhoto(file)
+                  }}
+                />
+              </label>
+              <h2 className="mt-2 text-[15px] font-black text-guaca-ink">{me?.name ?? '…'}</h2>
               <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.1em] text-guaca-coral-dark">Spotter · Lv{me?.level ?? 1}</p>
+              {/* Level ladder — what the level means and how to climb. */}
+              {(() => {
+                const prog = levelProgress(me?.totalPoints ?? 0, me?.level ?? 1)
+                if (!prog) return <p className="mt-2 text-[10px] font-black text-guaca-mango-dark">{t.levelMax}</p>
+                return (
+                  <div className="mt-3">
+                    <div className="h-2 overflow-hidden rounded-full bg-guaca-sand">
+                      <div className="h-full rounded-full bg-gradient-to-r from-guaca-coral to-guaca-mango" style={{ width: `${prog.percent}%` }} />
+                    </div>
+                    <p className="mt-1.5 text-[10px] font-bold text-guaca-ink/50">
+                      {prog.remaining} {t.pointsSuffix} {t.levelProgress} {prog.nextLevel}
+                    </p>
+                  </div>
+                )
+              })()}
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <div className="rounded-2xl bg-guaca-coral/8 px-2 py-3">
                   <p className="text-lg font-black text-guaca-coral-dark">{me?.totalPoints ?? 0}</p>
@@ -462,6 +567,66 @@ export function SpotterView() {
                   <p className="text-[9px] font-black text-guaca-ink/45">{t.rankLabel}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Quality record — being right beats being fast. */}
+            <div className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-guaca-sand/75">
+              <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+                <ClipboardCheck className="h-3.5 w-3.5 text-guaca-teal" /> {t.qualityTitle}
+              </p>
+              <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+                <div>
+                  <p className="text-[15px] font-black text-guaca-palm">{stats?.verified ?? 0}</p>
+                  <p className="text-[8px] font-bold leading-tight text-guaca-ink/45">{t.qualityVerified}</p>
+                </div>
+                <div>
+                  <p className="text-[15px] font-black text-guaca-coral-dark">{stats?.rejected ?? 0}</p>
+                  <p className="text-[8px] font-bold leading-tight text-guaca-ink/45">{t.qualityRejected}</p>
+                </div>
+                <div>
+                  <p className="text-[15px] font-black text-guaca-mango-dark">{stats?.awaiting ?? 0}</p>
+                  <p className="text-[8px] font-bold leading-tight text-guaca-ink/45">{t.qualityAwaiting}</p>
+                </div>
+                <div>
+                  <p className="text-[15px] font-black text-guaca-teal">{stats?.confirmedForOthers ?? 0}</p>
+                  <p className="text-[8px] font-bold leading-tight text-guaca-ink/45">{t.qualityConfirmed}</p>
+                </div>
+              </div>
+              {stats?.firstPassRate != null && (
+                <p className="mt-3 rounded-2xl bg-guaca-palm/10 px-3 py-2 text-center text-[11px] font-black text-guaca-palm">
+                  {stats.firstPassRate}% {t.qualityFirstPass}
+                </p>
+              )}
+            </div>
+
+            {/* Their body of work. */}
+            <div>
+              <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+                <MapPin className="h-3.5 w-3.5 text-guaca-coral" /> {t.myPinsTitle} ({myPlaces.length})
+              </p>
+              {myPlaces.length === 0 ? (
+                <p className="mt-2 rounded-[24px] border border-dashed border-guaca-sand bg-white/60 px-4 py-4 text-center text-[11px] font-semibold text-guaca-ink/45">{t.myPinsEmpty}</p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {myPlaces.map((p) => (
+                    <div key={p.id} className="flex items-center gap-3 rounded-[24px] bg-white p-3.5 shadow-sm ring-1 ring-guaca-sand/75">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-guaca-coral/10 text-guaca-coral">
+                        <MapPin className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] font-black text-guaca-ink">{p.name}</p>
+                        <p className="text-[10px] font-bold text-guaca-ink/45">
+                          {categoryLabel(p.category, lang)}
+                          {p.verified_at
+                            ? ` · ${new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(p.verified_at))}`
+                            : ''}
+                        </p>
+                      </div>
+                      <BadgeCheck className="h-4 w-4 shrink-0 text-guaca-palm" />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Dummy points store — catalog only; redemptions post-pilot. */}
@@ -501,13 +666,7 @@ export function SpotterView() {
                     <span className="w-6 text-center text-[13px] font-black text-guaca-ink/60">
                       {MEDALS[r.rank - 1] ?? `#${r.rank}`}
                     </span>
-                    {r.photo_url ? (
-                      <img src={r.photo_url} alt="" className="h-7 w-7 rounded-full object-cover" />
-                    ) : (
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-guaca-teal text-[10px] font-black text-white">
-                        {(r.name[0] ?? '·').toUpperCase()}
-                      </span>
-                    )}
+                    <Avatar url={r.photo_url} name={r.name} className="h-7 w-7" textClassName="text-[10px]" />
                     <span className="min-w-0 flex-1 truncate text-[12px] font-black text-guaca-ink">
                       {r.name} <span className="text-[9px] font-bold text-guaca-ink/40">Lv{r.level}</span>
                     </span>
@@ -551,6 +710,27 @@ export function SpotterView() {
               </span>
               <ArrowRight className="h-4 w-4 shrink-0 text-white/80" />
             </button>
+
+            {OPERATOR_WHATSAPP && (
+              <a
+                href={`https://wa.me/${OPERATOR_WHATSAPP}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-2xl bg-white px-5 py-4 text-center text-[12px] font-black text-guaca-teal shadow-sm ring-1 ring-guaca-sand/75 hover:bg-guaca-sand/20"
+              >
+                {t.contactOperator}
+              </a>
+            )}
+
+            <div className="flex items-center justify-center gap-4 pb-2 text-[11px] font-bold text-guaca-ink/45">
+              <a href={`${LANDING_URL}/privacy`} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+                {t.legalPrivacy}
+              </a>
+              <span aria-hidden="true">·</span>
+              <a href={`${LANDING_URL}/terms`} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+                {t.legalTerms}
+              </a>
+            </div>
           </div>
         )}
       </div>

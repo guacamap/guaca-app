@@ -50,6 +50,22 @@ export interface AppCopy {
     storeRedeem: string
     becomeTourist: string
     becomeTouristNote: string
+    levelProgress: string
+    levelMax: string
+    myPinsTitle: string
+    myPinsEmpty: string
+    qualityTitle: string
+    qualityVerified: string
+    qualityRejected: string
+    qualityAwaiting: string
+    qualityConfirmed: string
+    qualityFirstPass: string
+    photoCta: string
+    photoBusy: string
+    zoneLabel: string
+    contactOperator: string
+    legalPrivacy: string
+    legalTerms: string
     mapEmpty: string
     legendMissions: string
     legendConfirm: string
@@ -166,6 +182,21 @@ export interface AppCopy {
     candidateBody: string
     candidateCta: string
     candidateAsk: string
+    impactTitle: string
+    impactAsked: string
+    impactCommissioned: string
+    impactVerified: string
+    impactNote: string
+    watchingTitle: string
+    watchingEmpty: string
+    watchingCancel: string
+    myPostsTitle: string
+    myPostsEmpty: string
+    villaCodeLabel: string
+    villaCodeCta: string
+    villaCodeBad: string
+    legalPrivacy: string
+    legalTerms: string
   }
 }
 
@@ -252,6 +283,22 @@ export const appCopy: Record<Lang, AppCopy> = {
       storeRedeem: 'Redeem',
       becomeTourist: 'Change to Tourist mode',
       becomeTouristNote: 'Explore the map and plan with Guaca AI.',
+      levelProgress: 'to level',
+      levelMax: 'Top level reached',
+      myPinsTitle: 'Pins with your name',
+      myPinsEmpty: 'Verify a place and it appears here, with your name on the pin.',
+      qualityTitle: 'Your record',
+      qualityVerified: 'Verified',
+      qualityRejected: 'Rejected',
+      qualityAwaiting: 'In checks',
+      qualityConfirmed: 'Confirmed for others',
+      qualityFirstPass: 'first-pass rate',
+      photoCta: 'Change photo',
+      photoBusy: 'Uploading…',
+      zoneLabel: 'Zone',
+      contactOperator: 'Contact your operator',
+      legalPrivacy: 'Privacy',
+      legalTerms: 'Terms',
       earningsEmpty: 'Completed missions and their points appear here.',
       backCta: 'Back',
       error: 'Connection failed — try again.',
@@ -356,6 +403,21 @@ export const appCopy: Record<Lang, AppCopy> = {
       candidateBody: 'This spot is on OpenStreetMap, but no local has physically checked it. Ask Guaca and your question can send a paid Spotter.',
       candidateCta: 'Ask Guaca about it',
       candidateAsk: 'Is {name} open and worth visiting?',
+      impactTitle: 'Your impact',
+      impactAsked: 'Questions asked',
+      impactCommissioned: 'Locals sent to check',
+      impactVerified: 'Verified for you',
+      impactNote: 'Your questions are anonymous — these counts live on this device.',
+      watchingTitle: 'Waiting on a local',
+      watchingEmpty: 'When Guaca refuses, ask to be told once a local verifies it.',
+      watchingCancel: 'Stop waiting',
+      myPostsTitle: 'Your posts',
+      myPostsEmpty: 'Tips you share about places appear here.',
+      villaCodeLabel: 'Villa or posada code',
+      villaCodeCta: 'Link my stay',
+      villaCodeBad: 'That code is not active.',
+      legalPrivacy: 'Privacy policy',
+      legalTerms: 'Terms of use',
     },
   },
   es: {
@@ -440,6 +502,22 @@ export const appCopy: Record<Lang, AppCopy> = {
       storeRedeem: 'Canjear',
       becomeTourist: 'Cambiar a modo Turista',
       becomeTouristNote: 'Explora el mapa y planifica con Guaca AI.',
+      levelProgress: 'para el nivel',
+      levelMax: 'Nivel máximo alcanzado',
+      myPinsTitle: 'Pines con tu nombre',
+      myPinsEmpty: 'Verifica un lugar y aparecerá aquí, con tu nombre en el pin.',
+      qualityTitle: 'Tu récord',
+      qualityVerified: 'Verificados',
+      qualityRejected: 'Rechazados',
+      qualityAwaiting: 'En revisión',
+      qualityConfirmed: 'Confirmados a otros',
+      qualityFirstPass: 'aprobados a la primera',
+      photoCta: 'Cambiar foto',
+      photoBusy: 'Subiendo…',
+      zoneLabel: 'Zona',
+      contactOperator: 'Contactar a tu operador',
+      legalPrivacy: 'Privacidad',
+      legalTerms: 'Términos',
       earningsEmpty: 'Las misiones completadas y sus puntos aparecen aquí.',
       backCta: 'Volver',
       error: 'Falló la conexión — intenta de nuevo.',
@@ -544,6 +622,21 @@ export const appCopy: Record<Lang, AppCopy> = {
       candidateBody: 'Este punto está en OpenStreetMap, pero ningún local lo ha comprobado físicamente. Pregúntale a Guaca y tu pregunta puede enviar a un Spotter pagado.',
       candidateCta: 'Pregúntale a Guaca',
       candidateAsk: '¿{name} está abierto y vale la pena?',
+      impactTitle: 'Tu impacto',
+      impactAsked: 'Preguntas hechas',
+      impactCommissioned: 'Locales enviados a comprobar',
+      impactVerified: 'Verificados para ti',
+      impactNote: 'Tus preguntas son anónimas — estos números viven en este dispositivo.',
+      watchingTitle: 'Esperando a un local',
+      watchingEmpty: 'Cuando Guaca no sepa, pide que te avisen al verificarlo.',
+      watchingCancel: 'Dejar de esperar',
+      myPostsTitle: 'Tus publicaciones',
+      myPostsEmpty: 'Los datos que compartes sobre lugares aparecen aquí.',
+      villaCodeLabel: 'Código de villa o posada',
+      villaCodeCta: 'Vincular mi estadía',
+      villaCodeBad: 'Ese código no está activo.',
+      legalPrivacy: 'Política de privacidad',
+      legalTerms: 'Términos de uso',
     },
   },
 }
