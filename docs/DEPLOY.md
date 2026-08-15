@@ -150,6 +150,25 @@ registrable domain with `app.` and `api.` subdomains. A `vercel.app` web +
 The project domain is **`guaca.live`** (chosen 2026-08-08): `app.` /
 `api.` / `staging.app.` / `staging.api.`, apex redirects to `app.`.
 
+## Operating production
+
+The operator CLI ships inside the API image, so day-to-day oversight runs
+on the VM against the production database:
+
+```bash
+cd guaca
+dc() { docker compose -p guaca-prod --env-file infra/env/prod.env -f docker-compose.prod.yml "$@"; }
+
+dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js audit --narrative
+dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js spotter add "María Fernanda" "+58 412 ..."
+dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js commission --approve <gapId>
+dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js posts reported
+```
+
+A fresh production database has the pilot area and zones but **no spotters
+and no villas** — those are real people and businesses, added with
+`spotter add` and `property add` once they have agreed.
+
 ## Redeploy
 
 `./infra/deploy.sh prod` (or `staging`) — pulls bases, rebuilds the api
