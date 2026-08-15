@@ -144,6 +144,10 @@ export interface AppCopy {
     favSaved: string
     favTitle: string
     favEmpty: string
+    candidateTitle: string
+    candidateBody: string
+    candidateCta: string
+    candidateAsk: string
   }
 }
 
@@ -312,6 +316,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       favSaved: 'Saved',
       favTitle: 'Saved places',
       favEmpty: 'Tap ♥ on any place to keep it here.',
+      candidateTitle: 'Not verified yet',
+      candidateBody: 'This spot is on OpenStreetMap, but no local has physically checked it. Ask Guaca and your question can send a paid Spotter.',
+      candidateCta: 'Ask Guaca about it',
+      candidateAsk: 'Is {name} open and worth visiting?',
     },
   },
   es: {
@@ -478,6 +486,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       favSaved: 'Guardado',
       favTitle: 'Lugares guardados',
       favEmpty: 'Toca ♥ en cualquier lugar para tenerlo aquí.',
+      candidateTitle: 'Aún sin verificar',
+      candidateBody: 'Este punto está en OpenStreetMap, pero ningún local lo ha comprobado físicamente. Pregúntale a Guaca y tu pregunta puede enviar a un Spotter pagado.',
+      candidateCta: 'Pregúntale a Guaca',
+      candidateAsk: '¿{name} está abierto y vale la pena?',
     },
   },
 }
