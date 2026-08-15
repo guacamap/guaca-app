@@ -51,3 +51,6 @@ export { addSpotter, listSpotters, issueLoginCode } from './spotters.js';
 export type { SpotterRosterRow } from './spotters.js';
 export { photosForPlace, priorPhashesForArea } from './photos.js';
 export type { PlacePhotoRow } from './photos.js';
+export { addProperty, listProperties, propertyByQrToken } from './properties.js';
+export { deleteTourist } from './tourists.js';
+export type { PropertyRow } from './properties.js';

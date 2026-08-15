@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -77,7 +77,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
     if (req.method === 'OPTIONS') {
       reply
-        .header('access-control-allow-methods', 'GET,POST,OPTIONS')
+        .header('access-control-allow-methods', 'GET,POST,DELETE,OPTIONS')
         .header(
           'access-control-allow-headers',
           req.headers['access-control-request-headers'] ?? 'content-type',
@@ -239,6 +239,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
         maxAge: 30 * 24 * 60 * 60,
       })
       .send({ ok: true, token: result.token, language: result.tourist.language });
+  });
+
+  // COMPLIANCE.md erasure + Google Play account-deletion requirement:
+  // authenticated self-service, effective immediately.
+  app.delete('/api/tourist/me', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'unauthorized' });
+    const deleted = await deleteTourist(options.pool, touristId);
+    if (!deleted) return reply.code(404).send({ error: 'account not found' });
+    return reply
+      .clearCookie('guaca_tourist', { path: '/' })
+      .send({ ok: true, deleted: true });
   });
 
   app.get('/api/tourist/me', async (req, reply) => {
@@ -594,6 +608,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
       client.release();
     }
     return { ok: true, status: 'verified' };
+  });
+
+  // Resolve a QR without minting a session — used by the printable cards.
+  app.get('/api/v/:qrToken/info', async (req, reply) => {
+    const { qrToken } = req.params as { qrToken: string };
+    const property = await propertyByQrToken(options.pool, qrToken);
+    if (!property) return reply.code(404).send({ error: 'qr not found' });
+    return { propertyName: property.name };
   });
 
   app.post('/api/v/:qrToken/session', async (req, reply) => {

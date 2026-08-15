@@ -11,7 +11,7 @@ program
   .option('--json', 'output a single JSON line')
   .hook('preAction', (thisCommand, actionCommand) => {
     // Mutation commands authenticate up front; read-only commands warn.
-    const mutating = ['verify', 'commission', 'override', 'pay', 'spotter'];
+    const mutating = ['verify', 'commission', 'override', 'pay', 'spotter', 'property'];
     const name = actionCommand.name();
     if (mutating.includes(name)) {
       requireOperatorToken(process.env.OPERATOR_TOKEN);
@@ -204,12 +204,51 @@ program
     });
   });
 
+const property = program.command('property').description('villas/posadas — the distribution channel');
+property
+  .command('add')
+  .argument('<name>')
+  .requiredOption('--area <areaId>')
+  .requiredOption('--lat <lat>')
+  .requiredOption('--lon <lon>')
+  .option('--plan <plan>', 'free|paid', 'free')
+  .option('--subscription <minor>', 'monthly value in minor units (drives gap weighting)', '0')
+  .action(async (name, opts, command) => {
+    const json = rootJson(command.parent!);
+    const { addProperty } = await import('@guaca/db');
+    await withPool(async (pool) => {
+      const result = await addProperty(pool, {
+        name,
+        areaId: opts.area,
+        lat: Number(opts.lat),
+        lon: Number(opts.lon),
+        plan: opts.plan === 'paid' ? 'paid' : 'free',
+        subscriptionMinor: Number(opts.subscription),
+      });
+      const card = `card: http://localhost:3002/qr-card/${result.qrToken}`;
+      process.stdout.write(render({ ...result, card }, { json }) + '\n');
+    });
+  });
+property
+  .command('list')
+  .action(async (opts, command) => {
+    const json = rootJson(command.parent!);
+    const { listProperties } = await import('@guaca/db');
+    await withPool(async (pool) => {
+      const rows = await listProperties(pool);
+      process.stdout.write(render(rows, { json }) + '\n');
+    });
+  });
+
 const spotter = program.command('spotter').description('curated spotter roster');
 spotter
   .command('add')
   .argument('<name>')
   .argument('<phone>')
   .requiredOption('--area <areaId>')
+  .option('--photo-url <url>', 'territory identity — the face on their pins')
+  .option('--zone <h3>', 'home zone (h3 cell) they own')
+  .option('--language <lang>', 'es|en', 'es')
   .action(async (name, phone, opts, command) => {
     const json = rootJson(command.parent!);
     const { spotterAddCommand } = await import('./commands/spotters.js');
@@ -217,6 +256,7 @@ spotter
     await withPool(async (pool) => {
       const result = await spotterAddCommand({
         name, phone, areaId: opts.area,
+        language: opts.language, photoUrl: opts.photoUrl, homeH3: opts.zone,
         db: { addSpotter, listSpotters, issueLoginCode }, pool,
       });
       process.stdout.write(render(result, { json }) + '\n');
