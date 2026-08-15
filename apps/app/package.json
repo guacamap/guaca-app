@@ -11,16 +11,18 @@
     "test:unit": "echo 'no app unit tests yet' && exit 0"
   },
   "dependencies": {
+    "@guaca/shared": "workspace:*",
     "@guaca/ui": "workspace:*",
     "lucide-react": "^0.563.0",
     "next": "^15.1.0",
+    "qrcode": "^1.5.4",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "@guaca/shared": "workspace:*"
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "postcss": "^8.5.6",

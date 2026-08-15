@@ -12,7 +12,14 @@ export interface SpotterRow {
 export interface SpottersDb {
   addSpotter(
     pool: Pool,
-    input: { name: string; phone: string; areaId: string; language?: string },
+    input: {
+      name: string;
+      phone: string;
+      areaId: string;
+      language?: string;
+      photoUrl?: string;
+      homeH3?: string;
+    },
   ): Promise<{ id: string }>;
   listSpotters(pool: Pool): Promise<SpotterRow[]>;
   issueLoginCode(pool: Pool, spotterId: string, codeHash: string): Promise<string>;
@@ -27,6 +34,9 @@ export async function spotterAddCommand(input: {
   name: string;
   phone: string;
   areaId: string;
+  language?: string;
+  photoUrl?: string;
+  homeH3?: string;
   db: SpottersDb;
   pool: Pool;
 }): Promise<{ id: string }> {
@@ -34,6 +44,9 @@ export async function spotterAddCommand(input: {
     name: input.name,
     phone: input.phone,
     areaId: input.areaId,
+    ...(input.language ? { language: input.language } : {}),
+    ...(input.photoUrl ? { photoUrl: input.photoUrl } : {}),
+    ...(input.homeH3 ? { homeH3: input.homeH3 } : {}),
   });
 }
 
