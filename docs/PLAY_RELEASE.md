@@ -157,7 +157,28 @@ Until that file exists the links simply open in the browser — no breakage.
 
 ## Remaining work before the closed test
 
-1. Verify on a physical Android phone over HTTPS: camera capture and
+1. **Deploy the current code.** `guaca.live/privacy` and `/terms` return 404
+   on the live site — the deployment predates those pages, and the app links
+   straight at them. Play requires a reachable privacy policy, so this is a
+   release blocker until Vercel is redeployed.
+2. Verify on a physical Android phone over HTTPS: camera capture and
    geolocation inside the WebView (they cannot be tested over plain-HTTP LAN).
-2. `assetlinks.json` above, after the first build produces a fingerprint.
-3. Re-shoot store screenshots once production has non-`[DEV]` places.
+3. `assetlinks.json` above, after the first build produces a fingerprint.
+4. Re-shoot store screenshots once production has non-`[DEV]` places.
+
+## Known limitations (fine for a closed beta, worth naming)
+
+- **Co-located pins.** Two places at identical coordinates render on top of
+  each other and only the upper one is tappable. Seeded demo data does this;
+  real verifications will not, but a de-collision offset is still owed.
+- **Mission pins sit at the h3 cell centre**, which for the current pilot cell
+  falls in the harbour. The cell is the demand area, not the exact spot —
+  drawing the cell outline instead of a point would read better.
+- **The points store is a catalogue.** Redeem is inert by design and says so;
+  redemption needs a fulfilment provider.
+- **"Local updates" is device-local demo state**, now labelled a pilot
+  preview. It has no API behind it.
+- **Contrast.** Several primary controls sit at ~4.1–4.2:1 against their
+  background (white on `--guaca-teal`, coral-dark on white) — just under the
+  4.5:1 WCAG AA threshold for normal text. Fixing it means moving brand
+  colours, so it is a deliberate deferral, not an oversight.
