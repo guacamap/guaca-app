@@ -182,6 +182,10 @@
     min-height: 100vh;
   }
 
+  .guaca-corner-mask {
+    display: none;
+  }
+
   /* 640px — the same breakpoint as Tailwind's sm:, which the screens use
      for their inside-the-frame height rules. A frame that appears earlier
      than sm: leaves a gap where content overflows the chrome. */
@@ -193,6 +197,9 @@
       border: 10px solid #101010;
       border-radius: 48px;
       box-shadow: 0 30px 80px rgba(44, 30, 16, 0.24), inset 0 0 0 1px rgba(255,255,255,0.18);
+      /* bezel-colored ground: any gap between the content clip and the
+         border curve reads as frame, never as stray page background */
+      background: #101010;
     }
 
     /* overflow:hidden alone lets composited children (the Mapbox WebGL
@@ -203,6 +210,21 @@
       min-height: 0;
       height: 100%;
       clip-path: inset(0 round 38px);
+      background: var(--guaca-paper);
+    }
+
+    /* Belt AND suspenders: on some GPUs even clip-path fails to clip a
+       WebGL canvas, leaving map slivers in the corners. This ring paints
+       bezel-black OVER anything outside the inner radius, so a leak is
+       indistinguishable from the frame itself. */
+    .guaca-corner-mask {
+      display: block;
+      position: absolute;
+      inset: 0;
+      z-index: 900;
+      pointer-events: none;
+      border-radius: 38px;
+      box-shadow: 0 0 0 40px #101010;
     }
 
     .guaca-phone::before {

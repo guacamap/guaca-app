@@ -30,6 +30,7 @@ export function PhoneShell({
             </Button>
           )}
         </div>
+        <div className="guaca-corner-mask" aria-hidden="true" />
       </div>
     </div>
   )
