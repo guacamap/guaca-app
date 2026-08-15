@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { ArrowRight, Compass, Sparkles, Trophy, Store } from 'lucide-react'
+import { ArrowRight, Compass, Sparkles, Store, Trophy } from 'lucide-react'
 import { Button } from '@guaca/ui'
 import { GuacaLogo } from '@guaca/ui'
 import { PalmFrondLeft, PalmFrondRight } from '@guaca/ui'
 
-type Role = 'tourist' | 'spotter' | 'operator'
+type Role = 'tourist' | 'spotter'
 
 interface RoleChooserProps {
   onChoose: (role: Role) => void
@@ -31,16 +31,10 @@ const roles = [
     accent: 'text-guaca-coral',
     ring: 'ring-guaca-coral/30',
   },
-  {
-    id: 'operator' as Role,
-    title: 'Business',
-    description: 'Publish current local information',
-    helper: 'Coverage gaps · live demand',
-    icon: Store,
-    accent: 'text-guaca-ocean',
-    ring: 'ring-guaca-ocean/30',
-  },
 ]
+
+/** Businesses register on the website — never an in-app role (§ rules). */
+const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL ?? 'https://guaca.live'
 
 export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
   const [hoveredRole, setHoveredRole] = useState<Role | null>('tourist')
@@ -123,6 +117,16 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
             >
               Log in
             </button>
+          </p>
+          <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-white/70">
+            <Store aria-hidden="true" className="h-3 w-3" />
+            <span>A business?</span>
+            <a
+              href={`${LANDING_URL}/#businesses`}
+              className="rounded font-bold underline decoration-white/50 hover:decoration-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              Register on guaca.live
+            </a>
           </p>
         </div>
       </div>

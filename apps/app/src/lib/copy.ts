@@ -110,7 +110,8 @@ export interface AppCopy {
     profileGuestOf: string
     profileLanguage: string
     profileUpdates: string
-    profileSwitchRole: string
+    profileBecomeSpotter: string
+    profileBecomeSpotterNote: string
     profileSignOut: string
     profileDelete: string
     profileDeleteNote: string
@@ -241,7 +242,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       profileGuestOf: 'Guest of',
       profileLanguage: 'Language',
       profileUpdates: 'Local updates',
-      profileSwitchRole: 'Switch role',
+      profileBecomeSpotter: 'Change to Spotter mode',
+      profileBecomeSpotterNote: 'Verify places in your community — get paid in airtime.',
       profileSignOut: 'Sign out',
       profileDelete: 'Delete my account',
       profileDeleteNote: 'Removes your email — your anonymous questions stay as map demand.',
@@ -370,7 +372,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       profileGuestOf: 'Huésped de',
       profileLanguage: 'Idioma',
       profileUpdates: 'Novedades locales',
-      profileSwitchRole: 'Cambiar de rol',
+      profileBecomeSpotter: 'Cambiar a modo Spotter',
+      profileBecomeSpotterNote: 'Verifica lugares de tu comunidad — gana saldo de teléfono.',
       profileSignOut: 'Cerrar sesión',
       profileDelete: 'Eliminar mi cuenta',
       profileDeleteNote: 'Elimina tu correo — tus preguntas anónimas quedan como demanda del mapa.',

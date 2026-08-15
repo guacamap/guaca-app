@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ArrowRight,
   BadgeCheck,
   Bell,
   Clock3,
@@ -13,16 +14,12 @@ import {
   Sparkles,
   Store,
   Trash2,
+  Trophy,
   UserRound,
-  UsersRound,
   X,
 } from 'lucide-react'
 import { Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage } from '@guaca/ui'
 import { appCopy } from '../lib/copy'
-
-interface TouristViewProps {
-  onRoleChange: () => void
-}
 
 /** Puerto Cabello — the pilot area; also the geolocation fallback. */
 const PILOT_CENTER: [number, number] = [-68.0056, 10.4716]
@@ -110,7 +107,7 @@ function saveJson(key: string, value: unknown) {
 
 type Tab = 'map' | 'guaca' | 'plan' | 'profile' | 'updates'
 
-export function TouristView({ onRoleChange }: TouristViewProps) {
+export function TouristView() {
   const { updates } = useInfoStore()
   const { lang, setLang } = useLanguage()
   const t = appCopy[lang].tourist
@@ -676,11 +673,24 @@ export function TouristView({ onRoleChange }: TouristViewProps) {
           </span>
           {updates.length > 0 && <span className="rounded-full bg-guaca-coral/12 px-2 py-0.5 text-[10px] font-black text-guaca-coral-dark">{updates.length}</span>}
         </button>
-        <div className="h-px bg-guaca-sand/60" />
-        <button type="button" onClick={onRoleChange} className="flex w-full items-center gap-2.5 px-5 py-4 text-left text-[13px] font-black text-guaca-ink hover:bg-guaca-sand/25">
-          <UsersRound className="h-4.5 w-4.5 text-guaca-teal" /> {t.profileSwitchRole}
-        </button>
       </div>
+
+      {/* Yummy-style mode switch — Spotter is the only in-app second role;
+          businesses register on the website, never here. */}
+      <button
+        type="button"
+        onClick={() => { window.location.href = '/spotter' }}
+        className="mt-4 flex w-full items-center gap-3 rounded-[28px] bg-gradient-to-r from-guaca-coral to-guaca-mango p-4 text-left shadow-lg shadow-guaca-coral/20 transition-transform hover:-translate-y-0.5"
+      >
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/20 text-white">
+          <Trophy className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-black text-white">{t.profileBecomeSpotter}</span>
+          <span className="mt-0.5 block text-[10px] font-bold leading-relaxed text-white/85">{t.profileBecomeSpotterNote}</span>
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0 text-white/80" />
+      </button>
 
       <div className="mt-4 overflow-hidden rounded-[28px] bg-white shadow-sm ring-1 ring-guaca-sand/75">
         <button type="button" onClick={() => void signOut()} className="flex w-full items-center gap-2.5 px-5 py-4 text-left text-[13px] font-black text-guaca-ink hover:bg-guaca-sand/25">

@@ -218,6 +218,22 @@
       z-index: 1000;
       pointer-events: none;
     }
+
+    /* Home indicator — the bottom's answer to the notch, so the screen
+       reads as a complete device instead of ending abruptly. */
+    .guaca-phone::after {
+      content: '';
+      position: absolute;
+      bottom: 9px;
+      left: 50%;
+      width: 124px;
+      height: 5px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: rgba(5, 5, 5, 0.3);
+      z-index: 1000;
+      pointer-events: none;
+    }
   }
 
   .guaca-script {
