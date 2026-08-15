@@ -3,11 +3,12 @@
 ## Topology
 
 ```
-Tourist phone ──QR──▶ apps/web (Vercel)      ─┐
-Spotter phone ───────▶ apps/web (Vercel)      ─┼─▶ apps/api (VM, Docker)
-Operator laptop ─────▶ packages/cli           ─┘        │
-                                                         ▼
-                                          Postgres+PostGIS, Redis, MinIO
+Play app (webview) ──┐
+Tourist phone ──QR───┼─▶ apps/app (Vercel) ──┐
+Spotter phone ───────┘                       ├─▶ apps/api (VM, Docker)
+Visitors ────────────▶ apps/web (Vercel) ────┤          │
+Operator laptop ─────▶ packages/cli ─────────┘          ▼
+                                          Postgres (PostGIS + h3), MinIO
                                                          │
                                                          ▼
                                          INFERENCE_BASE_URL (OpenAI-compatible)
