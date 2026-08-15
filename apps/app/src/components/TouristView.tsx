@@ -1172,7 +1172,7 @@ export function TouristView() {
                             type="button"
                             aria-label={inPlan ? t.addedToPlan : t.addToPlan}
                             title={inPlan ? t.addedToPlan : t.addToPlan}
-                            onClick={() => addToPlan(id)}
+                            onClick={() => (inPlan ? removeStop(id) : addToPlan(id))}
                             className="border-l border-guaca-teal/15 px-2 text-guaca-teal hover:bg-guaca-teal/15"
                           >
                             {inPlan ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
@@ -1531,20 +1531,20 @@ export function TouristView() {
     <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-14">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-teal to-guaca-ocean p-6 text-white shadow-xl shadow-guaca-teal/18">
         <GuacaMark className="h-12 w-auto" />
-        <h1 className="mt-3 text-3xl font-black tracking-[-.04em]">Local updates</h1>
-        <p className="mt-3 text-sm font-semibold leading-relaxed text-white/88">Information published by Caribbean businesses, with local verification when a spotter has checked it.</p>
+        <h1 className="mt-3 text-3xl font-black tracking-[-.04em]">{t.updatesTitle}</h1>
+        <p className="mt-3 text-sm font-semibold leading-relaxed text-white/88">{t.updatesLede}</p>
       </div>
 
       <div className="relative mt-5">
         <Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-guaca-teal" />
-        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search businesses, places, or updates" className="h-12 rounded-2xl border-guaca-sand bg-white pl-11 focus-visible:ring-guaca-teal" />
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.updatesSearch} className="h-12 rounded-2xl border-guaca-sand bg-white pl-11 focus-visible:ring-guaca-teal" />
       </div>
 
       {filteredUpdates.length === 0 ? (
         <div className="mt-4 rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/60 p-6 text-center">
           <Store aria-hidden="true" className="mx-auto h-8 w-8 text-guaca-teal/55" />
-          <h3 className="mt-4 text-[13px] font-black text-guaca-ink">{updates.length === 0 ? 'No business updates yet' : 'No updates match your search'}</h3>
-          <p className="mx-auto mt-2 max-w-[260px] text-[11px] font-semibold leading-relaxed text-guaca-ink/48">{updates.length === 0 ? 'When a business publishes current information, it will appear here.' : 'Try a different business, community, or topic.'}</p>
+          <h3 className="mt-4 text-[13px] font-black text-guaca-ink">{updates.length === 0 ? t.updatesEmpty : t.updatesEmptySearch}</h3>
+          <p className="mx-auto mt-2 max-w-[260px] text-[11px] font-semibold leading-relaxed text-guaca-ink/48">{t.updatesLede}</p>
         </div>
       ) : (
         <div className="mt-4 space-y-3">
@@ -1554,7 +1554,7 @@ export function TouristView() {
                 <span className="rounded-full bg-guaca-teal/8 px-2.5 py-1 text-[9px] font-black text-guaca-teal">{update.category}</span>
                 <span className={`flex items-center gap-1 text-[9px] font-black ${update.status === 'verified' ? 'text-emerald-700' : 'text-guaca-ink/42'}`}>
                   {update.status === 'verified' ? <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5" /> : <Clock3 aria-hidden="true" className="h-3.5 w-3.5" />}
-                  {update.status === 'verified' ? `Verified by ${update.verifiedBy}` : 'Business-published'}
+                  {update.status === 'verified' ? `${t.updatesVerifiedBy} ${update.verifiedBy}` : t.updatesPublished}
                 </span>
               </div>
               <p className="mt-3 text-[10px] font-black text-guaca-teal-dark">{update.businessName}{update.community ? ` · ${update.community}` : ''}</p>

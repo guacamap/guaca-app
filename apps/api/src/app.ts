@@ -755,10 +755,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.code(201).send({ ok: true, id: recorded.id, role: recorded.role });
   });
 
+  // Brute force on a 8-char operator code was unlimited; the tourist gate
+  // has always been limited.
+  const spotterLoginLimiter = rateLimiter(
+    process.env.NODE_ENV === 'production' ? 10 : 200,
+    15 * 60 * 1000,
+  );
+
   app.post('/api/spotter/login', async (req, reply) => {
     const body = req.body as { phone?: string; code?: string };
     if (!body.phone || !body.code) {
       return reply.code(400).send({ error: 'phone and code required' });
+    }
+    if (!spotterLoginLimiter(body.phone.trim())) {
+      return reply.code(429).send({ error: 'too many attempts — wait a few minutes' });
     }
     const secret = new TextEncoder().encode(
       process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!',
@@ -782,12 +792,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!result.ok) {
       return reply.code(401).send({ error: result.reason });
     }
+    // The gate promises single-use codes; the code was never cleared, so an
+    // operator-issued code stayed valid forever. (The dev/review bypasses
+    // do not mint a code, so there is nothing to clear for them.)
+    await options.pool.query(
+      `update spotters set login_code_hash = null where id = $1`,
+      [result.spotter.id],
+    );
     return reply
       .setCookie('guaca_spotter', result.token, {
         httpOnly: true,
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
         path: '/',
+        // Without maxAge the 7-day JWT died with the WebView process.
+        maxAge: 7 * 24 * 60 * 60,
       })
       .send({ ok: true, name: result.spotter.name });
   });

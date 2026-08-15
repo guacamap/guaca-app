@@ -28,8 +28,11 @@ function DeleteFlow() {
     setError(null)
     try {
       const res = await post('/api/tourist/auth/request-code', { email, language: lang })
+      // A server rejection is not a connection failure — telling the user
+      // "try again" for a permanently invalid email is a dead end.
       if (res.ok) setStep('code')
-      else setError(t.error)
+      else if (res.status === 429) setError(t.rateLimited)
+      else setError(t.invalidEmail)
     } catch {
       setError(t.error)
     } finally {

@@ -179,6 +179,13 @@ export interface AppCopy {
     postsError: string
     postsReport: string
     postsReported: string
+    updatesTitle: string
+    updatesLede: string
+    updatesEmpty: string
+    updatesEmptySearch: string
+    updatesSearch: string
+    updatesVerifiedBy: string
+    updatesPublished: string
     favSave: string
     favSaved: string
     favTitle: string
@@ -410,6 +417,13 @@ export const appCopy: Record<Lang, AppCopy> = {
       postsError: 'Could not post — check the link (TikTok, Instagram or YouTube).',
       postsReport: 'Report',
       postsReported: 'Reported',
+      updatesTitle: 'Local updates',
+      updatesLede: 'Pilot preview: businesses will publish current information here. Nothing is verified until a Spotter checks it in person.',
+      updatesEmpty: 'No business updates yet.',
+      updatesEmptySearch: 'No updates match your search.',
+      updatesSearch: 'Search businesses, places, or updates',
+      updatesVerifiedBy: 'Verified by',
+      updatesPublished: 'Business-published',
       favSave: 'Save',
       favSaved: 'Saved',
       favTitle: 'Saved places',
@@ -639,6 +653,13 @@ export const appCopy: Record<Lang, AppCopy> = {
       postsError: 'No se pudo publicar — revisa el enlace (TikTok, Instagram o YouTube).',
       postsReport: 'Reportar',
       postsReported: 'Reportado',
+      updatesTitle: 'Novedades locales',
+      updatesLede: 'Vista previa del piloto: los negocios publicarán información actual aquí. Nada está verificado hasta que un Spotter lo compruebe en persona.',
+      updatesEmpty: 'Todavía no hay novedades de negocios.',
+      updatesEmptySearch: 'Ninguna novedad coincide con tu búsqueda.',
+      updatesSearch: 'Buscar negocios, lugares o novedades',
+      updatesVerifiedBy: 'Verificado por',
+      updatesPublished: 'Publicado por el negocio',
       favSave: 'Guardar',
       favSaved: 'Guardado',
       favTitle: 'Lugares guardados',
