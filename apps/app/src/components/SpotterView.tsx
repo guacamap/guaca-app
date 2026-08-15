@@ -46,6 +46,7 @@ interface Earning {
 interface SpotterMe {
   id: string
   name: string
+  language?: string
   photoUrl: string | null
   level: number
   totalPoints: number
@@ -131,7 +132,7 @@ function guard401(r: Response): Response {
 }
 
 export function SpotterView() {
-  const { lang } = useLanguage()
+  const { lang, setLang } = useLanguage()
   const t = appCopy[lang].spotter
   const [tab, setTab] = useState<'missions' | 'map' | 'confirm' | 'earnings'>('missions')
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
@@ -149,6 +150,9 @@ export function SpotterView() {
   const [stats, setStats] = useState<SpotterStats | null>(null)
   const [myPlaces, setMyPlaces] = useState<MyPlace[]>([])
   const [photoBusy, setPhotoBusy] = useState(false)
+  // The confirming spotter's real position — the server now requires it,
+  // because "a second local on the ground" has to mean on the ground.
+  const [fix, setFix] = useState<[number, number] | null>(null)
 
   const reasonLabel = (code: string) => t.reasons[code] ?? code
 
@@ -177,7 +181,12 @@ export function SpotterView() {
   const loadMissions = useCallback(() => {
     fetch('/api/spotter/missions', { credentials: 'include' })
       .then(guard401)
-      .then((r) => (r.ok ? r.json() : { missions: [] }))
+      // A 5xx used to render as "no missions yet" — a spotter paid per
+      // mission would conclude there is no work.
+      .then((r) => {
+        if (!r.ok) throw new Error('missions failed')
+        return r.json()
+      })
       .then((d: { missions: Mission[] }) => setMissions(d.missions ?? []))
       .catch((e) => {
         if (String(e).includes('session')) return
@@ -189,7 +198,10 @@ export function SpotterView() {
     const go = (lat: number, lon: number) =>
       fetch(`/api/spotter/confirmations?lat=${lat}&lon=${lon}`, { credentials: 'include' })
         .then(guard401)
-        .then((r) => (r.ok ? r.json() : { pending: [] }))
+        .then((r) => {
+          if (!r.ok) throw new Error('confirmations failed')
+          return r.json()
+        })
         .then((d: { pending: PendingConfirmation[] }) => setPending(d.pending ?? []))
         .catch((e) => {
           if (String(e).includes('session')) return
@@ -199,10 +211,12 @@ export function SpotterView() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setGeoNote(false)
+          setFix([pos.coords.latitude, pos.coords.longitude])
           void go(pos.coords.latitude, pos.coords.longitude)
         },
         () => {
           setGeoNote(true)
+          setFix(null)
           void go(10.4716, -68.0056)
         },
         { timeout: 3000 },
@@ -216,7 +230,10 @@ export function SpotterView() {
   const loadEarnings = useCallback(() => {
     fetch('/api/spotter/earnings', { credentials: 'include' })
       .then(guard401)
-      .then((r) => (r.ok ? r.json() : { rows: [] }))
+      .then((r) => {
+        if (!r.ok) throw new Error('earnings failed')
+        return r.json()
+      })
       .then((d: { rows: Earning[] }) => setEarnings(d.rows ?? []))
       .catch((e) => {
         if (String(e).includes('session')) return
@@ -243,7 +260,15 @@ export function SpotterView() {
       .then(guard401)
       .then((r) => (r.ok ? r.json() : null))
       .then((d: SpotterMe | null) => {
-        if (d) setMe(d)
+        if (d) {
+          setMe(d)
+          // Spotters are Spanish-first and the roster stores their language;
+          // the UI used to ignore it, so briefs came back in Spanish inside
+          // an English shell with no way to switch.
+          if ((d.language === 'es' || d.language === 'en') && d.language !== lang) {
+            setLang(d.language)
+          }
+        }
       })
       .catch(() => {})
     fetch('/api/spotter/ranking', { credentials: 'include' })
@@ -270,7 +295,7 @@ export function SpotterView() {
         if (d) setMyPlaces(d.places)
       })
       .catch(() => {})
-  }, [])
+  }, [lang, setLang])
 
   /** Their face rides every pin they verify — let them set it here. */
   const uploadPhoto = async (file: File) => {
@@ -301,6 +326,7 @@ export function SpotterView() {
 
   useEffect(() => {
     setBanner(null)
+    if (tab === 'missions') loadMissions()
     if (tab === 'confirm') loadPending()
     if (tab === 'earnings') {
       loadEarnings()
@@ -317,7 +343,7 @@ export function SpotterView() {
         )
       }
     }
-  }, [tab, loadPending, loadEarnings, loadOpportunities])
+  }, [tab, loadMissions, loadPending, loadEarnings, loadOpportunities, loadProfile])
 
   const accept = (missionId: string) =>
     withBusy(missionId, async () => {
@@ -343,7 +369,9 @@ export function SpotterView() {
         const res = guard401(
           await fetch(`/api/spotter/places/${placeId}/confirm`, {
             method: 'POST',
+            headers: { 'content-type': 'application/json' },
             credentials: 'include',
+            body: JSON.stringify(fix ? { lat: fix[0], lon: fix[1] } : {}),
           }),
         )
         if (res.ok) {
@@ -356,6 +384,8 @@ export function SpotterView() {
             text: body.error === 'VERIFICATION_PENDING' ? t.confirmPending : t.error,
           })
           loadPending()
+        } else if (res.status === 400 || res.status === 422) {
+          setBanner({ kind: 'error', text: t.confirmTooFar })
         } else setBanner({ kind: 'error', text: t.error })
       } catch (e) {
         if (!String(e).includes('session')) setBanner({ kind: 'error', text: t.error })
@@ -375,7 +405,8 @@ export function SpotterView() {
   }
 
   return (
-    <div className="relative h-full min-h-screen overflow-hidden bg-guaca-sand-light sm:min-h-full">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-guaca-sand-light sm:h-full">
+      <div className="relative min-h-0 flex-1">
       {tab === 'map' && (
         <>
           <div className="absolute inset-0 z-0">
@@ -418,14 +449,14 @@ export function SpotterView() {
             </div>
           </div>
           {opportunities.length === 0 && pending.length === 0 && (
-            <div className="absolute bottom-[92px] left-4 right-4 z-[450]">
+            <div className="absolute bottom-4 left-4 right-4 z-[450]">
               <p className="guaca-card rounded-[24px] p-4 text-center text-[11px] font-semibold text-guaca-ink/55">{t.mapEmpty}</p>
             </div>
           )}
         </>
       )}
       {tab !== 'map' && (
-      <div className="h-full overflow-y-auto px-5 pb-28 pt-12">
+      <div className="h-full overflow-y-auto px-5 pb-8 pt-12">
         <div className="rounded-[32px] bg-gradient-to-br from-guaca-coral to-guaca-sunset p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <GuacaLogo variant="reversed" className="h-10" />
@@ -536,6 +567,19 @@ export function SpotterView() {
                   }}
                 />
               </label>
+              <div className="mx-auto mt-3 flex w-max overflow-hidden rounded-full bg-guaca-sand/60 p-0.5">
+                {(['en', 'es'] as const).map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setLang(code)}
+                    aria-pressed={lang === code}
+                    className={`rounded-full px-3.5 py-1.5 text-[11px] font-black transition-colors ${lang === code ? 'bg-guaca-coral text-white' : 'text-guaca-ink/55'}`}
+                  >
+                    {code.toUpperCase()}
+                  </button>
+                ))}
+              </div>
               <h2 className="mt-2 text-[15px] font-black text-guaca-ink">{me?.name ?? '…'}</h2>
               <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.1em] text-guaca-coral-dark">Spotter · Lv{me?.level ?? 1}</p>
               {/* Level ladder — what the level means and how to climb. */}
@@ -664,7 +708,7 @@ export function SpotterView() {
                 {ranking.map((r) => (
                   <div key={r.id} className={`flex items-center gap-2.5 rounded-2xl px-3 py-2 ${r.id === me?.id ? 'bg-guaca-coral/8 ring-1 ring-guaca-coral/25' : ''}`}>
                     <span className="w-6 text-center text-[13px] font-black text-guaca-ink/60">
-                      {MEDALS[r.rank - 1] ?? `#${r.rank}`}
+                      {r.points > 0 ? (MEDALS[r.rank - 1] ?? `#${r.rank}`) : `#${r.rank}`}
                     </span>
                     <Avatar url={r.photo_url} name={r.name} className="h-7 w-7" textClassName="text-[10px]" />
                     <span className="min-w-0 flex-1 truncate text-[12px] font-black text-guaca-ink">
@@ -698,7 +742,7 @@ export function SpotterView() {
                 has no floating Role pill anymore. */}
             <button
               type="button"
-              onClick={() => { window.location.href = '/map' }}
+              onClick={() => { window.location.href = '/' }}
               className="flex w-full items-center gap-3 rounded-[28px] bg-gradient-to-r from-guaca-teal to-guaca-ocean p-4 text-left shadow-lg shadow-guaca-teal/20 transition-transform hover:-translate-y-0.5"
             >
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/20 text-white">
@@ -751,8 +795,9 @@ export function SpotterView() {
         )}
       </div>
       )}
+      </div>
 
-      <div className="absolute bottom-0 left-0 right-0 z-[500] border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md">
+      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md">
         <div className="flex items-center justify-around">
           {(
             [

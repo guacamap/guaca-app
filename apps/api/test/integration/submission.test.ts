@@ -203,6 +203,7 @@ describe('§7.4 — the check ladder runs on submission', () => {
       method: 'POST',
       url: `/api/spotter/places/${placeId}/confirm`,
       headers: { authorization: `Bearer ${tokenM}` },
+      payload: { lat: fresh.lat, lon: fresh.lon },
     });
     expect(early.statusCode).toBe(409);
     expect((early.json() as { error: string }).error).toBe('VERIFICATION_PENDING');
@@ -217,10 +218,32 @@ describe('§7.4 — the check ladder runs on submission', () => {
     expect(verdict.decision).toBe('needs_second_local');
     expect(fake.calls.filter((c) => c.method === 'vision')).toHaveLength(1); // ONE paid call
 
+    // A second local who is NOT there cannot confirm — "on the ground" is
+    // enforced server-side, not by the client's honesty. Checked while the
+    // place is still confirmable, so a 422 can only come from the distance.
+    const farAway = await app.inject({
+      method: 'POST',
+      url: `/api/spotter/places/${placeId}/confirm`,
+      headers: { authorization: `Bearer ${tokenM}` },
+      payload: { lat: fresh.lat + 1, lon: fresh.lon + 1 },
+    });
+    expect(farAway.statusCode).toBe(422);
+    expect((farAway.json() as { error: string }).error).toBe('TOO_FAR_TO_CONFIRM');
+
+    // And coordinates are mandatory: no location, no confirmation.
+    const noGeo = await app.inject({
+      method: 'POST',
+      url: `/api/spotter/places/${placeId}/confirm`,
+      headers: { authorization: `Bearer ${tokenM}` },
+      payload: {},
+    });
+    expect(noGeo.statusCode).toBe(400);
+
     const confirm = await app.inject({
       method: 'POST',
       url: `/api/spotter/places/${placeId}/confirm`,
       headers: { authorization: `Bearer ${tokenM}` },
+      payload: { lat: fresh.lat, lon: fresh.lon },
     });
     expect(confirm.statusCode).toBe(200);
 
@@ -351,6 +374,7 @@ describe('§7.4 — the check ladder runs on submission', () => {
       method: 'POST',
       url: `/api/spotter/places/${placeId}/confirm`,
       headers: { authorization: `Bearer ${tokenM}` },
+      payload: { lat: fresh.lat, lon: fresh.lon },
     });
     expect(confirm.statusCode).toBe(200);
     await app.close();
