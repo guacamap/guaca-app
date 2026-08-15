@@ -244,6 +244,16 @@ export function TouristView() {
   const threadEndRef = useRef<HTMLDivElement | null>(null)
   const favIds = useMemo(() => new Set(favorites.map((f) => f.placeId)), [favorites])
 
+  // A shared link (?place=<id>) opens straight onto that place.
+  useEffect(() => {
+    const shared = new URLSearchParams(window.location.search).get('place')
+    if (shared) {
+      openPlace(shared)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     setThread(loadJson<ChatMsg[]>(THREAD_KEY) ?? [])
     setPlan(loadJson<SavedPlan>(PLAN_KEY))
@@ -467,7 +477,7 @@ export function TouristView() {
 
   const sharePlace = (p: ApiPlace) =>
     waShare(
-      `${p.name} — ${t.shareVia}${p.spotter_name ? ` (${t.verifiedBy} ${p.spotter_name})` : ''}. ${APP_URL}`,
+      `${p.name} — ${t.shareVia}${p.spotter_name ? ` (${t.verifiedBy} ${p.spotter_name})` : ''}. ${APP_URL}/map?place=${p.id}`,
     )
 
   const directionsTo = (p: ApiPlace) =>
@@ -516,7 +526,9 @@ export function TouristView() {
         try { localStorage.removeItem(PLAN_KEY) } catch { /* best-effort */ }
         return null
       }
-      const next = { ...prev, placeIds: ids }
+      // Drop the original narrative once the stops are edited — it still
+      // listed the removed stop, so list and prose disagreed.
+      const next = { ...prev, placeIds: ids, text: '' }
       saveJson(PLAN_KEY, next)
       return next
     })
@@ -857,7 +869,7 @@ export function TouristView() {
                   {selected.spotter_name ?? '—'}
                   {selected.verified_at && (
                     <span className="ml-2 text-[10px] font-bold text-guaca-ink/45">
-                      {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(selected.verified_at))}
+                      {new Intl.DateTimeFormat(lang, { dateStyle: 'medium' }).format(new Date(selected.verified_at))}
                     </span>
                   )}
                 </p>
@@ -1247,7 +1259,9 @@ export function TouristView() {
           <div className="mt-5 rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-guaca-sand/75">
             <p className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-teal">{t.planFromQuestion}</p>
             <p className="mt-1 text-[13px] font-black text-guaca-ink">“{plan.question}”</p>
-            <p className="mt-3 whitespace-pre-line text-[12px] font-semibold leading-relaxed text-guaca-ink/68">{plan.text}</p>
+            {plan.text && (
+              <p className="mt-3 whitespace-pre-line text-[12px] font-semibold leading-relaxed text-guaca-ink/68">{plan.text}</p>
+            )}
           </div>
 
           <div className="mt-4 space-y-2.5">
@@ -1472,7 +1486,7 @@ export function TouristView() {
           <LogOut className="h-4.5 w-4.5 text-guaca-ocean" /> {t.profileSignOut}
         </button>
         <div className="h-px bg-guaca-sand/60" />
-        <a href={`${LANDING_URL}/delete-account`} className="flex w-full items-start gap-2.5 px-5 py-4 text-left hover:bg-guaca-sand/25">
+        <a href={`${LANDING_URL}/delete-account`} target="_blank" rel="noopener noreferrer" className="flex w-full items-start gap-2.5 px-5 py-4 text-left hover:bg-guaca-sand/25">
           <Trash2 className="mt-0.5 h-4.5 w-4.5 shrink-0 text-guaca-coral" />
           <span>
             <span className="block text-[13px] font-black text-guaca-coral-dark">{t.profileDelete}</span>
