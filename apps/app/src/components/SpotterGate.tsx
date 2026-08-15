@@ -71,6 +71,9 @@ export function SpotterGate({ children }: { children: ReactNode }) {
           <label className="block text-xs font-black text-guaca-ink/70" htmlFor="sp-code">
             {t.codeLabel}
           </label>
+          {process.env.NODE_ENV !== 'production' && (
+            <p className="text-xs font-bold text-guaca-mango-dark">{t.devCodeHint}</p>
+          )}
           <Input
             id="sp-code"
             required
