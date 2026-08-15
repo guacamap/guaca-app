@@ -23,7 +23,7 @@ Operator laptop ─────▶ packages/cli ─────────┘  
 | web (marketing) | `next dev` :3000 | `staging.guaca.live` — Vercel project 1, branch `main` | `guaca.live` — Vercel project 1, branch `production` |
 | app (product) | `next dev` :3002 | `staging.app.guaca.live` — Vercel project 2, branch `main` | `app.guaca.live` — Vercel project 2, branch `production` |
 | api | `tsx watch` :3001 | `staging.api.guaca.live` — same VM, compose project `guaca-staging` | `api.guaca.live` — compose project `guaca-prod` |
-| data | docker compose | own DB/Redis/MinIO bucket on VM | own DB/Redis/MinIO bucket on VM |
+| data | docker compose | own DB + MinIO bucket on VM | own DB + MinIO bucket on VM |
 | inference | FakeInference (tests) or shared endpoint | shared L40S or MiniMax — never a 2nd GPU | L40S, MiniMax failover |
 | email codes | always `000000` (dev bypass; also logged) | printed to ops stream | Resend — REQUIRED (bypass is structurally off in production) |
 | Mapbox token | `guaca-dev` (unrestricted, .env.local only) | `guaca-web-prod` (staging URL in list) | `guaca-web-prod` (URL-restricted) |
@@ -129,8 +129,10 @@ SEED=1 ./infra/deploy.sh staging   # staging gets demo data; prod stays clean
 ```
 
 Migrations run automatically at the end of each tier deploy
-(`packages/db/dist/migrate-cli.js`, forward-only). Seeding is opt-in via
-`SEED=1` so [DEV] demo data never lands in prod.
+(`packages/db/dist/migrate-cli.js`, forward-only), followed by the
+reference geography seed (idempotent — the pilot area and its zones, which
+the loop needs). `SEED=1` additionally installs the **demo** spotters and
+villas, so use it on staging only.
 
 ### Verify from a phone
 
