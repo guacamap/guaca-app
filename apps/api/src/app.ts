@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -306,6 +306,73 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   app.post('/api/tourist/logout', async (_req, reply) => {
     return reply.clearCookie('guaca_tourist', { path: '/' }).send({ ok: true });
+  });
+
+  const doubtLimiter = rateLimiter(5, 24 * 60 * 60 * 1000); // 5 doubts/day/tourist
+
+  /*
+   * "Is this still accurate?" — a doubt, not a review. Nothing is published;
+   * the doubt becomes an unanswered question at the place's location, which
+   * the gap agent clusters into re-check demand like any refusal. Tourists
+   * influence the map ONLY through questions — this is the second question
+   * verb (§ product rules: no ratings, no reviews, no user content).
+   */
+  app.post('/api/places/:id/doubt', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    if (!doubtLimiter(touristId)) {
+      return reply.code(429).send({ error: 'too many re-check requests today' });
+    }
+    const { id } = req.params as { id: string };
+    const res = await options.pool.query(
+      `select name, category,
+              ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon
+       from places where id = $1 and verification_status = 'verified'`,
+      [id],
+    );
+    const place = res.rows[0] as
+      | { name: string; category: string; lat: number; lon: number }
+      | undefined;
+    if (!place) return reply.code(404).send({ error: 'place not found' });
+    await recordQuestion(options.pool, {
+      rawText: `[recheck] ${place.name}`,
+      language: 'en',
+      category: place.category,
+      lat: place.lat,
+      lon: place.lon,
+      answered: false,
+      answerPlaceIds: [],
+      refusalReason: 'RECHECK_REQUESTED',
+      sessionId: null,
+      propertyId: null,
+    });
+    return reply.code(201).send({ ok: true });
+  });
+
+  /*
+   * "Tell me when it's verified" — opt-in link between an anonymous question
+   * and the account, held in its own cascade-deleted table so questions stay
+   * anonymous unless the tourist explicitly asks to hear back.
+   */
+  app.post('/api/questions/:id/notify', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { id } = req.params as { id: string };
+    const question = await options.pool.query(
+      `select id from questions where id = $1 and answered = false`,
+      [id],
+    );
+    if (question.rows.length === 0) return reply.code(404).send({ error: 'question not found' });
+    await options.pool.query(
+      `insert into question_notifications (question_id, tourist_id)
+       values ($1, $2) on conflict do nothing`,
+      [id, touristId],
+    );
+    return reply.code(201).send({ ok: true });
   });
 
   app.post('/api/ask', async (req, reply) => {
@@ -635,6 +702,40 @@ export function buildApp(options: AppOptions): FastifyInstance {
     } finally {
       client.release();
     }
+
+    // "Tell me when it's verified" — fire opted-in notifications for
+    // unanswered questions in this place's area+category. Best-effort and
+    // post-commit: a mail failure must never un-verify a place. Rows are
+    // deleted first so a crash means a missed mail, never a duplicate.
+    void (async () => {
+      try {
+        const placeRow = await options.pool.query(
+          `select name, category, area_id from places where id = $1`,
+          [id],
+        );
+        const place = placeRow.rows[0] as
+          | { name: string; category: string; area_id: string }
+          | undefined;
+        if (!place || !emailSender.sendPlaceVerified) return;
+        const optIns = await options.pool.query(
+          `delete from question_notifications qn
+           using questions qu, tourists t
+           where qu.id = qn.question_id
+             and t.id = qn.tourist_id
+             and qu.answered = false
+             and qu.area_id = $1
+             and qu.intent->>'category' = $2
+           returning t.email, t.language`,
+          [place.area_id, place.category],
+        );
+        for (const row of optIns.rows as Array<{ email: string; language: string }>) {
+          await emailSender.sendPlaceVerified(row.email, place.name, row.language);
+        }
+      } catch {
+        /* notification is a courtesy, never a failure path */
+      }
+    })();
+
     return { ok: true, status: 'verified' };
   });
 

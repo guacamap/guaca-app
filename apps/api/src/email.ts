@@ -7,6 +7,8 @@ export interface EmailSender {
   /** 'dev' = codes are logged, not delivered — enables the local bypass. */
   mode?: 'dev' | 'live';
   sendLoginCode(email: string, code: string, language: string): Promise<void>;
+  /** "Tell me when it's verified" — fired when a matching place goes live. */
+  sendPlaceVerified?(email: string, placeName: string, language: string): Promise<void>;
 }
 
 export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSender {
@@ -21,26 +23,41 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
         // Visible in `guaca tail` and the API log — dev/staging only.
         console.log(`[email] login code for ${email}: ${code}`);
       },
+      async sendPlaceVerified(email, placeName) {
+        console.log(`[email] place verified for ${email}: ${placeName}`);
+      },
     };
   }
   const from = env.EMAIL_FROM ?? 'Guaca <login@guaca.live>';
+  const send = async (to: string, subject: string, text: string) => {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ from, to: [to], subject, text }),
+    });
+    if (!res.ok) throw new Error(`resend failed: ${res.status}`);
+  };
   return {
     mode: 'live',
     async sendLoginCode(email, code, language) {
       const es = language === 'es';
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({
-          from,
-          to: [email],
-          subject: es ? `${code} es tu código de Guaca` : `${code} is your Guaca code`,
-          text: es
-            ? `Tu código de acceso es ${code}. Vence en 10 minutos.`
-            : `Your login code is ${code}. It expires in 10 minutes.`,
-        }),
-      });
-      if (!res.ok) throw new Error(`resend failed: ${res.status}`);
+      await send(
+        email,
+        es ? `${code} es tu código de Guaca` : `${code} is your Guaca code`,
+        es
+          ? `Tu código de acceso es ${code}. Vence en 10 minutos.`
+          : `Your login code is ${code}. It expires in 10 minutes.`,
+      );
+    },
+    async sendPlaceVerified(email, placeName, language) {
+      const es = language === 'es';
+      await send(
+        email,
+        es ? `Un local verificó: ${placeName}` : `A local just verified: ${placeName}`,
+        es
+          ? `Preguntaste por algo que nadie había comprobado. Un local fue a verificarlo: ${placeName} ya está en tu mapa. Ábrelo en https://app.guaca.live`
+          : `You asked about something nobody had checked. A local went and verified it: ${placeName} is now on your map. Open it at https://app.guaca.live`,
+      );
     },
   };
 }
