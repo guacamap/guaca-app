@@ -126,6 +126,9 @@ export async function ask(
   if (fast) {
     const artifact = groundFromVerifiedRows(fast.stops, verifiedIds);
     const ids = [...artifact.placeIds];
+    // An answer citing zero verified places is not an answer (§7.3) — it is
+    // unmet demand wearing an answer's clothes. Refuse so the gap agent sees it.
+    if (ids.length === 0) return refuse('NO_GROUNDED_STOPS');
     const questionId = await record(true, ids, null);
     return {
       kind: 'answer',
@@ -174,6 +177,7 @@ export async function ask(
       verifiedIds,
     );
     const ids = [...artifact.placeIds];
+    if (ids.length === 0) return refuse('NO_GROUNDED_STOPS');
     const questionId = await record(true, ids, null);
     return {
       kind: 'answer',
