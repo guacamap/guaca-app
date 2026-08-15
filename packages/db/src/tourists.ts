@@ -92,3 +92,13 @@ export async function touristById(pool: Pool, id: string): Promise<TouristRow | 
     attributedPropertyId: (r.attributed_property_id as string) ?? null,
   };
 }
+
+/**
+ * COMPLIANCE.md erasure: the account (email — the only tourist PII) is
+ * deleted outright. Questions were never linked to tourist identity, so
+ * demand signals survive anonymously by construction.
+ */
+export async function deleteTourist(pool: Pool, touristId: string): Promise<boolean> {
+  const res = await pool.query(`delete from tourists where id = $1`, [touristId]);
+  return (res.rowCount ?? 0) > 0;
+}
