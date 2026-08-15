@@ -1,24 +1,52 @@
 #!/usr/bin/env bash
-# GUACA redeploy — run on the VM: builds the api image and brings the stack
-# up. `pnpm deploy` locally first if you need to ship changes.
+# GUACA deploy — run on the VM.
+#   ./infra/deploy.sh edge      # shared Caddy (once; re-run on Caddyfile changes)
+#   ./infra/deploy.sh prod      # app stack, project guaca-prod
+#   ./infra/deploy.sh staging   # app stack, project guaca-staging
+# Each tier reads infra/env/<tier>.env (copy from the .example next to it).
+# Seeding demo data is opt-in: SEED=1 ./infra/deploy.sh staging
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo "==> pulling base images"
-docker compose -f docker-compose.prod.yml pull
+TIER="${1:-prod}"
 
-echo "==> building api image"
-docker compose -f docker-compose.prod.yml build api
+docker network inspect guaca-edge >/dev/null 2>&1 || docker network create guaca-edge
 
-echo "==> starting stack"
-docker compose -f docker-compose.prod.yml up -d
+if [[ "$TIER" == "edge" ]]; then
+  ENV_FILE="infra/env/edge.env"
+  [[ -f "$ENV_FILE" ]] || { echo "missing $ENV_FILE — copy ${ENV_FILE}.example and fill it"; exit 1; }
+  docker compose -p guaca-edge --env-file "$ENV_FILE" -f docker-compose.edge.yml up -d
+  docker compose -p guaca-edge -f docker-compose.edge.yml ps
+  exit 0
+fi
 
-echo "==> applying migrations"
-docker compose -f docker-compose.prod.yml exec -T api node apps/api/dist/migrate-cli.js || true
+if [[ "$TIER" != "prod" && "$TIER" != "staging" ]]; then
+  echo "usage: infra/deploy.sh [edge|prod|staging]"
+  exit 1
+fi
 
-echo "==> seeding (idempotent)"
-docker compose -f docker-compose.prod.yml exec -T api node apps/api/dist/seed-cli.js || true
+ENV_FILE="infra/env/${TIER}.env"
+[[ -f "$ENV_FILE" ]] || { echo "missing $ENV_FILE — copy ${ENV_FILE}.example and fill it"; exit 1; }
 
-echo "==> done. health:"
-docker compose -f docker-compose.prod.yml ps
+dc() { docker compose -p "guaca-${TIER}" --env-file "$ENV_FILE" -f docker-compose.prod.yml "$@"; }
+
+echo "==> [$TIER] pulling base images"
+dc pull postgres redis minio
+
+echo "==> [$TIER] building api image"
+dc build api
+
+echo "==> [$TIER] starting stack"
+dc up -d
+
+echo "==> [$TIER] applying migrations"
+dc exec -T api node packages/db/dist/migrate-cli.js
+
+if [[ "${SEED:-0}" == "1" ]]; then
+  echo "==> [$TIER] seeding demo data (SEED=1)"
+  dc exec -T api node packages/db/dist/seed-cli.js
+fi
+
+echo "==> [$TIER] health"
+dc ps

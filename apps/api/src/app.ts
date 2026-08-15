@@ -190,6 +190,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
       INFERENCE_BASE_URL: process.env.INFERENCE_BASE_URL ?? 'http://localhost:8000/v1',
       INFERENCE_API_KEY: process.env.INFERENCE_API_KEY ?? 'changeme',
       INFERENCE_MODEL: process.env.INFERENCE_MODEL ?? 'Qwen/Qwen3-VL-8B-Instruct',
+      ...(process.env.INFERENCE_VISION_MODEL
+        ? { INFERENCE_VISION_MODEL: process.env.INFERENCE_VISION_MODEL }
+        : {}),
+      ...(process.env.INFERENCE_TIMEOUT_MS
+        ? { INFERENCE_TIMEOUT_MS: process.env.INFERENCE_TIMEOUT_MS }
+        : {}),
+      ...(process.env.INFERENCE_MAX_RETRIES
+        ? { INFERENCE_MAX_RETRIES: process.env.INFERENCE_MAX_RETRIES }
+        : {}),
     });
   const askLimiter = rateLimiter(30, 60 * 60 * 1000); // 30 asks/hour/account
   const codeLimiter = rateLimiter(5, 15 * 60 * 1000); // 5 codes/15min/email
@@ -284,22 +293,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!askLimiter(touristId)) {
       return reply.code(429).send({ error: 'rate limited — try again soon' });
     }
-    const inference =
-      options.inference ??
-      (await import('@guaca/agents')).createProvider({
-        INFERENCE_BASE_URL: process.env.INFERENCE_BASE_URL ?? 'http://localhost:8000/v1',
-        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY ?? 'changeme',
-        INFERENCE_MODEL: process.env.INFERENCE_MODEL ?? 'Qwen/Qwen3-VL-8B-Instruct',
-        ...(process.env.INFERENCE_VISION_MODEL
-          ? { INFERENCE_VISION_MODEL: process.env.INFERENCE_VISION_MODEL }
-          : {}),
-        ...(process.env.INFERENCE_TIMEOUT_MS
-          ? { INFERENCE_TIMEOUT_MS: process.env.INFERENCE_TIMEOUT_MS }
-          : {}),
-        ...(process.env.INFERENCE_MAX_RETRIES
-          ? { INFERENCE_MAX_RETRIES: process.env.INFERENCE_MAX_RETRIES }
-          : {}),
-      });
+    const inference = await resolveInference();
     const result = await ask(
       options.pool,
       {

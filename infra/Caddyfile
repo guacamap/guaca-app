@@ -1,10 +1,14 @@
-# GUACA — Caddy reverse proxy with automatic TLS.
-# Uses {env.API_HOST} / {env.API_PORT} from docker-compose.prod.yml.
-# Set PUBLIC_WEB_URL (e.g. https://api.<ip>.sslip.io) in .env for TLS.
+# GUACA — shared Caddy for both tiers (docker-compose.edge.yml).
+# Domains/email come from infra/env/edge.env; upstreams are the compose
+# network aliases set by EDGE_ALIAS in each tier's env file.
 {
-	email admin@example.com
+	email {$ACME_EMAIL:admin@guaca.live}
 }
 
-{$PUBLIC_WEB_URL} {
-	reverse_proxy {env.API_HOST}:{env.API_PORT}
+{$API_DOMAIN:api.guaca.live} {
+	reverse_proxy guaca-prod-api:3001
+}
+
+{$STAGING_API_DOMAIN:staging.api.guaca.live} {
+	reverse_proxy guaca-staging-api:3001
 }
