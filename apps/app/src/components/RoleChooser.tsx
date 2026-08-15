@@ -8,6 +8,8 @@ type Role = 'tourist' | 'spotter' | 'operator'
 
 interface RoleChooserProps {
   onChoose: (role: Role) => void
+  /** Returning users: route to whichever session already exists. */
+  onLogin?: () => void
 }
 
 const roles = [
@@ -40,7 +42,7 @@ const roles = [
   },
 ]
 
-export function RoleChooser({ onChoose }: RoleChooserProps) {
+export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
   const [hoveredRole, setHoveredRole] = useState<Role | null>('tourist')
 
   return (
@@ -113,7 +115,14 @@ export function RoleChooser({ onChoose }: RoleChooserProps) {
             <span>Caribbean beta · coverage grows locally</span>
           </div>
           <p className="mt-4 text-[11px] text-white/80">
-            Already have an account? <span className="font-bold underline decoration-white/60">Log in</span>
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={onLogin}
+              className="rounded font-bold underline decoration-white/60 hover:decoration-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              Log in
+            </button>
           </p>
         </div>
       </div>

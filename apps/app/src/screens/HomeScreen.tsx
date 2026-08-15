@@ -8,10 +8,27 @@ const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL ?? 'https://guaca.live'
 
 export default function HomeScreen() {
   const router = useRouter()
+
+  /** "Log in" resumes whichever session exists; tourists are the default
+   *  door (spotters were onboarded by an operator and know theirs). */
+  const login = async () => {
+    try {
+      const [spotter, tourist] = await Promise.all([
+        fetch('/api/spotter/me', { credentials: 'include' }),
+        fetch('/api/tourist/me', { credentials: 'include' }),
+      ])
+      if (spotter.ok) return router.push('/spotter')
+      if (tourist.ok) return router.push('/map')
+    } catch {
+      // fall through to the default door
+    }
+    router.push('/map')
+  }
+
   return (
     <Providers>
       <PhoneShell>
-        <RoleChooser onChoose={(role) => router.push(`/${role === 'tourist' ? 'map' : role}`)} />
+        <RoleChooser onChoose={(role) => router.push(`/${role === 'tourist' ? 'map' : role}`)} onLogin={() => void login()} />
         <a
           href={LANDING_URL}
           aria-label="Back to Guaca website"
