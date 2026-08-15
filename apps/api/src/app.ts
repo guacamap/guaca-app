@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -349,6 +349,114 @@ export function buildApp(options: AppOptions): FastifyInstance {
       propertyId: null,
     });
     return reply.code(201).send({ ok: true });
+  });
+
+  /*
+   * "What locals say" — posts about a verified place: text tips plus links
+   * to social videos (Reels/TikTok). Commentary only: a post never creates
+   * or edits map facts. Ranking is trust-first — verified spotters by
+   * level, then travelers — computed in postsForPlace.
+   */
+  const MEDIA_URL_RE =
+    /^https:\/\/([a-z0-9-]+\.)?(tiktok\.com|instagram\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch)\/\S+$/i;
+  const postLimiter = rateLimiter(10, 24 * 60 * 60 * 1000); // 10 posts/day/account
+
+  app.get('/api/places/:id/posts', async (req) => {
+    const { id } = req.params as { id: string };
+    return { posts: await postsForPlace(options.pool, id) };
+  });
+
+  app.post('/api/places/:id/posts', async (req, reply) => {
+    // Either signed-in role can post; the author identity sets the ranking.
+    const spotterToken = tokenFrom(req, 'guaca_spotter');
+    const touristToken = tokenFrom(req, 'guaca_tourist');
+    let spotterId: string | null = null;
+    let touristId: string | null = null;
+    if (spotterToken) {
+      spotterId = (await verifySpotterToken(spotterToken, sessionSecret())).spotterId;
+    }
+    if (!spotterId && touristToken) {
+      touristId = (await verifyTouristToken(touristToken, sessionSecret())).touristId;
+    }
+    if (!spotterId && !touristId) return reply.code(401).send({ error: 'login required' });
+    if (!postLimiter(spotterId ?? touristId!)) {
+      return reply.code(429).send({ error: 'too many posts today' });
+    }
+
+    const { id } = req.params as { id: string };
+    const body = req.body as {
+      text?: string;
+      mediaUrl?: string;
+      rating?: number;
+      lat?: number;
+      lon?: number;
+    };
+    const text = body.text?.trim() ?? '';
+    if (text.length === 0 || text.length > 500) {
+      return reply.code(400).send({ error: 'text must be 1-500 characters' });
+    }
+    const mediaUrl = body.mediaUrl?.trim() || null;
+    if (mediaUrl && !MEDIA_URL_RE.test(mediaUrl)) {
+      return reply
+        .code(400)
+        .send({ error: 'mediaUrl must be a TikTok, Instagram, YouTube or Facebook link' });
+    }
+    // Presence check: reviews (stars) only count when made AT the place.
+    const hasGeo = typeof body.lat === 'number' && typeof body.lon === 'number';
+    const place = await options.pool.query(
+      hasGeo
+        ? `select id, ST_DWithin(location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, 200) as at_place
+           from places where id = $1 and verification_status = 'verified'`
+        : `select id, false as at_place from places where id = $1 and verification_status = 'verified'`,
+      hasGeo ? [id, body.lat, body.lon] : [id],
+    );
+    if (place.rows.length === 0) return reply.code(404).send({ error: 'place not found' });
+    const visited = Boolean(place.rows[0]!.at_place);
+    // Stars from someone who wasn't there are stripped, not stored.
+    const rating =
+      visited && typeof body.rating === 'number' && body.rating >= 1 && body.rating <= 5
+        ? Math.round(body.rating)
+        : null;
+
+    const created = await addPlacePost(options.pool, {
+      placeId: id,
+      spotterId,
+      touristId,
+      body: text,
+      mediaUrl,
+      visited,
+      rating,
+    });
+    return reply.code(201).send({ ok: true, id: created.id, visited, rating });
+  });
+
+  /* Favorites — a private save-list; never shown as counts on the map. */
+  const requireTourist = async (req: import('fastify').FastifyRequest) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return null;
+    return (await verifyTouristToken(token, sessionSecret())).touristId;
+  };
+
+  app.post('/api/places/:id/favorite', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { id } = req.params as { id: string };
+    await addFavorite(options.pool, touristId, id);
+    return reply.code(201).send({ ok: true });
+  });
+
+  app.delete('/api/places/:id/favorite', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { id } = req.params as { id: string };
+    await removeFavorite(options.pool, touristId, id);
+    return { ok: true };
+  });
+
+  app.get('/api/tourist/favorites', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    return { favorites: await listFavorites(options.pool, touristId) };
   });
 
   /*
