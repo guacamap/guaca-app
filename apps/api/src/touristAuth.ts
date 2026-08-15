@@ -38,7 +38,11 @@ export async function requestTouristCode(
   const email = input.email.trim().toLowerCase();
   if (!EMAIL_RE.test(email) || email.length > 200) return { ok: false, reason: 'BAD_EMAIL' };
 
-  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+  // Local bypass: with no real email delivery (dev sender) outside
+  // production, the code is always 000000 so testers never have to fish
+  // it out of the API log. Same hashing, expiry and single-use semantics.
+  const devBypass = sender.mode === 'dev' && process.env.NODE_ENV !== 'production';
+  const code = devBypass ? '000000' : String(randomInt(0, 1_000_000)).padStart(6, '0');
   const language = input.language === 'es' ? 'es' : 'en';
   await db.upsertLoginCode({
     email,

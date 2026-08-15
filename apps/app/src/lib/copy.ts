@@ -10,6 +10,7 @@ export interface AppCopy {
     emailCta: string
     codeLabel: string
     codeLede: string
+    devCodeHint: string
     codeCta: string
     resend: string
     invalidEmail: string
@@ -98,6 +99,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       emailCta: 'Send me a code',
       codeLabel: '6-digit code',
       codeLede: 'We sent a code to',
+      devCodeHint: 'Dev build — the code is always 000000.',
       codeCta: 'Enter',
       resend: 'Send a new code',
       invalidEmail: 'That email doesn’t look right.',
@@ -195,6 +197,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       emailCta: 'Enviarme un código',
       codeLabel: 'Código de 6 dígitos',
       codeLede: 'Enviamos un código a',
+      devCodeHint: 'Versión de desarrollo — el código siempre es 000000.',
       codeCta: 'Entrar',
       resend: 'Enviar un código nuevo',
       invalidEmail: 'Ese correo no parece válido.',

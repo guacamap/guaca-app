@@ -110,3 +110,62 @@ describe('§4.1 — tourist email one-time code', () => {
     expect(touristId).toBeNull();
   });
 });
+
+describe('dev bypass — fixed 000000 code without real email delivery', () => {
+  function devCapture(): { sender: EmailSender; last: () => string | undefined } {
+    let code: string | undefined;
+    return {
+      sender: {
+        mode: 'dev',
+        async sendLoginCode(_email, c) {
+          code = c;
+        },
+      },
+      last: () => code,
+    };
+  }
+
+  it('a dev-mode sender always issues 000000 and it logs in', async () => {
+    const { db } = memoryDb();
+    const cap = devCapture();
+    await requestTouristCode(db, { email: 'tester@example.com' }, cap.sender);
+    expect(cap.last()).toBe('000000');
+    const login = await verifyTouristLogin(db, { email: 'tester@example.com', code: '000000' }, SECRET);
+    expect(login.ok).toBe(true);
+  });
+
+  it('a live-mode sender never gets the bypass', async () => {
+    const { db } = memoryDb();
+    let code: string | undefined;
+    const sender: EmailSender = {
+      mode: 'live',
+      async sendLoginCode(_email, c) {
+        code = c;
+      },
+    };
+    // 20 requests: a fixed bypass would repeat 000000 every time.
+    const seen = new Set<string>();
+    for (let i = 0; i < 20; i++) {
+      await requestTouristCode(db, { email: 'tester@example.com' }, sender);
+      seen.add(code!);
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('production never gets the bypass even with a dev sender', async () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const { db } = memoryDb();
+      const cap = devCapture();
+      const seen = new Set<string>();
+      for (let i = 0; i < 20; i++) {
+        await requestTouristCode(db, { email: 'tester@example.com' }, cap.sender);
+        seen.add(cap.last()!);
+      }
+      expect(seen.size).toBeGreaterThan(1);
+    } finally {
+      process.env.NODE_ENV = prev;
+    }
+  });
+});
