@@ -16,7 +16,10 @@ docker network inspect guaca-edge >/dev/null 2>&1 || docker network create guaca
 if [[ "$TIER" == "edge" ]]; then
   ENV_FILE="infra/env/edge.env"
   [[ -f "$ENV_FILE" ]] || { echo "missing $ENV_FILE — copy ${ENV_FILE}.example and fill it"; exit 1; }
-  docker compose -p guaca-edge --env-file "$ENV_FILE" -f docker-compose.edge.yml up -d
+  # --force-recreate: the Caddyfile is a bind mount, so its contents are not
+  # part of the compose config hash — a plain `up -d` would keep the old
+  # container (and Caddy only reads config at startup).
+  docker compose -p guaca-edge --env-file "$ENV_FILE" -f docker-compose.edge.yml up -d --force-recreate
   docker compose -p guaca-edge -f docker-compose.edge.yml ps
   exit 0
 fi
