@@ -24,11 +24,27 @@ offline screen.
 | 1 | Play Console developer account — $25 one-time, identity verification can take days | everything |
 | 2 | Provision the VM (NoInfra VPS or Nebius), point DNS: `api.`, `staging.api.` → VM; `app.`, `staging.app.`, apex → Vercel | the app working at all |
 | 3 | Run `./infra/deploy.sh edge && ./infra/deploy.sh prod` on the VM (see DEPLOY.md) | API |
-| 4 | Vercel: project 1 root `apps/web` → guaca.live; project 2 root `apps/app` → app.guaca.live. Set `NEXT_PUBLIC_MAPBOX_TOKEN`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_LANDING_URL`, `NEXT_PUBLIC_APP_URL` | web apps |
+| 4 | Vercel: project 1 root `apps/web` → guaca.live; project 2 root `apps/app` → app.guaca.live, with the env vars below | web apps |
 | 5 | Resend account + verify `guaca.live` domain (SPF/DKIM) → set `RESEND_API_KEY`, `EMAIL_FROM` in `infra/env/prod.env` | real users can log in |
 | 6 | Set `REVIEW_EMAIL`, `REVIEW_CODE`, `REVIEW_SPOTTER_PHONE` in `infra/env/prod.env` | Play review sign-in |
 | 7 | `eas login` then `eas build -p android --profile production` | the AAB |
 | 8 | Recruit **12 testers** and keep the closed test running **14 days** before production is possible (personal accounts only; a closed test link works for judges immediately) | production track |
+
+### Vercel env vars for `apps/app` (the product app)
+
+| Variable | Value | If missing |
+|---|---|---|
+| `API_PROXY_TARGET` | `https://api.guaca.live` | **every API call proxies to localhost and the app is dead** — this is the one that must not be forgotten |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | the URL-restricted `guaca-web-prod` token | no map tiles |
+| `NEXT_PUBLIC_LANDING_URL` | `https://guaca.live` | privacy/terms/delete links point at the wrong host |
+| `NEXT_PUBLIC_APP_URL` | `https://app.guaca.live` | WhatsApp shares link to the wrong host |
+| `NEXT_PUBLIC_QR_BASE_URL` | `https://app.guaca.live` | printed villa QR cards point at the wrong host |
+| `NEXT_PUBLIC_OPERATOR_WHATSAPP` | operator number, digits only | the spotter "contact operator" row is hidden (optional) |
+
+The app proxies `/api/*` through Next rewrites, so the browser only ever
+talks to `app.guaca.live` — cookies stay same-origin and no CORS applies
+to the app. `WEB_ORIGIN` on the API still matters for the marketing site's
+delete-account flow.
 
 ## Store listing
 
