@@ -49,6 +49,17 @@ interface ApiPlace {
   spotter_name: string | null
   spotter_photo_url: string | null
   verified_at: string | null
+  postsCount?: number
+  avgRating?: number | null
+  ratingCount?: number
+}
+
+interface CandidatePlace {
+  id: string
+  name: string
+  category: string
+  lat: number
+  lon: number
 }
 
 type AskState =
@@ -177,6 +188,8 @@ export function TouristView() {
   const [postBusy, setPostBusy] = useState(false)
   const [postErr, setPostErr] = useState(false)
   const [favorites, setFavorites] = useState<Favorite[]>([])
+  const [candidates, setCandidates] = useState<CandidatePlace[]>([])
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidatePlace | null>(null)
   const threadEndRef = useRef<HTMLDivElement | null>(null)
   const favIds = useMemo(() => new Set(favorites.map((f) => f.placeId)), [favorites])
 
@@ -211,6 +224,11 @@ export function TouristView() {
     fetch(`/api/places?bbox=${bbox}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { places: [] }))
       .then((data: { places: ApiPlace[] }) => setPlaces(data.places ?? []))
+      .catch(() => {})
+    // The open-data backdrop: OSM candidates as dots, never pins.
+    fetch(`/api/places/candidates?bbox=${bbox}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { candidates: [] }))
+      .then((data: { candidates: CandidatePlace[] }) => setCandidates(data.candidates ?? []))
       .catch(() => {})
   }, [center])
 
@@ -280,9 +298,33 @@ export function TouristView() {
           spotterColor: glyph.color,
           spotterInitials: initials(p.spotter_name),
           verified: true,
+          ...(p.avgRating != null && (p.ratingCount ?? 0) > 0
+            ? { ratingBadge: p.avgRating.toFixed(1) }
+            : {}),
         }
       }),
     [places, catFilter],
+  )
+
+  const dots = useMemo(
+    () =>
+      (catFilter ? candidates.filter((c) => c.category === catFilter) : candidates).map((c) => ({
+        id: c.id,
+        lat: c.lat,
+        lng: c.lon,
+        label: c.name,
+        category: c.category,
+      })),
+    [candidates, catFilter],
+  )
+
+  // Review-activity heat: verified places weighted by their post volume.
+  const heat = useMemo(
+    () =>
+      places
+        .filter((p) => (p.postsCount ?? 0) > 0)
+        .map((p) => ({ lat: p.lat, lng: p.lon, weight: Math.min(p.postsCount ?? 0, 10) })),
+    [places],
   )
 
   /** One grounded call for the map box AND the Guaca thread (§7.3). */
@@ -495,7 +537,8 @@ export function TouristView() {
     fetch(`/api/places/${id}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((full: ApiPlace | null) => {
-        if (full) setSelected(full)
+        // Merge over what we knew: the detail route has no review stats.
+        if (full) setSelected((prev) => (prev && prev.id === full.id ? { ...prev, ...full } : full))
       })
       .catch(() => {})
   }
@@ -538,8 +581,14 @@ export function TouristView() {
       <div className="absolute inset-0 z-0">
         <GuacaMap
           pins={pins}
+          dots={dots}
+          heat={heat}
           selectedPinId={selected?.id ?? null}
-          onPinClick={openPlace}
+          onPinClick={(id) => { setSelectedCandidate(null); openPlace(id) }}
+          onDotClick={(id) => {
+            const c = candidates.find((x) => x.id === id)
+            if (c) { setSelected(null); setSelectedCandidate(c) }
+          }}
           mapStyle="streets"
           center={center}
           zoom={13.4}
@@ -607,6 +656,13 @@ export function TouristView() {
                 </button>
               </div>
             </div>
+            {(selected.ratingCount ?? 0) > 0 && selected.avgRating != null && (
+              <p className="mt-1 flex items-center gap-1 text-[12px] font-black text-guaca-mango-dark">
+                <Star className="h-3.5 w-3.5 fill-guaca-mango text-guaca-mango" />
+                {selected.avgRating.toFixed(1)}
+                <span className="font-bold text-guaca-ink/40">({selected.ratingCount})</span>
+              </p>
+            )}
             {selected.landmark_description && (
               <>
                 <p className="mt-3 text-[10px] font-black uppercase tracking-[.1em] text-guaca-teal">{t.landmarkLabel}</p>
@@ -755,8 +811,41 @@ export function TouristView() {
         </div>
       )}
 
+      {/* Candidate card — an OSM dot: known to open data, unknown to us. */}
+      {!selected && selectedCandidate && (
+        <div className="absolute bottom-[82px] left-4 right-4 z-[650]">
+          <div className="guaca-card rounded-[30px] p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-lg font-black leading-tight text-guaca-ink">
+                  {(CATEGORY_GLYPH[selectedCandidate.category] ?? { emoji: '📍' }).emoji} {selectedCandidate.name}
+                </h3>
+                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-guaca-ink/6 px-2 py-0.5 text-[9px] font-black uppercase tracking-[.1em] text-guaca-ink/55">
+                  {t.candidateTitle}
+                </p>
+              </div>
+              <button type="button" aria-label={t.close} onClick={() => setSelectedCandidate(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-guaca-ink/60">{t.candidateBody}</p>
+            <Button
+              type="button"
+              onClick={() => {
+                setGuacaText(t.candidateAsk.replace('{name}', selectedCandidate.name))
+                setSelectedCandidate(null)
+                setActiveTab('guaca')
+              }}
+              className="mt-3 h-10 w-full rounded-xl bg-guaca-teal text-[11px] font-black text-white hover:bg-guaca-teal-dark"
+            >
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {t.candidateCta}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Ask result / teaser card. */}
-      {!selected && (
+      {!selected && !selectedCandidate && (
         <div className="absolute bottom-[82px] left-4 right-4 z-[650]">
           {askState.kind === 'asking' && (
             <div className="guaca-card rounded-[30px] p-4">

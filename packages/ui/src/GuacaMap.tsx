@@ -16,6 +16,8 @@ interface MapPin {
   spotterColor: string
   spotterInitials: string
   verified: boolean
+  /** e.g. "4.5" — shown as a small ★ badge when review activity exists. */
+  ratingBadge?: string
 }
 
 interface GapPin {
@@ -25,6 +27,23 @@ interface GapPin {
   label: string
   asks: number
   category: string
+}
+
+/** Unverified candidates (OSM import) — rendered as a GPU circle layer,
+ *  never as DOM markers: there can be hundreds. */
+interface MapDot {
+  id: string
+  lat: number
+  lng: number
+  label: string
+  category: string
+}
+
+/** Review-activity heat: weight = posts/reviews at that spot. */
+interface HeatPoint {
+  lat: number
+  lng: number
+  weight: number
 }
 
 export const MAP_STYLES = [
@@ -40,10 +59,13 @@ export type MapStyleId = typeof MAP_STYLES[number]['id']
 interface GuacaMapProps {
   pins: MapPin[]
   gapPins?: GapPin[]
+  dots?: MapDot[]
+  heat?: HeatPoint[]
   selectedPinId?: string | null
   selectedGapId?: string | null
   onPinClick?: (id: string) => void
   onGapClick?: (id: string) => void
+  onDotClick?: (id: string) => void
   mapStyle?: MapStyleId
   center?: [number, number]
   zoom?: number
@@ -52,7 +74,80 @@ interface GuacaMapProps {
   fallbackImage?: string
 }
 
-function createPinHTML(_emoji: string, iconSvg: string | undefined, color: string, verified: boolean, isSelected: boolean) {
+const DOTS_SOURCE = 'guaca-dots'
+const HEAT_SOURCE = 'guaca-heat'
+
+/** mapbox-gl's own GeoJSON input type — avoids a @types/geojson dependency. */
+type GeoJsonData = Parameters<mapboxgl.GeoJSONSource['setData']>[0]
+
+function dotsGeoJson(dots: MapDot[]): GeoJsonData {
+  return {
+    type: 'FeatureCollection',
+    features: dots.map((d) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [d.lng, d.lat] },
+      properties: { id: d.id, label: d.label, category: d.category },
+    })),
+  } as GeoJsonData
+}
+
+function heatGeoJson(points: HeatPoint[]): GeoJsonData {
+  return {
+    type: 'FeatureCollection',
+    features: points.map((p) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+      properties: { weight: p.weight },
+    })),
+  } as GeoJsonData
+}
+
+/** (Re)installs the dots + heat sources/layers; safe after style swaps. */
+function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[]) {
+  if (!map.getSource(HEAT_SOURCE)) {
+    map.addSource(HEAT_SOURCE, { type: 'geojson', data: heatGeoJson(heat) })
+    map.addLayer({
+      id: `${HEAT_SOURCE}-layer`,
+      type: 'heatmap',
+      source: HEAT_SOURCE,
+      paint: {
+        'heatmap-weight': ['coalesce', ['get', 'weight'], 0],
+        'heatmap-intensity': 0.8,
+        'heatmap-radius': 42,
+        'heatmap-opacity': 0.45,
+        'heatmap-color': [
+          'interpolate', ['linear'], ['heatmap-density'],
+          0, 'rgba(13,139,139,0)',
+          0.3, 'rgba(13,139,139,0.35)',
+          0.6, 'rgba(212,168,83,0.5)',
+          1, 'rgba(232,115,90,0.65)',
+        ],
+      },
+    })
+  } else {
+    ;(map.getSource(HEAT_SOURCE) as mapboxgl.GeoJSONSource).setData(heatGeoJson(heat))
+  }
+  if (!map.getSource(DOTS_SOURCE)) {
+    map.addSource(DOTS_SOURCE, { type: 'geojson', data: dotsGeoJson(dots) })
+    map.addLayer({
+      id: `${DOTS_SOURCE}-layer`,
+      type: 'circle',
+      source: DOTS_SOURCE,
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
+        'circle-color': '#0C4A5C',
+        'circle-opacity': 0.55,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-opacity': 0.7,
+      },
+    })
+  } else {
+    ;(map.getSource(DOTS_SOURCE) as mapboxgl.GeoJSONSource).setData(dotsGeoJson(dots))
+  }
+}
+
+function createPinHTML(_emoji: string, iconSvg: string | undefined, color: string, verified: boolean, isSelected: boolean, ratingBadge?: string) {
   const size = isSelected ? 46 : 40
   const border = isSelected ? '3px solid #D97E00' : '2.5px solid #fff'
   const iconContent = iconSvg
@@ -80,6 +175,21 @@ function createPinHTML(_emoji: string, iconSvg: string | undefined, color: strin
         border: ${border};
         box-sizing: border-box;
       ">${iconContent}</div>
+      ${ratingBadge ? `
+      <div style="
+        position: absolute;
+        top: -7px;
+        left: -9px;
+        background: #D97E00;
+        color: white;
+        font-size: 8.5px;
+        font-weight: 800;
+        padding: 1px 5px;
+        border-radius: 8px;
+        white-space: nowrap;
+        border: 1.5px solid white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      ">★ ${ratingBadge}</div>` : ''}
       ${verified ? `
       <div style="
         position: absolute;
@@ -160,10 +270,13 @@ function createTreasureHTML() {
 export function GuacaMap({
   pins,
   gapPins,
+  dots,
+  heat,
   selectedPinId,
   selectedGapId,
   onPinClick,
   onGapClick,
+  onDotClick,
   mapStyle = 'satellite-streets',
   center = [-68.0075, 10.4665],
   zoom = 15,
@@ -174,6 +287,12 @@ export function GuacaMap({
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
+  const dotsRef = useRef<MapDot[]>(dots ?? [])
+  const heatRef = useRef<HeatPoint[]>(heat ?? [])
+  const onDotClickRef = useRef(onDotClick)
+  dotsRef.current = dots ?? []
+  heatRef.current = heat ?? []
+  onDotClickRef.current = onDotClick
 
   const styleUrl = MAP_STYLES.find(s => s.id === mapStyle)?.style || MAP_STYLES[0].style
 
@@ -205,6 +324,19 @@ export function GuacaMap({
           }
         }
       }
+      installDataLayers(map, dotsRef.current, heatRef.current)
+    })
+
+    map.on('click', `${DOTS_SOURCE}-layer`, (e) => {
+      const feature = e.features?.[0] as { properties?: { id?: string } } | undefined
+      const id = feature?.properties?.id
+      if (id) onDotClickRef.current?.(id)
+    })
+    map.on('mouseenter', `${DOTS_SOURCE}-layer`, () => {
+      map.getCanvas().style.cursor = 'pointer'
+    })
+    map.on('mouseleave', `${DOTS_SOURCE}-layer`, () => {
+      map.getCanvas().style.cursor = ''
     })
 
     mapRef.current = map
@@ -222,13 +354,14 @@ export function GuacaMap({
     if (!map || styleUrl === initialStyleRef.current) return
     map.setStyle(styleUrl)
     map.once('style.load', () => {
-      // Re-add all markers after style swap clears them
+      // Re-add all markers and data layers after style swap clears them
+      installDataLayers(map, dotsRef.current, heatRef.current)
       markersRef.current.forEach((m) => m.remove())
       markersRef.current.clear()
 
       pins.forEach((pin) => {
         const wrapper = document.createElement('div')
-        wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId)
+        wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge)
         const el = wrapper.firstElementChild as HTMLElement
         if (!el) return
         makeMarkerInteractive(el, pin.label, () => onPinClick?.(pin.id))
@@ -265,7 +398,7 @@ export function GuacaMap({
 
     pins.forEach((pin) => {
       const wrapper = document.createElement('div')
-      wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId)
+      wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge)
       const el = wrapper.firstElementChild as HTMLElement
       if (!el) return
 
@@ -296,6 +429,13 @@ export function GuacaMap({
       })
     }
   }, [pins, gapPins, selectedPinId, selectedGapId, onPinClick, onGapClick])
+
+  // Keep data layers in sync
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.isStyleLoaded()) return
+    installDataLayers(map, dots ?? [], heat ?? [])
+  }, [dots, heat])
 
   // Fly to selected pin
   useEffect(() => {
