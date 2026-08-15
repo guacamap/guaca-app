@@ -1,6 +1,6 @@
 'use client'
 
-import { GuacaLogo, LanguageProvider, useLanguage } from '@guaca/ui'
+import { useState } from 'react'
 
 /**
  * Privacy policy and terms. Google Play requires a reachable privacy policy
@@ -204,14 +204,16 @@ const COPY: Record<'en' | 'es', Record<LegalDoc, DocCopy>> = {
 }
 
 function LegalBody({ doc }: { doc: LegalDoc }) {
-  const { lang, setLang } = useLanguage()
+  // Local state, not the shared provider: these pages must stay tiny —
+  // importing the UI barrel would pull Mapbox into a static legal page.
+  const [lang, setLang] = useState<'en' | 'es'>('en')
   const t = COPY[lang][doc]
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-2xl bg-guaca-paper px-6 py-12">
       <div className="flex items-center justify-between gap-4">
-        <a href="/" aria-label="Guaca">
-          <GuacaLogo className="h-10" />
+        <a href="/" className="guaca-script text-3xl font-black text-guaca-teal" aria-label="Guaca">
+          Guaca
         </a>
         <div className="flex overflow-hidden rounded-full bg-guaca-sand/60 p-0.5">
           {(['en', 'es'] as const).map((code) => (
@@ -257,9 +259,5 @@ function LegalBody({ doc }: { doc: LegalDoc }) {
 }
 
 export default function LegalPage({ doc }: { doc: LegalDoc }) {
-  return (
-    <LanguageProvider>
-      <LegalBody doc={doc} />
-    </LanguageProvider>
-  )
+  return <LegalBody doc={doc} />
 }
