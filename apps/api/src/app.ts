@@ -699,12 +699,23 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const { spotterId } = await verifySpotterToken(token, sessionSecret());
     if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
     const res = await options.pool.query(
-      `select id, name, language from spotters where id = $1 and active`,
+      `select s.id, s.name, s.language, s.photo_url, s.level,
+              coalesce((select sum(m.reward_minor)::int from missions m
+                        where m.spotter_id = s.id and m.status in ('verified','paid')), 0)
+                as total_points
+       from spotters s where s.id = $1 and s.active`,
       [spotterId],
     );
     const row = res.rows[0];
     if (!row) return reply.code(401).send({ error: 'unauthorized' });
-    return { id: row.id, name: row.name, language: row.language };
+    return {
+      id: row.id,
+      name: row.name,
+      language: row.language,
+      photoUrl: row.photo_url ?? null,
+      level: row.level,
+      totalPoints: row.total_points,
+    };
   });
 
   // Provisional places by OTHER spotters near the caller — the L6 worklist.
@@ -721,6 +732,50 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
     const pending = await pendingProvisionalNear(options.pool, latN, lonN, 5000, spotterId);
     return { pending };
+  });
+
+  /*
+   * Monthly ranking — spotters compete on POINTS, not money. Points are
+   * the mission reward values of verified/paid missions, attributed to
+   * the month they were completed in. Rank is computed over the whole
+   * roster so "me" is correct even outside the top list.
+   */
+  app.get('/api/spotter/ranking', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_spotter');
+    if (!token) return reply.code(401).send({ error: 'unauthorized' });
+    const { spotterId } = await verifySpotterToken(token, sessionSecret());
+    if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
+    const res = await options.pool.query(
+      `with month_points as (
+         select m.spotter_id, sum(m.reward_minor)::int as points, count(*)::int as missions
+         from missions m
+         where m.status in ('verified', 'paid')
+           and coalesce(m.paid_at, m.submitted_at, m.offered_at) >= date_trunc('month', now())
+         group by m.spotter_id
+       ),
+       ranked as (
+         select s.id, s.name, s.photo_url, s.level,
+                coalesce(mp.points, 0) as points,
+                coalesce(mp.missions, 0) as missions,
+                rank() over (order by coalesce(mp.points, 0) desc) as rank
+         from spotters s
+         left join month_points mp on mp.spotter_id = s.id
+         where s.active
+       )
+       select * from ranked where rank <= 10 or id = $1
+       order by rank asc, name asc`,
+      [spotterId],
+    );
+    const rows = res.rows as Array<{
+      id: string; name: string; photo_url: string | null; level: number;
+      points: number; missions: number; rank: string | number;
+    }>;
+    const me = rows.find((r) => r.id === spotterId) ?? null;
+    return {
+      month: new Date().toISOString().slice(0, 7),
+      ranking: rows.filter((r) => Number(r.rank) <= 10).map((r) => ({ ...r, rank: Number(r.rank) })),
+      me: me ? { rank: Number(me.rank), points: me.points, missions: me.missions } : null,
+    };
   });
 
   /*

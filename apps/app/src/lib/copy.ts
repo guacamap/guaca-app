@@ -40,6 +40,14 @@ export interface AppCopy {
     tabConfirm: string
     tabEarnings: string
     mapLede: string
+    rankingTitle: string
+    monthPoints: string
+    rankLabel: string
+    historyTitle: string
+    pointsSuffix: string
+    storeTitle: string
+    storeNote: string
+    storeRedeem: string
     mapEmpty: string
     legendMissions: string
     legendConfirm: string
@@ -196,7 +204,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       tabMissions: 'Missions',
       tabMap: 'Map',
       tabConfirm: 'Confirm',
-      tabEarnings: 'Earnings',
+      tabEarnings: 'Profile',
       mapLede: 'Your earning opportunities, where you are.',
       mapEmpty: 'No opportunities near you right now — they appear when travellers ask about unverified places.',
       legendMissions: 'Missions',
@@ -210,7 +218,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       statusSubmitted: 'In verification',
       statusVerified: 'Verified',
       statusPaid: 'Paid',
-      reward: 'Reward',
+      reward: 'Points',
       captureTitle: 'Verify the place',
       nameLabel: 'Name, exactly as the sign shows',
       landmarkLabel: 'How to find it',
@@ -231,8 +239,16 @@ export const appCopy: Record<Lang, AppCopy> = {
       confirmEmpty: 'Nothing waiting for a second local near you.',
       confirmCta: 'I see it — confirm',
       confirmed: 'Confirmed — it is live on the map.',
-      earningsTitle: 'Your earnings',
-      earningsEmpty: 'Completed missions and top-ups appear here.',
+      earningsTitle: 'Your profile',
+      rankingTitle: "This month's ranking",
+      monthPoints: 'Points this month',
+      rankLabel: 'Rank',
+      historyTitle: 'Points history',
+      pointsSuffix: 'pts',
+      storeTitle: 'Points store',
+      storeNote: 'Redemptions launch after the pilot — keep earning.',
+      storeRedeem: 'Redeem',
+      earningsEmpty: 'Completed missions and their points appear here.',
       backCta: 'Back',
       error: 'Connection failed — try again.',
       confirmPending: 'This place is still in checks — it unlocks for confirmation once they pass.',
@@ -292,7 +308,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       profileLanguage: 'Language',
       profileUpdates: 'Local updates',
       profileBecomeSpotter: 'Change to Spotter mode',
-      profileBecomeSpotterNote: 'Verify places in your community — get paid in airtime.',
+      profileBecomeSpotterNote: 'Verify places in your community — earn points and rewards.',
       profileSignOut: 'Sign out',
       profileDelete: 'Delete my account',
       profileDeleteNote: 'Removes your email — your anonymous questions stay as map demand.',
@@ -378,7 +394,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       legendMissions: 'Misiones',
       legendConfirm: 'Por confirmar',
       tabConfirm: 'Confirmar',
-      tabEarnings: 'Ganancias',
+      tabEarnings: 'Perfil',
       missionsTitle: 'Tus misiones',
       missionsEmpty: 'Sin misiones todavía — llegan cuando los viajeros preguntan por lugares que nadie ha verificado.',
       acceptCta: 'Aceptar misión',
@@ -388,7 +404,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       statusSubmitted: 'En verificación',
       statusVerified: 'Verificada',
       statusPaid: 'Pagada',
-      reward: 'Recompensa',
+      reward: 'Puntos',
       captureTitle: 'Verifica el lugar',
       nameLabel: 'Nombre, tal como aparece en el letrero',
       landmarkLabel: 'Cómo encontrarlo',
@@ -409,8 +425,16 @@ export const appCopy: Record<Lang, AppCopy> = {
       confirmEmpty: 'Nada esperando un segundo local cerca de ti.',
       confirmCta: 'Lo veo — confirmar',
       confirmed: 'Confirmado — ya está en vivo en el mapa.',
-      earningsTitle: 'Tus ganancias',
-      earningsEmpty: 'Las misiones completadas y las recargas aparecen aquí.',
+      earningsTitle: 'Tu perfil',
+      rankingTitle: 'Ranking del mes',
+      monthPoints: 'Puntos este mes',
+      rankLabel: 'Puesto',
+      historyTitle: 'Historial de puntos',
+      pointsSuffix: 'pts',
+      storeTitle: 'Tienda de puntos',
+      storeNote: 'Los canjes llegan después del piloto — sigue sumando.',
+      storeRedeem: 'Canjear',
+      earningsEmpty: 'Las misiones completadas y sus puntos aparecen aquí.',
       backCta: 'Volver',
       error: 'Falló la conexión — intenta de nuevo.',
       confirmPending: 'Este lugar sigue en chequeos — se desbloquea para confirmar cuando pasen.',
@@ -470,7 +494,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       profileLanguage: 'Idioma',
       profileUpdates: 'Novedades locales',
       profileBecomeSpotter: 'Cambiar a modo Spotter',
-      profileBecomeSpotterNote: 'Verifica lugares de tu comunidad — gana saldo de teléfono.',
+      profileBecomeSpotterNote: 'Verifica lugares de tu comunidad — gana puntos y recompensas.',
       profileSignOut: 'Cerrar sesión',
       profileDelete: 'Eliminar mi cuenta',
       profileDeleteNote: 'Elimina tu correo — tus preguntas anónimas quedan como demanda del mapa.',
