@@ -4,13 +4,19 @@
  * is a config change, never a code change elsewhere.
  */
 export interface EmailSender {
+  /** 'dev' = codes are logged, not delivered — enables the local bypass. */
+  mode?: 'dev' | 'live';
   sendLoginCode(email: string, code: string, language: string): Promise<void>;
 }
 
 export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSender {
   const apiKey = env.RESEND_API_KEY;
   if (!apiKey) {
+    if (env.NODE_ENV === 'production') {
+      console.warn('[email] RESEND_API_KEY is not set — real tourists cannot receive login codes');
+    }
     return {
+      mode: 'dev',
       async sendLoginCode(email, code) {
         // Visible in `guaca tail` and the API log — dev/staging only.
         console.log(`[email] login code for ${email}: ${code}`);
@@ -19,6 +25,7 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
   }
   const from = env.EMAIL_FROM ?? 'Guaca <login@guaca.live>';
   return {
+    mode: 'live',
     async sendLoginCode(email, code, language) {
       const es = language === 'es';
       const res = await fetch('https://api.resend.com/emails', {

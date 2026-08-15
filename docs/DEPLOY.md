@@ -24,7 +24,7 @@ Operator laptop ─────▶ packages/cli           ─┘        │
 | api | `tsx watch` :3001 | `staging.api.guaca.live` — same VM, compose project `guaca-staging` | `api.guaca.live` — compose project `guaca-prod` |
 | data | docker compose | own DB/Redis/MinIO bucket on VM | own DB/Redis/MinIO bucket on VM |
 | inference | FakeInference (tests) or shared endpoint | shared L40S or MiniMax — never a 2nd GPU | L40S, MiniMax failover |
-| email codes | printed to ops stream | printed to ops stream | Resend/SMTP |
+| email codes | always `000000` (dev bypass; also logged) | printed to ops stream | Resend — REQUIRED (bypass is structurally off in production) |
 | Mapbox token | `guaca-dev` (unrestricted, .env.local only) | `guaca-web-prod` (staging URL in list) | `guaca-web-prod` (URL-restricted) |
 
 **Promote:** PR → CI green → merge `main` (auto-staging) → rehearse →

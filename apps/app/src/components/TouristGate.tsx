@@ -111,6 +111,9 @@ export function TouristGate({ children }: { children: ReactNode }) {
             <p className="text-xs font-bold text-guaca-ink/55">
               {t.codeLede} <span className="text-guaca-ink">{email}</span>
             </p>
+            {process.env.NODE_ENV !== 'production' && (
+              <p className="text-xs font-bold text-guaca-mango-dark">{t.devCodeHint}</p>
+            )}
             <label className="block text-xs font-black text-guaca-ink/70" htmlFor="gate-code">
               {t.codeLabel}
             </label>
