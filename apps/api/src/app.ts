@@ -180,8 +180,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.code(201).send(stored);
   });
 
-  const sessionSecret = () =>
-    new TextEncoder().encode(process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!');
+  // `||` not `??`: an empty string must not silently sign sessions, and in
+  // production a missing secret is a hard failure, not a fallback.
+  const sessionSecret = () => {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error('SESSION_SECRET is required in production');
+    }
+    return new TextEncoder().encode(secret || 'changeme-32-bytes-min!');
+  };
   const emailSender = options.emailSender ?? createEmailSender();
   const objectStore = options.objectStore ?? createObjectStore();
   const resolveInference = async () =>
