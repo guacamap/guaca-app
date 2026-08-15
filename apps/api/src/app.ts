@@ -360,6 +360,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.clearCookie('guaca_tourist', { path: '/' }).send({ ok: true });
   });
 
+  app.post('/api/spotter/logout', async (_req, reply) => {
+    return reply.clearCookie('guaca_spotter', { path: '/' }).send({ ok: true });
+  });
+
   const doubtLimiter = rateLimiter(5, 24 * 60 * 60 * 1000); // 5 doubts/day/tourist
 
   /*

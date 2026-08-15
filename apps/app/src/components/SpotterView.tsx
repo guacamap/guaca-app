@@ -711,6 +711,22 @@ export function SpotterView() {
               <ArrowRight className="h-4 w-4 shrink-0 text-white/80" />
             </button>
 
+            <button
+              type="button"
+              onClick={() => {
+                fetch('/api/spotter/logout', { method: 'POST', credentials: 'include' })
+                  .catch(() => {})
+                  .finally(() => { window.location.href = '/' })
+              }}
+              className="w-full rounded-2xl bg-white px-5 py-4 text-center text-[12px] font-black text-guaca-ink shadow-sm ring-1 ring-guaca-sand/75 hover:bg-guaca-sand/20"
+            >
+              {t.signOut}
+            </button>
+
+            <p className="px-4 text-center text-[10px] font-semibold leading-relaxed text-guaca-ink/40">
+              {t.deleteNote}
+            </p>
+
             {OPERATOR_WHATSAPP && (
               <a
                 href={`https://wa.me/${OPERATOR_WHATSAPP}`}

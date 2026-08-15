@@ -39,6 +39,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.guaca.live'
 const THREAD_KEY = 'guaca:thread'
 const PLAN_KEY = 'guaca:plan'
 const STATS_KEY = 'guaca:stats'
+const GEO_KEY = 'guaca:geo'
 
 /** Device-local impact counters. Questions are anonymous on the server by
  *  design (COMPLIANCE.md), so the personal tally lives here, not there. */
@@ -233,6 +234,9 @@ export function TouristView() {
   const [reported, setReported] = useState<Set<string>>(new Set())
   const [villaCode, setVillaCode] = useState('')
   const [villaErr, setVillaErr] = useState(false)
+  const [offline, setOffline] = useState(false)
+  // Play's User Data policy wants a disclosure BEFORE the runtime prompt.
+  const [geoAsked, setGeoAsked] = useState(true)
   const threadEndRef = useRef<HTMLDivElement | null>(null)
   const favIds = useMemo(() => new Set(favorites.map((f) => f.placeId)), [favorites])
 
@@ -258,13 +262,35 @@ export function TouristView() {
   }, [thread, guacaBusy])
 
   // Centre on the guest if they allow it; the pilot area otherwise (§T1.4).
-  useEffect(() => {
+  // The disclosure runs first: Play requires explaining why we want location
+  // before the system prompt appears.
+  const useMyLocation = () => {
+    setGeoAsked(true)
+    try { localStorage.setItem(GEO_KEY, 'asked') } catch { /* ignore */ }
     if (!('geolocation' in navigator)) return
     navigator.geolocation.getCurrentPosition(
       (pos) => setCenter([pos.coords.longitude, pos.coords.latitude]),
       () => {},
-      { timeout: 3000, maximumAge: 300_000 },
+      { timeout: 5000, maximumAge: 300_000 },
     )
+  }
+
+  const skipLocation = () => {
+    setGeoAsked(true)
+    try { localStorage.setItem(GEO_KEY, 'skipped') } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    let seen: string | null = null
+    try { seen = localStorage.getItem(GEO_KEY) } catch { /* ignore */ }
+    if (!seen) return setGeoAsked(false)
+    if (seen === 'asked' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setCenter([pos.coords.longitude, pos.coords.latitude]),
+        () => {},
+        { timeout: 5000, maximumAge: 300_000 },
+      )
+    }
   }, [])
 
   // Real pins: verified rows only, straight from Postgres.
@@ -278,8 +304,13 @@ export function TouristView() {
     ].join(',')
     fetch(`/api/places?bbox=${bbox}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { places: [] }))
-      .then((data: { places: ApiPlace[] }) => setPlaces(data.places ?? []))
-      .catch(() => {})
+      .then((data: { places: ApiPlace[] }) => {
+        setPlaces(data.places ?? [])
+        setOffline(false)
+      })
+      // A silent catch here left testers staring at an empty map with no
+      // explanation when the API was down.
+      .catch(() => setOffline(true))
     // The open-data backdrop: OSM candidates as dots, never pins.
     fetch(`/api/places/candidates?bbox=${bbox}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : { candidates: [] }))
@@ -707,6 +738,29 @@ export function TouristView() {
           fallbackImage="/assets/landing-caribbean-phone.jpg"
         />
       </div>
+      {offline && (
+        <p role="alert" className="absolute inset-x-4 top-[104px] z-[700] rounded-2xl bg-guaca-coral px-4 py-2.5 text-center text-[11px] font-black text-white shadow-lg">
+          {t.offline}
+        </p>
+      )}
+
+      {!geoAsked && (
+        <div className="absolute inset-0 z-[900] flex items-end bg-guaca-ocean-deep/45 p-4">
+          <div className="guaca-card w-full rounded-[30px] p-5">
+            <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[.1em] text-guaca-teal">
+              <MapPin className="h-4 w-4" /> {t.geoTitle}
+            </p>
+            <p className="mt-2 text-[12px] font-semibold leading-relaxed text-guaca-ink/70">{t.geoBody}</p>
+            <Button type="button" onClick={useMyLocation} className="mt-4 h-11 w-full rounded-xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark">
+              {t.geoAllow}
+            </Button>
+            <button type="button" onClick={skipLocation} className="mt-2 w-full py-2 text-[11px] font-bold text-guaca-ink/45 underline-offset-2 hover:underline">
+              {t.geoSkip}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/55 via-guaca-ocean/12 to-transparent px-4 pb-12 pt-8">
         <form
           onSubmit={(e) => { e.preventDefault(); void ask() }}
