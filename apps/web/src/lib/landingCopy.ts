@@ -84,6 +84,20 @@ export interface LandingCopy {
   }
   businesses: { title: string; lede: string; comingSoon: string }
   footer: string
+  deleteAccount: {
+    title: string
+    lede: string
+    emailLabel: string
+    sendCode: string
+    codeLabel: string
+    verify: string
+    confirmTitle: string
+    confirmBody: string
+    confirmCta: string
+    done: string
+    error: string
+    badCode: string
+  }
 }
 
 export const landingCopy: Record<Lang, LandingCopy> = {
@@ -187,6 +201,20 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       comingSoon: 'App preview coming soon',
     },
     footer: 'The Caribbean, mapped by the people who know it.',
+    deleteAccount: {
+      title: 'Delete your account',
+      lede: 'Sign in with your email code, then confirm. Your email — the only personal data we hold — is deleted immediately and permanently.',
+      emailLabel: 'Your account email',
+      sendCode: 'Send me a code',
+      codeLabel: '6-digit code',
+      verify: 'Continue',
+      confirmTitle: 'Delete this account?',
+      confirmBody: 'This removes your email and login permanently. Questions you asked stay on the map as anonymous demand — they were never linked to your name.',
+      confirmCta: 'Delete my account',
+      done: 'Your account has been deleted. Thank you for travelling with locals.',
+      error: 'Connection failed — try again.',
+      badCode: 'Wrong or expired code — try again.',
+    },
   },
   es: {
     ariaHome: 'Inicio de Guaca',
@@ -288,5 +316,19 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       comingSoon: 'Vista previa muy pronto',
     },
     footer: 'El Caribe, mapeado por la gente que lo conoce.',
+    deleteAccount: {
+      title: 'Eliminar tu cuenta',
+      lede: 'Inicia sesión con tu código de correo y confirma. Tu correo — el único dato personal que guardamos — se elimina de inmediato y para siempre.',
+      emailLabel: 'El correo de tu cuenta',
+      sendCode: 'Enviarme un código',
+      codeLabel: 'Código de 6 dígitos',
+      verify: 'Continuar',
+      confirmTitle: '¿Eliminar esta cuenta?',
+      confirmBody: 'Esto elimina tu correo y tu acceso permanentemente. Las preguntas que hiciste quedan en el mapa como demanda anónima — nunca estuvieron ligadas a tu nombre.',
+      confirmCta: 'Eliminar mi cuenta',
+      done: 'Tu cuenta fue eliminada. Gracias por viajar con locales.',
+      error: 'Falló la conexión — intenta de nuevo.',
+      badCode: 'Código incorrecto o vencido — intenta de nuevo.',
+    },
   },
 }
