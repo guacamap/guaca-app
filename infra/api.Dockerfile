@@ -26,6 +26,7 @@ ENV NODE_ENV=production
 COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/packages/shared/package.json packages/shared/
 COPY --from=build /app/packages/shared/dist packages/shared/dist
+COPY --from=build /app/packages/shared/node_modules packages/shared/node_modules
 COPY --from=build /app/packages/agents/package.json packages/agents/
 COPY --from=build /app/packages/agents/dist packages/agents/dist
 COPY --from=build /app/packages/agents/node_modules packages/agents/node_modules
