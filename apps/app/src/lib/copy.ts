@@ -111,6 +111,16 @@ export interface AppCopy {
     alreadyDecided: string
     reasons: Record<string, string>
   }
+  business: {
+    badge: string
+    title: string
+    lede: string
+    points: string[]
+    registerCta: string
+    registerNote: string
+    backCta: string
+    devPreview: string
+  }
   tourist: {
     askPlaceholder: string
     asking: string
@@ -337,6 +347,20 @@ export const appCopy: Record<Lang, AppCopy> = {
         LADDER_PASSED: 'All checks passed',
         ALREADY_DECIDED: 'Already processed',
       },
+    },
+    business: {
+      badge: 'Coming soon',
+      title: 'Guaca for businesses',
+      lede: 'Posadas, restaurants and tour operators will be able to publish what changed today — and have a local Spotter verify it in person.',
+      points: [
+        'Publish opening hours, prices and closures that travellers see the same day',
+        'A named local verifies it on the ground, so your update carries the same badge as the map',
+        'A printed QR in your lobby connects your guests to the map — and to you',
+      ],
+      registerCta: 'Register your business',
+      registerNote: 'We onboard businesses one by one during the Puerto Cabello pilot.',
+      backCta: 'Back to the map',
+      devPreview: 'Dev build — preview the publisher',
     },
     tourist: {
       askPlaceholder: 'Ask Guaca about a place…',
@@ -573,6 +597,20 @@ export const appCopy: Record<Lang, AppCopy> = {
         LADDER_PASSED: 'Todos los chequeos pasaron',
         ALREADY_DECIDED: 'Ya fue procesado',
       },
+    },
+    business: {
+      badge: 'Muy pronto',
+      title: 'Guaca para negocios',
+      lede: 'Posadas, restaurantes y operadores turísticos podrán publicar lo que cambió hoy — y que un Spotter local lo verifique en persona.',
+      points: [
+        'Publica horarios, precios y cierres que los viajeros ven el mismo día',
+        'Un local con nombre lo verifica en el terreno, así tu novedad lleva el mismo sello que el mapa',
+        'Un QR impreso en tu recepción conecta a tus huéspedes con el mapa — y contigo',
+      ],
+      registerCta: 'Registra tu negocio',
+      registerNote: 'Incorporamos negocios uno por uno durante el piloto de Puerto Cabello.',
+      backCta: 'Volver al mapa',
+      devPreview: 'Versión de desarrollo — ver el publicador',
     },
     tourist: {
       askPlaceholder: 'Pregúntale a Guaca sobre un lugar…',
