@@ -3,7 +3,11 @@ import { ArrowRight, BadgeCheck, QrCode, Store } from 'lucide-react'
 import { Button, GuacaLogo, useLanguage } from '@guaca/ui'
 import { appCopy } from '../lib/copy'
 
-const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL ?? 'https://guaca.live'
+/** Interest is captured on the waitlist form while the business product is
+ *  still coming soon — the landing's #businesses section is informational. */
+const WAITLIST_FORM_URL =
+  process.env.NEXT_PUBLIC_WAITLIST_URL ??
+  'https://docs.google.com/forms/d/e/1FAIpQLSf-y0xwBbCw77P6zTjgxqG6HaGVZCDmRQU-cTvpTB6kNf0_rg/viewform'
 
 /**
  * The business surface is not built: publishing writes to localStorage with
@@ -43,7 +47,7 @@ export function BusinessComingSoon({ onPreview }: { onPreview?: () => void }) {
       </ul>
 
       <a
-        href={`${LANDING_URL}/#businesses`}
+        href={WAITLIST_FORM_URL}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-7 flex h-12 items-center justify-center gap-2 rounded-2xl bg-guaca-mango text-[13px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light"
