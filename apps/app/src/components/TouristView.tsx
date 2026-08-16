@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage } from '@guaca/ui'
 import { appCopy } from '../lib/copy'
+import { InstallApp } from './InstallApp'
 
 /** Puerto Cabello — the pilot area; also the geolocation fallback. */
 const PILOT_CENTER: [number, number] = [-68.0056, 10.4716]
@@ -1358,6 +1359,10 @@ export function TouristView() {
         {me?.propertyName && (
           <p className="mt-1 text-[11px] font-bold text-guaca-teal">{t.profileGuestOf} {me.propertyName}</p>
         )}
+      </div>
+
+      <div className="mt-4">
+        <InstallApp />
       </div>
 
       {/* Impact — the loop, made personal. */}
