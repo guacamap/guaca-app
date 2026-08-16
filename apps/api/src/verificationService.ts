@@ -97,11 +97,22 @@ export async function runSubmissionVerification(
        from missions where result_place_id = $1 order by offered_at desc limit 1`,
       [input.placeId],
     );
-    const mission = missionRes.rows[0];
-    if (!mission) {
-      await client.query('rollback');
-      return { ok: false, code: 409, error: 'no mission linked to this place' };
-    }
+    /*
+     * A spotter can submit a place they found themselves, with no mission
+     * behind it. The check ladder — freshness, geo, reuse, diversity,
+     * vision, second local — is what makes a place true; the mission only
+     * decides who was ASKED to go. So a missionless submission runs the
+     * same ladder, with the freshness window anchored on the submission
+     * itself instead of the mission's offer window.
+     */
+    const mission = missionRes.rows[0] ?? null;
+    const selfDirected = mission === null;
+    const windowStart = selfDirected
+      ? new Date(Date.now() - 24 * 60 * 60 * 1000)
+      : mission.offered_at;
+    const windowEnd = selfDirected
+      ? new Date(Date.now() + 60 * 60 * 1000)
+      : mission.expires_at;
 
     const photoRows = await photosForPlace(pool, input.placeId);
     const photos = [];
@@ -119,7 +130,7 @@ export async function runSubmissionVerification(
         JSON.stringify({
           placeId: input.placeId,
           spotterId: input.spotterId,
-          missionId: mission.id,
+          missionId: mission?.id ?? null,
           photoCount: photos.length,
           photoRowCount: photoRows.length,
         }),
@@ -146,16 +157,18 @@ export async function runSubmissionVerification(
         placeId: input.placeId,
         spotterId: input.spotterId,
         mission: {
-          missionId: mission.id,
-          status: mission.status,
-          assigneeSpotterId: mission.spotter_id,
+          // Self-directed: the submitting spotter is their own assignee, so
+          // the ownership rung passes while every evidence rung still runs.
+          missionId: mission?.id ?? input.placeId,
+          status: mission?.status ?? 'accepted',
+          assigneeSpotterId: mission?.spotter_id ?? input.spotterId,
           alreadySubmitted: false,
         },
         photos,
         priorPhashes,
         capturedAt: latestCapture?.capturedAt ?? latestCapture?.receivedAt ?? new Date(),
-        missionStart: mission.offered_at,
-        missionEnd: mission.expires_at,
+        missionStart: windowStart,
+        missionEnd: windowEnd,
         pinLat: place.lat,
         pinLon: place.lon,
         captureLat: latestCapture?.captureLat ?? null,
@@ -214,11 +227,13 @@ export async function runSubmissionVerification(
          where id = $1 and verification_status = 'provisional'`,
         [input.placeId, outcome.reasons[0] ?? 'REJECTED'],
       );
-      await client.query(
-        `update missions set status = 'accepted', result_place_id = null
-         where id = $1 and status = 'submitted'`,
-        [mission.id],
-      );
+      if (mission) {
+        await client.query(
+          `update missions set status = 'accepted', result_place_id = null
+           where id = $1 and status = 'submitted'`,
+          [mission.id],
+        );
+      }
     }
 
     await client.query('commit');

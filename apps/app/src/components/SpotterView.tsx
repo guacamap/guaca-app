@@ -140,7 +140,8 @@ export function SpotterView() {
   const [missions, setMissions] = useState<Mission[]>([])
   const [pending, setPending] = useState<PendingConfirmation[]>([])
   const [earnings, setEarnings] = useState<Earning[]>([])
-  const [capture, setCapture] = useState<Mission | null>(null)
+  // 'free' = a place the spotter found themselves, with no mission behind it.
+  const [capture, setCapture] = useState<Mission | 'free' | null>(null)
   const [banner, setBanner] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
   const [geoNote, setGeoNote] = useState(false)
@@ -395,7 +396,7 @@ export function SpotterView() {
   if (capture) {
     return (
       <CaptureFlow
-        mission={capture}
+        mission={capture === 'free' ? null : capture}
         onDone={() => {
           setCapture(null)
           loadMissions()
@@ -430,7 +431,11 @@ export function SpotterView() {
                 category: o.category,
               }))}
               onPinClick={() => setTab('confirm')}
-              onGapClick={() => setTab('missions')}
+              onGapClick={(id) => {
+                const m = missions.find((x) => x.id === id)
+                if (m) setCapture(m)
+                else setTab('missions')
+              }}
               showUserLocation
               mapStyle="streets"
               center={mapCenter}
@@ -448,8 +453,18 @@ export function SpotterView() {
               </span>
             </div>
           </div>
+          <div className="absolute inset-x-4 bottom-4 z-[600]">
+            <Button
+              type="button"
+              onClick={() => setCapture('free')}
+              className="h-12 w-full rounded-2xl bg-guaca-coral text-[13px] font-black text-white shadow-xl shadow-guaca-coral/30 hover:bg-guaca-coral-dark"
+            >
+              <Camera className="mr-2 h-4 w-4" /> {t.freeCta}
+            </Button>
+          </div>
+
           {opportunities.length === 0 && pending.length === 0 && (
-            <div className="absolute bottom-4 left-4 right-4 z-[450]">
+            <div className="absolute bottom-[76px] left-4 right-4 z-[450]">
               <p className="guaca-card rounded-[24px] p-4 text-center text-[11px] font-semibold text-guaca-ink/55">{t.mapEmpty}</p>
             </div>
           )}
@@ -821,13 +836,15 @@ export function SpotterView() {
   )
 }
 
-function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void }) {
+function CaptureFlow({ mission, onDone }: { mission: Mission | null; onDone: () => void }) {
   const { lang } = useLanguage()
   const t = appCopy[lang].spotter
   const [name, setName] = useState('')
   const [landmark, setLandmark] = useState('')
   const [coords, setCoords] = useState<{ lat: number; lon: number; accuracy: number } | null>(null)
   const [photos, setPhotos] = useState<(File | null)[]>([null, null, null])
+  // A free submission has no brief, so the spotter states the category.
+  const [category, setCategory] = useState<string>(mission?.targetCategory ?? 'eat_drink')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Verdict | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -875,11 +892,11 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
             credentials: 'include',
             body: JSON.stringify({
               name,
-              category: mission.targetCategory,
+              category: mission ? mission.targetCategory : category,
               landmarkDescription: landmark,
               lat: coords.lat,
               lon: coords.lon,
-              missionId: mission.id,
+              ...(mission ? { missionId: mission.id } : {}),
             }),
           }),
         )
@@ -956,13 +973,31 @@ function CaptureFlow({ mission, onDone }: { mission: Mission; onDone: () => void
   return (
     <div className="h-full min-h-screen overflow-y-auto bg-guaca-sand-light px-5 pb-16 pt-12 sm:min-h-full">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-teal to-guaca-ocean p-6 text-white shadow-xl">
-        <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">{categoryLabel(mission.targetCategory, lang)}</p>
+        <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">{mission ? categoryLabel(mission.targetCategory, lang) : t.freeTitle}</p>
         <h1 className="mt-2 text-2xl font-black tracking-[-.03em]">{t.captureTitle}</h1>
-        <p className="mt-2 text-sm font-semibold text-white/85">{mission.brief}</p>
+        <p className="mt-2 text-sm font-semibold text-white/85">{mission ? mission.brief : t.freeLede}</p>
       </div>
 
       <form onSubmit={submit} className="mt-5 space-y-4">
         <div>
+          {!mission && (
+            <div className="mb-3">
+              <p className="mb-2 text-xs font-black text-guaca-ink/70">{t.categoryLabel}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {TAXONOMY.map((entry) => (
+                  <button
+                    key={entry.category}
+                    type="button"
+                    onClick={() => setCategory(entry.category)}
+                    aria-pressed={category === entry.category}
+                    className={`rounded-full px-3 py-1.5 text-[11px] font-black ${category === entry.category ? 'bg-guaca-coral text-white' : 'bg-guaca-ink/6 text-guaca-ink/60'}`}
+                  >
+                    {lang === 'es' ? entry.labelEs : entry.labelEn}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <label className="text-xs font-black text-guaca-ink/70" htmlFor="cap-name">{t.nameLabel}</label>
           <Input id="cap-name" required value={name} disabled={placeId !== null} onChange={(e) => setName(e.target.value)} className="mt-1 bg-white" />
         </div>

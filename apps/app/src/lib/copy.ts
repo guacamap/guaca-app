@@ -82,6 +82,10 @@ export interface AppCopy {
     statusPaid: string
     reward: string
     captureTitle: string
+    freeCta: string
+    freeTitle: string
+    freeLede: string
+    categoryLabel: string
     nameLabel: string
     landmarkLabel: string
     landmarkHint: string
@@ -280,6 +284,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       statusPaid: 'Paid',
       reward: 'Points',
       captureTitle: 'Verify the place',
+      freeCta: 'Verify a place here',
+      freeTitle: 'A place you found',
+      freeLede: 'Not from a mission — you are here and it is worth being on the map. Same checks, same second local.',
+      categoryLabel: 'What kind of place is it?',
       nameLabel: 'Name, exactly as the sign shows',
       landmarkLabel: 'How to find it',
       landmarkHint: '"50m past the church, blue door" — landmarks, not addresses.',
@@ -530,6 +538,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       statusPaid: 'Pagada',
       reward: 'Puntos',
       captureTitle: 'Verifica el lugar',
+      freeCta: 'Verificar un lugar aquí',
+      freeTitle: 'Un lugar que encontraste',
+      freeLede: 'No viene de una misión — estás aquí y merece estar en el mapa. Las mismas comprobaciones, el mismo segundo local.',
+      categoryLabel: '¿Qué tipo de lugar es?',
       nameLabel: 'Nombre, tal como aparece en el letrero',
       landmarkLabel: 'Cómo encontrarlo',
       landmarkHint: '"50m después de la iglesia, puerta azul" — referencias, no direcciones.',
