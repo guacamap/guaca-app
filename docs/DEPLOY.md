@@ -165,6 +165,7 @@ dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js au
 dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js spotter add "María Fernanda" "+58 412 ..."
 dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js commission --approve <gapId>
 dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js posts reported
+dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js registrations list
 ```
 
 A fresh production database has the pilot area and zones but **no spotters
