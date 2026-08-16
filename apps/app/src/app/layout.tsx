@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '../index.css';
+import { ServiceWorker } from '../components/ServiceWorker';
 
 export const metadata: Metadata = {
   title: 'Guaca',
@@ -25,7 +26,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }
