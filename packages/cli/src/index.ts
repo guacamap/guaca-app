@@ -11,7 +11,7 @@ program
   .option('--json', 'output a single JSON line')
   .hook('preAction', (thisCommand, actionCommand) => {
     // Mutation commands authenticate up front; read-only commands warn.
-    const mutating = ['verify', 'commission', 'override', 'pay', 'spotter', 'property', 'posts'];
+    const mutating = ['verify', 'commission', 'override', 'pay', 'spotter', 'property', 'posts', 'registrations'];
     const name = actionCommand.name();
     if (mutating.includes(name)) {
       requireOperatorToken(process.env.OPERATOR_TOKEN);
@@ -367,6 +367,50 @@ posts
       const res = await pool.query(
         `update place_posts set status = 'visible' where id = $1 returning id, status`,
         [postId],
+      );
+      return res.rows[0] ?? null;
+    });
+    process.stdout.write(render(row ?? { error: 'not found' }, { json }) + '\n');
+  });
+
+/**
+ * The registrations inbox — the human half of onboarding. Spotters and
+ * businesses are never self-serve (README rule): someone reads this list,
+ * talks to the person, and only then runs `spotter add` or `property add`.
+ */
+const registrations = program
+  .command('registrations')
+  .description('people who asked to join — the onboarding inbox');
+
+registrations
+  .command('list')
+  .description('pending registrations, newest first')
+  .option('--all', 'include ones already handled')
+  .action(async (opts: { all?: boolean }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const rows = await withPool(async (pool) => {
+      const res = await pool.query(
+        `select id, role, name, contact, language, details, created_at, handled_at, operator_note
+         from registrations
+         ${opts.all ? '' : 'where handled_at is null'}
+         order by created_at desc`,
+      );
+      return res.rows;
+    });
+    process.stdout.write(render(rows, { json }) + '\n');
+  });
+
+registrations
+  .command('handled <registrationId>')
+  .description('mark as dealt with, so nobody calls them twice')
+  .option('-n, --note <note>', 'what happened')
+  .action(async (registrationId: string, opts: { note?: string }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const row = await withPool(async (pool) => {
+      const res = await pool.query(
+        `update registrations set handled_at = now(), operator_note = $2
+         where id = $1 returning id, role, name, handled_at, operator_note`,
+        [registrationId, opts.note ?? null],
       );
       return res.rows[0] ?? null;
     });
