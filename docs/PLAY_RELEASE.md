@@ -4,6 +4,35 @@ Package: **live.guaca.app** (permanent — it can never be reused once
 uploaded). Artifact: the Expo wrapper in `apps/mobile`, which loads the
 product web app at `app.guaca.live`.
 
+## Two different finish lines — do not confuse them
+
+| | What it needs | Who can install | When |
+|---|---|---|---|
+| **Closed test** (what the buildathon needs) | An uploaded build + an opt-in link | Anyone you send the link to, **immediately** | Day 0 |
+| **Production** (public Play listing) | 12 testers × 14 consecutive days, then Google review | Everyone | ~3 weeks later |
+
+The 12-testers/14-days rule gates **production only**. A closed test is a real
+Play install from the real store the day the build lands — judges click the
+opt-in link and install. Nothing about the buildathon requires a public
+listing.
+
+Working back from **31 August**:
+
+- **Today** — create the Play developer account. Identity verification takes
+  2–5 business days and blocks every upload, so this is the true critical
+  path, ahead of any code.
+- **Today/tomorrow** — deploy the API + web apps (the app is a shell without
+  them).
+- **~Day 3** — first EAS build uploaded to the closed track; the opt-in link
+  starts working. **This is the deliverable for judging.**
+- **In parallel** — 12 testers opt in and the 14-day clock runs on its own.
+- **~2 weeks after that** — apply for production access; public listing lands
+  in early September.
+
+Recruit the 12 from people who actually exist around this project — teammates,
+pilot spotters, villa owners. Paid tester farms exist, but Google has been
+removing apps that used them, and you have real testers by design.
+
 ## The dependency chain
 
 The wrapper is a shell. It shows a real app only if this is live:
