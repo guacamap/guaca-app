@@ -115,6 +115,13 @@ export interface AppCopy {
     alreadyDecided: string
     reasons: Record<string, string>
   }
+  install: {
+    cta: string
+    note: string
+    iosTitle: string
+    iosBody: string
+    installed: string
+  }
   business: {
     badge: string
     title: string
@@ -355,6 +362,13 @@ export const appCopy: Record<Lang, AppCopy> = {
         LADDER_PASSED: 'All checks passed',
         ALREADY_DECIDED: 'Already processed',
       },
+    },
+    install: {
+      cta: 'Install Guaca',
+      note: 'Adds it to your home screen — no app store needed.',
+      iosTitle: 'Install on iPhone',
+      iosBody: 'Tap the Share button in Safari, then "Add to Home Screen".',
+      installed: 'Installed',
     },
     business: {
       badge: 'Coming soon',
@@ -609,6 +623,13 @@ export const appCopy: Record<Lang, AppCopy> = {
         LADDER_PASSED: 'Todos los chequeos pasaron',
         ALREADY_DECIDED: 'Ya fue procesado',
       },
+    },
+    install: {
+      cta: 'Instalar Guaca',
+      note: 'Se agrega a tu pantalla de inicio — sin tienda de apps.',
+      iosTitle: 'Instalar en iPhone',
+      iosBody: 'Toca el botón Compartir en Safari y luego «Agregar a inicio».',
+      installed: 'Instalada',
     },
     business: {
       badge: 'Muy pronto',

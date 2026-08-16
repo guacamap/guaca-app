@@ -3,6 +3,7 @@ import { ArrowRight, BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Compa
 import { Avatar, Button, GuacaLogo, GuacaMap, Input, useLanguage, type Lang } from '@guaca/ui'
 import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
+import { InstallApp } from './InstallApp'
 
 interface Mission {
   id: string
@@ -627,6 +628,8 @@ export function SpotterView() {
                 </div>
               </div>
             </div>
+
+            <InstallApp />
 
             {/* Quality record — being right beats being fast. */}
             <div className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-guaca-sand/75">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ArrowRight, Compass, Sparkles, Store, Trophy } from 'lucide-react'
 import { Button } from '@guaca/ui'
+import { InstallApp } from './InstallApp'
 import { GuacaLogo } from '@guaca/ui'
 import { PalmFrondLeft, PalmFrondRight } from '@guaca/ui'
 
@@ -100,6 +101,11 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
               </Button>
             )
           })}
+        </div>
+
+        {/* Store-free install — the app can live on the home screen today. */}
+        <div className="mt-4">
+          <InstallApp tone="dark" />
         </div>
 
         {/* Footer */}
