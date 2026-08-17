@@ -123,3 +123,57 @@ export function extractIntent(text: string): Intent {
     ...(party ? { partySize: Number(party[1]) } : {}),
   };
 }
+
+/**
+ * When the lexicon does not recognise a question, ask the model to place it
+ * in the taxonomy — and nothing else. It returns a CATEGORY or "unknown",
+ * never a place, so the grounding guarantee is untouched: the planner still
+ * may only cite rows we hold verified (§7.3).
+ *
+ * This exists because refusing every unrecognised phrasing refused real
+ * questions — "fresh seafood by the water", "algo dulce para la merienda" —
+ * which reads as broken coverage rather than honest uncertainty.
+ */
+const CATEGORY_VALUES = [
+  'eat_drink', 'beach_water', 'nature_walk', 'culture_history',
+  'market_shop', 'services', 'nightlife_music', 'practical',
+] as const;
+
+const ClassificationSchema = z
+  .object({
+    category: z.enum([...CATEGORY_VALUES, 'unknown']),
+    /** The question names a city/country/region that is not where the
+     *  traveller is standing — "best sushi in Tokyo" is a food question we
+     *  still must not answer with a place from this map. */
+    namesDistantLocation: z.boolean(),
+  })
+  .strict();
+
+export async function classifyWithModel(
+  inference: { json: <T>(req: import('../inference/types.js').JsonRequest<T>) => Promise<{ raw: T }> },
+  text: string,
+): Promise<PlaceCategory | null> {
+  try {
+    const result = await inference.json({
+      schema: ClassificationSchema,
+      purpose: 'intent.classify',
+      maxOutputTokens: 30,
+      system:
+        'You place a traveller question into exactly one category of places. ' +
+        'Answer "unknown" if it is not about finding a place, or fits none. ' +
+        'Set namesDistantLocation true ONLY when the question names a city, ' +
+        'country or region far from where the traveller is standing — a ' +
+        'nearby landmark, street or beach name is NOT a distant location. ' +
+        'Never name a place.',
+      user: `Categories: ${CATEGORY_VALUES.join(', ')}.\n\nQuestion: ${text}`,
+    });
+    const { category, namesDistantLocation } = result.raw;
+    // A question about somewhere else is unanswerable from this map, however
+    // well it classifies.
+    if (namesDistantLocation) return null;
+    return category === 'unknown' ? null : (category as PlaceCategory);
+  } catch {
+    // A classifier failure must not answer the question — the caller refuses.
+    return null;
+  }
+}

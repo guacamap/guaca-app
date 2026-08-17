@@ -93,6 +93,9 @@ export interface DeterministicOptions {
    * runs — without it, every fast-path test fails outside opening hours.
    */
   nowMin?: number;
+  /** Category resolved by the caller (model classifier) when the
+   *  deterministic lexicon did not recognise the question. */
+  categoryOverride?: string;
 }
 
 /**
@@ -104,7 +107,10 @@ export interface DeterministicOptions {
 export async function answerDeterministic(
   options: DeterministicOptions,
 ): Promise<FastPathResult> {
-  const intent = extractIntent(options.text);
+  const lexical = extractIntent(options.text);
+  const intent = options.categoryOverride
+    ? { ...lexical, category: options.categoryOverride as typeof lexical.category }
+    : lexical;
   if (intent.when !== 'now') return null;
 
   // Single-topic: the lexicon must have landed on exactly one category, and

@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import {
   answerDeterministic,
   classifiesIntent,
+  classifyWithModel,
   extractIntent,
   groundFromVerifiedRows,
   renderItinerary,
@@ -48,6 +49,8 @@ export async function ask(
   opts: { minCandidates: number; inference: import('@guaca/agents').Inference },
 ): Promise<AskResult> {
   const intent = extractIntent(input.text);
+  /** Set when the lexicon missed and the model placed the question. */
+  let resolvedCategory: string | null = null;
 
   const record = async (
     answered: boolean,
@@ -85,12 +88,18 @@ export async function ask(
     };
   };
 
-  // An unrecognised question must not inherit the broad default category:
-  // "best sushi in Tokyo" and "asdfghjkl" both used to come back as a
-  // confident, verified-looking arepa plan. Refusing records the demand
-  // honestly instead (§7.3).
+  /*
+   * An unrecognised question must not inherit the broad default category —
+   * "best sushi in Tokyo" used to come back as a confident, verified-looking
+   * arepa plan. But refusing everything the lexicon misses refused real
+   * questions too ("fresh seafood by the water"). So: lexicon first, then one
+   * cheap classification that returns a CATEGORY or nothing. It never names a
+   * place, so grounding is untouched — an unplaceable question still refuses.
+   */
   if (!classifiesIntent(input.text)) {
-    return refuse('UNCLEAR_QUESTION');
+    resolvedCategory = await classifyWithModel(opts.inference, input.text);
+    if (!resolvedCategory) return refuse('UNCLEAR_QUESTION');
+    intent.category = resolvedCategory as typeof intent.category;
   }
 
   const rows = await q.places.findVerifiedNear(pool, input.lat, input.lon, 5000, undefined);
@@ -131,6 +140,7 @@ export async function ask(
     lon: input.lon,
     places: fastPathPlaces,
     inference: opts.inference,
+    ...(resolvedCategory ? { categoryOverride: resolvedCategory } : {}),
   });
   if (fast) {
     const artifact = groundFromVerifiedRows(fast.stops, verifiedIds);
