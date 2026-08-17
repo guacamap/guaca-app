@@ -4,6 +4,16 @@ Package: **live.guaca.app** (permanent — it can never be reused once
 uploaded). Artifact: the Expo wrapper in `apps/mobile`, which loads the
 product web app at `app.guaca.live`.
 
+## After deploying, before announcing anything
+
+```bash
+./infra/smoke.sh https://api.guaca.live https://app.guaca.live https://guaca.live
+```
+
+Checks TLS, the API, the three pages Play requires, that the dev sign-in
+bypass is closed in production, and that session cookies are Secure. Exits
+non-zero, so it can gate the release.
+
 ## Two different finish lines — do not confuse them
 
 | | What it needs | Who can install | When |
