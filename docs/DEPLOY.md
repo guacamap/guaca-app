@@ -169,8 +169,19 @@ dc exec -e OPERATOR_TOKEN=$OPERATOR_TOKEN api node packages/cli/dist/index.js re
 ```
 
 A fresh production database has the pilot area and zones but **no spotters
-and no villas** — those are real people and businesses, added with
-`spotter add` and `property add` once they have agreed.
+and no villas** — those are real people and businesses, added once they have
+agreed. One at a time with `spotter add` / `property add`, or in bulk from a
+spreadsheet (the waitlist form exports one):
+
+```bash
+guaca spotter  import roster.csv  --area <areaId>            # preview
+guaca spotter  import roster.csv  --area <areaId> --apply    # write
+guaca property import villas.csv  --area <areaId> --apply
+```
+
+Import is preview-first and skips duplicates by phone (spotters) or name
+(properties) — these rows are real people, and a mistyped phone is a Spotter
+who can never log in.
 
 ## Backups
 
