@@ -168,8 +168,10 @@ export class OpenAICompatibleProvider implements Inference {
 
   async vision<T>(req: VisionRequest<T>): Promise<JsonResult<T>> {
     const schemaJson = JSON.stringify(zodToJsonSchema(req.schema as z.ZodType<T>));
-    // VL deployments often ignore constrained decoding, so the schema goes in
-    // the prompt — with the repair round-trip and §7.3 as the real guarantee.
+    // The schema goes in the prompt AND, where the provider supports it, into
+    // constrained decoding. Not every VL deployment honours json_schema, so a
+    // 4xx falls back to json_object rather than failing the verification.
+    // Constrained decoding is an optimisation; §7.3 remains the guarantee.
     const fenced = req.untrusted
       ? `${req.system}\n\n<untrusted>\n${req.untrusted}\n</untrusted>\nAnswer only from the images.`
       : req.system;
@@ -190,9 +192,25 @@ export class OpenAICompatibleProvider implements Inference {
         },
       ],
       max_tokens: req.maxOutputTokens,
-      response_format: { type: 'json_object' },
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: `vision_${req.purpose}`, schema: JSON.parse(schemaJson) },
+      },
     };
-    return this.repair(req.schema, body, req.maxOutputTokens, 0);
+    try {
+      return await this.repair(req.schema, body, req.maxOutputTokens, 0);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Only a provider rejection of the constraint is worth retrying; a
+      // schema mismatch after repair is a real failure and must surface.
+      if (!/inference request failed: 4\d\d/.test(message)) throw err;
+      return this.repair(
+        req.schema,
+        { ...body, response_format: { type: 'json_object' } },
+        req.maxOutputTokens,
+        0,
+      );
+    }
   }
 }
 
