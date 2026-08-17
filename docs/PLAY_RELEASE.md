@@ -207,6 +207,12 @@ Until that file exists the links simply open in the browser — no breakage.
   redemption needs a fulfilment provider.
 - **"Local updates" is device-local demo state**, now labelled a pilot
   preview. It has no API behind it.
+- **A question naming another city can still answer locally** when its words
+  hit the deterministic lexicon — "where should I eat in Caracas" returns a
+  Puerto Cabello place, because "eat" short-circuits before the model sees
+  the question. Unrecognised phrasings that name a distant place *are*
+  refused. Closing the gap fully means a model call on every question, which
+  would give up the zero-inference fast path that serves most answers.
 - **Contrast.** Several primary controls sit at ~4.1–4.2:1 against their
   background (white on `--guaca-teal`, coral-dark on white) — just under the
   4.5:1 WCAG AA threshold for normal text. Fixing it means moving brand
