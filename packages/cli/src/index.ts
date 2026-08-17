@@ -204,6 +204,54 @@ program
     });
   });
 
+
+/**
+ * Onboarding arrives as a spreadsheet — the waitlist form exports one, and a
+ * pilot signs up ten posadas in an afternoon. Adding them one flag at a time
+ * is where the human motion actually stalls, so both rosters take a CSV.
+ *
+ * Deliberately preview-first: nothing is written without --apply, because
+ * these rows are real people and a typo in a phone number means a Spotter who
+ * can never log in.
+ */
+function parseCsv(text: string): Array<Record<string, string>> {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else field += c;
+      continue;
+    }
+    if (c === '"') quoted = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some((v) => v.trim() !== '')) rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  row.push(field);
+  if (row.some((v) => v.trim() !== '')) rows.push(row);
+
+  const header = (rows.shift() ?? []).map((h) => h.trim().toLowerCase());
+  return rows.map((r) => {
+    const rec: Record<string, string> = {};
+    header.forEach((h, i) => { rec[h] = (r[i] ?? '').trim(); });
+    return rec;
+  });
+}
+
+async function readCsv(file: string): Promise<Array<Record<string, string>>> {
+  const { readFile } = await import('node:fs/promises');
+  return parseCsv(await readFile(file, 'utf8'));
+}
+
 const property = program.command('property').description('villas/posadas — the distribution channel');
 property
   .command('add')
@@ -313,6 +361,85 @@ program
       process.exit(1);
     };
     await new Promise(() => {}); // run until Ctrl-C
+  });
+
+
+property
+  .command('import <csvFile>')
+  .description('bulk add villas/posadas from a CSV (name,lat,lon[,plan,subscription])')
+  .requiredOption('--area <areaId>')
+  .option('--apply', 'actually write; without it this is a preview')
+  .action(async (csvFile: string, opts: { area: string; apply?: boolean }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const rows = await readCsv(csvFile);
+    const { addProperty, listProperties } = await import('@guaca/db');
+    const result = await withPool(async (pool) => {
+      const existing = new Set((await listProperties(pool)).map((p) => p.name.toLowerCase()));
+      const out: Array<Record<string, unknown>> = [];
+      for (const r of rows) {
+        const name = r.name ?? '';
+        const lat = Number(r.lat ?? r.latitude);
+        const lon = Number(r.lon ?? r.lng ?? r.longitude);
+        if (!name || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+          out.push({ name: name || '(no name)', status: 'skipped', reason: 'needs name, lat and lon' });
+          continue;
+        }
+        if (existing.has(name.toLowerCase())) {
+          out.push({ name, status: 'skipped', reason: 'already exists' });
+          continue;
+        }
+        if (!opts.apply) { out.push({ name, status: 'would add', lat, lon }); continue; }
+        const created = await addProperty(pool, {
+          name, areaId: opts.area, lat, lon,
+          plan: r.plan === 'paid' ? 'paid' : 'free',
+          subscriptionMinor: Number(r.subscription ?? 0) || 0,
+        });
+        existing.add(name.toLowerCase());
+        out.push({ name, status: 'added', id: created.id, qrToken: created.qrToken });
+      }
+      return out;
+    });
+    process.stdout.write(render(result, { json }) + '\n');
+    if (!opts.apply) process.stdout.write('preview only — re-run with --apply to write\n');
+  });
+
+spotter
+  .command('import <csvFile>')
+  .description('bulk add spotters from a CSV (name,phone[,language,zone,photo_url])')
+  .requiredOption('--area <areaId>')
+  .option('--apply', 'actually write; without it this is a preview')
+  .action(async (csvFile: string, opts: { area: string; apply?: boolean }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const rows = await readCsv(csvFile);
+    const { addSpotter, listSpotters } = await import('@guaca/db');
+    const result = await withPool(async (pool) => {
+      const existing = new Set((await listSpotters(pool)).map((s2) => s2.phone));
+      const out: Array<Record<string, unknown>> = [];
+      for (const r of rows) {
+        const name = r.name ?? '';
+        const phone = (r.phone ?? r.telefono ?? '').replace(/\s+/g, ' ').trim();
+        if (!name || !phone) {
+          out.push({ name: name || '(no name)', status: 'skipped', reason: 'needs name and phone' });
+          continue;
+        }
+        if (existing.has(phone)) {
+          out.push({ name, phone, status: 'skipped', reason: 'phone already on the roster' });
+          continue;
+        }
+        if (!opts.apply) { out.push({ name, phone, status: 'would add' }); continue; }
+        const created = await addSpotter(pool, {
+          name, phone, areaId: opts.area,
+          language: r.language === 'en' ? 'en' : 'es',
+          ...(r.zone ? { homeH3: r.zone } : {}),
+          ...(r.photo_url ? { photoUrl: r.photo_url } : {}),
+        });
+        existing.add(phone);
+        out.push({ name, phone, status: 'added', id: created.id });
+      }
+      return out;
+    });
+    process.stdout.write(render(result, { json }) + '\n');
+    if (!opts.apply) process.stdout.write('preview only — re-run with --apply to write\n');
   });
 
 /**
