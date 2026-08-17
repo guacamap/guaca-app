@@ -80,3 +80,6 @@ logs/
 .codex/
 .impeccable/
 .github/hooks/
+
+# Local backup output
+backups/

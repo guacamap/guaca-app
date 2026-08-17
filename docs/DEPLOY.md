@@ -172,6 +172,30 @@ A fresh production database has the pilot area and zones but **no spotters
 and no villas** — those are real people and businesses, added with
 `spotter add` and `property add` once they have agreed.
 
+## Backups
+
+The irreplaceable thing here is the verification record — who stood where,
+which photos proved it, which second local confirmed. Places can be
+re-imported from OpenStreetMap; a spotter's paid work cannot be redone.
+
+```bash
+./infra/backup.sh prod        # database dump + photo objects, one timestamp
+```
+
+Keeps 14 days by default (`BACKUP_KEEP_DAYS`). Nightly via cron on the VM:
+
+```
+15 4 * * *  cd /root/guaca && ./infra/backup.sh prod >> /var/log/guaca-backup.log 2>&1
+```
+
+**Restore is printed by the script itself** and has been exercised: on a test
+stack the entire schema was dropped and the dump brought back all 27 tables,
+the reference geography and the migration history. A backup nobody has
+restored is not a backup — re-run that drill after any schema change.
+
+Copy the `backups/` directory off the VM regularly; a backup on the same disk
+does not survive the failure it exists for.
+
 ## Redeploy
 
 `./infra/deploy.sh prod` (or `staging`) — pulls bases, rebuilds the api
