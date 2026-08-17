@@ -33,7 +33,26 @@ Operator laptop ─────▶ packages/cli ─────────┘  
 on its own DB; migrations are forward-only. Rehearsals never run against
 prod — the prod `loop_events` timeline must stay clean for the demo.
 
-## Inference — Qwen3-VL-8B on a Nebius L40S
+## Inference — Nebius Token Factory (hosted, no GPU to run)
+
+`https://api.tokenfactory.nebius.com/v1` — OpenAI-compatible, so it drops
+into `INFERENCE_BASE_URL` unchanged. Verified against our own key:
+
+| Purpose | Model |
+|---|---|
+| Text / planner | `Qwen/Qwen3-30B-A3B-Instruct-2507` |
+| Vision / L5 rung | `Qwen/Qwen2.5-VL-72B-Instruct` |
+| Failover | `MiniMaxAI/MiniMax-M3` (same endpoint) or `https://api.minimax.io/v1` |
+
+**Both text and vision accept `response_format: json_schema`**, so the
+verification verdict is constrained at decode time, not just validated after
+the fact. The provider still falls back to `json_object` on a 4xx, and §7.3
+remains the actual guarantee — constrained decoding is defence in depth.
+
+The self-hosted route below is the alternative if a hosted endpoint is ever
+unavailable; it is not needed while Token Factory serves these models.
+
+## Self-hosted alternative — Qwen3-VL-8B on a Nebius L40S
 
 Provision a **single L40S** (~48 GB). Do NOT provision an H200 — the 8B model
 cannot use 141 GB and it costs ~2.9× more. The L40S is the vendor-recommended
