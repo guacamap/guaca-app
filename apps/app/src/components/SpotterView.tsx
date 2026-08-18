@@ -3,6 +3,7 @@ import { ArrowRight, BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Compa
 import { Avatar, Button, GuacaLogo, GuacaMap, Input, useLanguage, type Lang } from '@guaca/ui'
 import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
+import { photoToBase64 } from '../lib/image'
 import { InstallApp } from './InstallApp'
 
 interface Mission {
@@ -303,12 +304,7 @@ export function SpotterView() {
   const uploadPhoto = async (file: File) => {
     setPhotoBusy(true)
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
-        reader.onerror = () => reject(new Error('read failed'))
-        reader.readAsDataURL(file)
-      })
+      const base64 = await photoToBase64(file)
       const res = await fetch('/api/spotter/me/photo', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -872,14 +868,6 @@ function CaptureFlow({ mission, onDone }: { mission: Mission | null; onDone: () 
     )
   }
 
-  const fileToBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!coords) return setError(t.locationMissing)
@@ -910,7 +898,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission | null; onDone: () 
       for (let i = 0; i < photos.length; i++) {
         const file = photos[i]
         if (!file || uploaded[i]) continue
-        const imageBase64 = await fileToBase64(file)
+        const imageBase64 = await photoToBase64(file)
         const photoRes = guard401(
           await fetch('/api/photos', {
             method: 'POST',
