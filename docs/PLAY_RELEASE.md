@@ -60,7 +60,7 @@ offline screen.
 
 | # | Action | Blocks |
 |---|--------|--------|
-| 1 | Play Console developer account — $25 one-time, identity verification can take days | everything |
+| 1 | ~~Play Console developer account — $25~~ **paid 2026-08-18**; identity verification runs 2–5 business days in the background | everything |
 | 2 | Provision the VM (NoInfra VPS or Nebius), point DNS: `api.`, `staging.api.` → VM; `app.`, `staging.app.`, apex → Vercel | the app working at all |
 | 3 | Run `./infra/deploy.sh edge && ./infra/deploy.sh prod` on the VM (see DEPLOY.md) | API |
 | 4 | Vercel: project 1 root `apps/web` → guaca.live; project 2 root `apps/app` → app.guaca.live, with the env vars below | web apps |
@@ -156,6 +156,15 @@ the current set shows `[DEV]` place names.
   containment. Worth stating in the review notes.
 
 ## Review instructions (paste into "App access")
+
+**The real values live only in `/root/guaca/infra/env/prod.env` on the API
+server — never in this repository, which is public.** Anyone holding them can
+sign in as the review tourist and the review spotter. Read them with:
+
+```bash
+ssh root@<api-server> "grep '^REVIEW_' /root/guaca/infra/env/prod.env"
+```
+
 
 ```
 Guaca requires an account. Use this test traveller account:
