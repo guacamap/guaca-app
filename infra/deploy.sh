@@ -35,10 +35,12 @@ ENV_FILE="infra/env/${TIER}.env"
 dc() { docker compose -p "guaca-${TIER}" --env-file "$ENV_FILE" -f docker-compose.prod.yml "$@"; }
 
 echo "==> [$TIER] pulling base images"
-dc pull postgres redis minio
+# minio only: postgres is built from infra/postgres.Dockerfile (PostGIS + h3)
+# and redis was removed — pulling either fails the deploy.
+dc pull minio
 
-echo "==> [$TIER] building api image"
-dc build api
+echo "==> [$TIER] building images"
+dc build postgres api
 
 echo "==> [$TIER] starting stack"
 dc up -d
