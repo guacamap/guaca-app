@@ -6,7 +6,7 @@ on:
 
 jobs:
   unit:
-    name: Unit tests (zero network, zero infra)
+    name: Typecheck and unit tests (zero network, zero infra)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,29 +18,33 @@ jobs:
           node-version: 24.16.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm test:unit
 
   integration:
-    name: Integration tests (postgis service)
+    name: Integration tests (PostGIS + h3)
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgis/postgis:16-3.4
-        env:
-          POSTGRES_USER: guaca
-          POSTGRES_PASSWORD: guaca
-          POSTGRES_DB: guaca
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U guaca -d guaca"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
       DATABASE_URL: postgres://guaca:guaca@localhost:5432/guaca
     steps:
       - uses: actions/checkout@v4
+
+      # A `services:` block cannot be used here: the schema needs the h3
+      # extension and postgis/postgis does not ship it, so migrations fail on
+      # the first file. Build the same image production uses instead.
+      - name: Start Postgres with PostGIS + h3
+        run: |
+          docker build -f infra/postgres.Dockerfile -t guaca-postgres:ci .
+          docker run -d --name guaca-ci-db \
+            -e POSTGRES_USER=guaca -e POSTGRES_PASSWORD=guaca -e POSTGRES_DB=guaca \
+            -p 5432:5432 guaca-postgres:ci
+          for i in $(seq 1 30); do
+            docker exec guaca-ci-db pg_isready -U guaca -d guaca && break
+            sleep 2
+          done
+          docker exec guaca-ci-db psql -U guaca -d guaca -c \
+            "create extension if not exists h3" >/dev/null
+
       - uses: pnpm/action-setup@v4
         with:
           version: 11.13.0
@@ -49,4 +53,6 @@ jobs:
           node-version: 24.16.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm migrate
       - run: pnpm test:integration
