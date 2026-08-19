@@ -6,7 +6,7 @@ import {
   extractIntent,
   groundFromVerifiedRows,
   renderItinerary,
-  runPlanner,
+  runGroundedPlanner,
   type FastPathPlace,
 } from '@guaca/agents';
 import { q, recordQuestion } from '@guaca/db';
@@ -157,41 +157,36 @@ export async function ask(
     };
   }
 
-  // T4.5 — guarded model path.
-  const outcome = await runPlanner({
-    input: {
-      text: input.text,
-      language: input.language,
-      areaId: '00000000-0000-4000-8000-00000000000a',
-      lat: input.lat,
-      lon: input.lon,
-    },
-    db: {
-      findVerifiedNear: async (lat, lon, radiusM, category) =>
-        q.places.findVerifiedNear(pool, lat, lon, radiusM, category).then((rs) =>
-          rs.map((r) => ({
-            id: r.id,
-            name: r.name,
-            category: r.category,
-            landmarkDescription: r.landmark_description,
-            lat: r.lat,
-            lon: r.lon,
-          })),
-        ),
-    },
+  // T4.5 — the guarded model path, wired. The catalog IS the retrieved rows;
+  // the model's only vocabulary is their integer refs; assertGrounded (10
+  // steps, in-memory re-read) mints the artifact; the re-mint below is the
+  // second, render-boundary check against the verified set we actually hold.
+  const outcome = await runGroundedPlanner({
+    text: input.text,
+    language: input.language,
+    rows: rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      category: r.category,
+      verificationStatus: r.verification_status,
+      witnessCount: r.witness_count,
+    })),
     inference: opts.inference,
-    minCandidates: opts.minCandidates,
+    // The refusal itself is the demand record: refuse() below writes the
+    // question row the gap agent clusters on — no separate gap log needed.
+    onGap: () => undefined,
   });
 
   if (outcome.kind === 'PlanArtifact') {
     // Re-check the planner's ids against the verified rows we actually hold —
     // defence in depth at the render boundary, and the only legal mint.
     const artifact = groundFromVerifiedRows(
-      outcome.placeIds.map((id, i) => ({
-        placeId: id,
-        startMin: 540 + i * 75,
-        durationMin: 60,
-        reasonCode: 'MATCHES_TOPIC',
+      outcome.artifact.stops.map((s) => ({
+        placeId: s.placeId,
+        dayIndex: s.dayIndex,
+        startMin: s.startMin,
+        durationMin: s.durationMin,
+        reasonCode: s.reasonCode,
       })),
       verifiedIds,
     );

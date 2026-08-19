@@ -23,7 +23,7 @@ export interface GroundedPlannerOptions {
 
 export type GroundedOutcome =
   | { kind: 'RefusalArtifact'; reason: string }
-  | { kind: 'PlanArtifact'; placeIds: readonly string[] }
+  | { kind: 'PlanArtifact'; placeIds: readonly string[]; artifact: PlanArtifact }
   | { kind: 'error'; message: string };
 
 /**
@@ -128,7 +128,7 @@ export async function runGroundedPlanner(
       return { kind: 'RefusalArtifact', reason: 'TRIP_SHAPE:day-span' };
     }
 
-    return { kind: 'PlanArtifact', placeIds: artifact.placeIds };
+    return { kind: 'PlanArtifact', placeIds: artifact.placeIds, artifact };
   } catch (e) {
     if (e instanceof GuardViolation) {
       await options.onGap(e.code);
