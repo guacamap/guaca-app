@@ -24,6 +24,7 @@ import {
   type TripPace,
   type TripStop,
 } from '@guaca/shared';
+import { suggestionsNear } from './suggestionsService.js';
 
 export interface AskResult {
   kind: 'answer' | 'refusal';
@@ -31,6 +32,8 @@ export interface AskResult {
   placeIds: string[];
   /** The persisted question — the demand signal the gap agent later reads. */
   questionId?: string;
+  /** Grounded follow-ups near the ask — deterministic trend picks, never model output. */
+  suggestions?: Array<{ placeId: string; name: string; why: 'trending' | 'asked_about' | 'fresh' }>;
 }
 
 const REFUSAL_TEXT: Record<string, string> = {
@@ -102,6 +105,23 @@ export async function ask(
     };
   };
 
+  /** Grounded follow-ups near the ask, excluding what the answer just cited. */
+  const followUps = async (
+    answered: readonly string[],
+  ): Promise<NonNullable<AskResult['suggestions']> | undefined> => {
+    try {
+      const s = await suggestionsNear(pool, {
+        lat: input.lat,
+        lon: input.lon,
+        exclude: answered,
+      });
+      return s.length > 0 ? s : undefined;
+    } catch {
+      // Suggestions are garnish; the answer is the meal.
+      return undefined;
+    }
+  };
+
   /*
    * An unrecognised question must not inherit the broad default category —
    * "best sushi in Tokyo" used to come back as a confident, verified-looking
@@ -163,11 +183,13 @@ export async function ask(
     // unmet demand wearing an answer's clothes. Refuse so the gap agent sees it.
     if (ids.length === 0) return refuse('NO_GROUNDED_STOPS');
     const questionId = await record(true, ids, null);
+    const sugg = await followUps(ids);
     return {
       kind: 'answer',
       text: renderItinerary(artifact, places, input.language),
       placeIds: ids,
       ...(questionId ? { questionId } : {}),
+      ...(sugg ? { suggestions: sugg } : {}),
     };
   }
 
@@ -207,11 +229,13 @@ export async function ask(
     const ids = [...artifact.placeIds];
     if (ids.length === 0) return refuse('NO_GROUNDED_STOPS');
     const questionId = await record(true, ids, null);
+    const sugg = await followUps(ids);
     return {
       kind: 'answer',
       text: renderItinerary(artifact, places, input.language),
       placeIds: ids,
       ...(questionId ? { questionId } : {}),
+      ...(sugg ? { suggestions: sugg } : {}),
     };
   }
 

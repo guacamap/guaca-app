@@ -2,11 +2,12 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
 import { ask, planTrip } from './plannerService.js';
+import { suggestionsNear } from './suggestionsService.js';
 import { TripRequestSchema, type TripPace } from '@guaca/shared';
 import { opsStreamPlugin } from './opsStream.js';
 import { spotterLogin, verifySpotterToken } from './spotterAuth.js';
@@ -136,10 +137,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
         },
       ]),
     );
+    // Trend badges — computed by the scheduler's trend cycle, each one a
+    // literally-true statement about recorded behaviour. Raw counts stay
+    // server-side; the map only ever sees the badge.
+    const trends = await trendsForPlaces(
+      options.pool,
+      places.map((p) => p.id),
+    );
     return {
       places: places.map((p) => ({
         ...p,
         ...(byPlace.get(p.id) ?? { postsCount: 0, avgRating: null, ratingCount: 0 }),
+        trendBadge: trends.get(p.id)?.badge ?? null,
       })),
     };
   });
@@ -799,6 +808,24 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const trip = await tripBySlug(options.pool, slug);
     if (!trip) return reply.code(404).send({ error: 'not found' });
     return reply.send({ trip });
+  });
+
+  // Grounded recommendations: verified places with honestly-earned trend
+  // badges near the caller. Empty list beats a guess — always.
+  app.get('/api/suggestions', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { lat, lon } = req.query as { lat?: string; lon?: string };
+    const latNum = Number(lat);
+    const lonNum = Number(lon);
+    if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+      return reply.code(400).send({ error: 'lat and lon are required' });
+    }
+    return reply.send({
+      suggestions: await suggestionsNear(options.pool, { lat: latNum, lon: lonNum }),
+    });
   });
 
   app.post('/api/register', async (req, reply) => {
