@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.13.0",
   "engines": {
-    "node": ">=22"
+    "node": "^22.13.0 || ^24.3.0 || >= 25.0.0"
   },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
