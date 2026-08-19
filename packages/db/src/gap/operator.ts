@@ -12,7 +12,15 @@ export interface RankedGap {
 
 /** `guaca gaps` — ranked open gaps with their current score. */
 export async function rankedGaps(pool: Pool, areaId?: string): Promise<RankedGap[]> {
-  const res = await pool.query(
+  const res = await pool.query<{
+    id: string;
+    category: string;
+    h3_8: string;
+    question_count: number;
+    distinct_session_count: number;
+    score: number;
+    status: string;
+  }>(
     `select id, category, h3_8, question_count, distinct_session_count,
             score::float8 as score, status
      from gaps
@@ -21,7 +29,17 @@ export async function rankedGaps(pool: Pool, areaId?: string): Promise<RankedGap
      order by score desc, question_count desc`,
     [areaId ?? null],
   );
-  return res.rows as RankedGap[];
+  // Map explicitly — a bare cast left snake_case fields under camelCase
+  // names, which fed undefined question counts into the gap-agent wiring.
+  return res.rows.map((r) => ({
+    id: r.id,
+    category: r.category,
+    h3_8: r.h3_8,
+    questionCount: r.question_count,
+    distinctSessionCount: r.distinct_session_count,
+    score: Number(r.score),
+    status: r.status,
+  }));
 }
 
 export interface OperatorCommissionInput {

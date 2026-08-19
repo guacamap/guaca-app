@@ -86,13 +86,15 @@ export async function runGroundedPlanner(
   const instruction =
     days === 1
       ? 'You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. Never invent places.'
-      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day. Never invent places.`;
+      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day; do not repeat a place within the same day. Never invent places.`;
 
   try {
     const res = await options.inference.json<z.infer<typeof requestSchema>>({
       schema: requestSchema,
       purpose: 'plan',
-      maxOutputTokens: Math.min(400, 200 + (days - 1) * 60),
+      // Pretty-printed JSON burns ~50 tokens per stop — a thin budget
+      // truncates real plans into unparseable ones.
+      maxOutputTokens: Math.min(700, 260 + (days - 1) * 90),
       system: instruction,
       user: options.text,
       untrusted: options.text,
