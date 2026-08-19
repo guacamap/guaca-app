@@ -250,3 +250,34 @@ describe('assertGrounded — multi-day coherence', () => {
     expect(code).toBe('TIME_INCOHERENT');
   });
 });
+
+describe('assertGrounded — per-day uniqueness (multi-day)', () => {
+  it('the same place MAY anchor two different days — a favourite breakfast spot', async () => {
+    const raw = {
+      stops: [
+        { ...stop(1, 540, 60), dayIndex: 0 },
+        { ...stop(1, 540, 60), dayIndex: 1 }, // same ref, different day
+      ],
+      languageCode: 'en',
+    };
+    const parsed = PlanDraft.safeParse(raw);
+    expect(parsed.success).toBe(true);
+    const artifact = await assertGrounded(parsed.data as unknown as PlanDraft, CATALOG, ctx());
+    expect(artifact.placeIds).toEqual([P1, P1]); // revisit recorded per day
+  });
+
+  it('the same place twice in ONE day still fails DUP_REF', async () => {
+    const raw = {
+      stops: [
+        { ...stop(1, 540, 90), dayIndex: 0 },
+        { ...stop(1, 700, 90), dayIndex: 0 },
+      ],
+      languageCode: 'en',
+    };
+    const parsed = PlanDraft.safeParse(raw);
+    const code = await violationOf(() =>
+      assertGrounded(parsed.data as unknown as PlanDraft, CATALOG, ctx()),
+    );
+    expect(code).toBe('DUP_REF');
+  });
+});

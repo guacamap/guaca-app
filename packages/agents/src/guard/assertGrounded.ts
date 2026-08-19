@@ -142,8 +142,17 @@ export async function assertGrounded(
     if (!refSet.has(ref)) fail('UNKNOWN_REF');
   }
 
-  // 4. UNIQUENESS
-  if (new Set(refs).size !== refs.length) fail('DUP_REF');
+  // 4. UNIQUENESS — a place anchors at most one stop PER DAY. The same
+  // place may anchor different days of a multi-day trip (a favourite
+  // breakfast spot is real travel behaviour, and small catalogs force
+  // reuse); repeating within a single day is the model padding, and
+  // refuses. The adversarial DUP_REFS payload (default day 0) still dies.
+  const seenDayRef = new Set<string>();
+  for (let i = 0; i < refs.length; i++) {
+    const key = `${stops[i]!.dayIndex}:${refs[i]}`;
+    if (seenDayRef.has(key)) fail('DUP_REF');
+    seenDayRef.add(key);
+  }
 
   // 5. PROJECT — every other byte of model output is discarded here.
   const placeIds = refs.map((ref) => catalog.byRef(ref).placeId);
