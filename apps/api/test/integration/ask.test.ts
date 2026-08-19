@@ -119,4 +119,45 @@ describe('POST /api/ask', () => {
     expect(body.placeIds).toHaveLength(0);
     await app.close();
   });
+  it('answers a day-plan question through runGroundedPlanner with the model\'s own schedule', async () => {
+    // The fast path deliberately declines day-plan questions (/plan|day|…/),
+    // so this question can only be served by the guarded model path — the
+    // path that used to be a stub returning [] (a guaranteed refusal).
+    const scripted = {
+      async json<T>(): Promise<{ raw: T; usage: { tokensIn: number; tokensOut: number }; model: string }> {
+        return {
+          raw: {
+            stops: [
+              { ref: 1, dayIndex: 0, startMin: 600, durationMin: 90, reasonCode: 'MATCHES_TOPIC' },
+            ],
+            languageCode: 'en',
+          } as unknown as T,
+          usage: { tokensIn: 10, tokensOut: 10 },
+          model: 'scripted',
+        };
+      },
+      async vision<T>(): Promise<never> {
+        throw new Error('not used');
+      },
+    };
+    const cap = captureSender();
+    const app = buildApp({ pool, inference: scripted, minCandidates: 1, emailSender: cap.sender });
+    const headers = await authTourist(app, cap.codes);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ask',
+      headers,
+      payload: { text: 'plan my whole day of eating arepas', language: 'en', lat: 10.4716, lon: -68.0056 },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { kind: string; text: string; placeIds: string[]; questionId?: string };
+    expect(body.kind).toBe('answer');
+    expect(body.text).toContain('Arepera La Guacamaya');
+    // 10:00 is the MODEL's chosen time — proof the schedule survived the
+    // guard (the old stub synthesized 09:00 + i*75 regardless).
+    expect(body.text).toContain('10:00');
+    expect(body.placeIds).toEqual(['00000000-0000-4000-8000-0000000000d1']);
+    expect(body.questionId).toBeTruthy(); // the demand record exists
+    await app.close();
+  });
 });

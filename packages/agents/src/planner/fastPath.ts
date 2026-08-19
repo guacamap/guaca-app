@@ -44,6 +44,9 @@ export interface RouteOptions {
   category: string;
   startMin: number;
   partySize: number;
+  /** Where the traveller is — routing origin. Defaults to the pilot centre. */
+  lat?: number;
+  lon?: number;
 }
 
 /**
@@ -58,9 +61,14 @@ export function greedyRoute(options: RouteOptions): FastPathStop[] {
       p.openAt <= options.startMin &&
       p.closeAt >= options.startMin + 60,
   );
+  // Distances are measured from the traveller, not from a hardcoded pilot
+  // coordinate — the bug version always walked you from the town centre.
+  const originLat = options.lat ?? 10.4716;
+  const originLon = options.lon ?? -68.0056;
   const sorted = [...open].sort(
-    (a, b) => distanceM(a.lat, a.lon, 10.4716, -68.0056) -
-      distanceM(b.lat, b.lon, 10.4716, -68.0056),
+    (a, b) =>
+      distanceM(a.lat, a.lon, originLat, originLon) -
+      distanceM(b.lat, b.lon, originLat, originLon),
   );
   const stops: FastPathStop[] = [];
   const used = new Set<string>();
@@ -129,6 +137,8 @@ export async function answerDeterministic(
     category: intent.category,
     startMin,
     partySize: intent.partySize ?? 2,
+    lat: options.lat,
+    lon: options.lon,
   });
   if (stops.length === 0) return null;
 
