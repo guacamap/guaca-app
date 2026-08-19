@@ -2,11 +2,12 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
-import { ask } from './plannerService.js';
+import { ask, planTrip } from './plannerService.js';
+import { TripRequestSchema, type TripPace } from '@guaca/shared';
 import { opsStreamPlugin } from './opsStream.js';
 import { spotterLogin, verifySpotterToken } from './spotterAuth.js';
 import { requestTouristCode, verifyTouristLogin, verifyTouristToken } from './touristAuth.js';
@@ -255,6 +256,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         : {}),
     });
   const askLimiter = rateLimiter(30, 60 * 60 * 1000); // 30 asks/hour/account
+  const planLimiter = rateLimiter(10, 60 * 60 * 1000); // 10 trips/hour/account — model-shaped work
   // 5 codes/15min/email in production; generous in dev so the bypass button
   // and repeated test runs don't lock testers out of their own build.
   const codeLimiter = rateLimiter(
@@ -722,19 +724,81 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/plan', async (req, reply) => {
-    const body = req.body as { text?: string; language?: string };
-    // The plan endpoint is the routed day — same guarded pipeline; routing
-    // is deterministic code, not LLM guessing (§4.7).
-    return app.inject({
-      method: 'POST',
-      url: '/api/ask',
-      headers: {
-        // Forward the caller's identity — /api/ask is gated (§4.1).
-        ...(req.headers.cookie ? { cookie: req.headers.cookie } : {}),
-        ...(req.headers.authorization ? { authorization: req.headers.authorization } : {}),
+    // The trip endpoint: the same guarded pipeline as /api/ask, shaped by
+    // days and pace, ranked by distance x trend, and SAVED as a shareable
+    // trip. It used to be a hardcoded-lat/lon proxy of /api/ask — a trip
+    // deserves its own contract.
+    const parsed = TripRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'invalid trip request', detail: parsed.error.issues.map((i) => i.message).join('; ') });
+    }
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    if (!planLimiter(touristId)) {
+      return reply.code(429).send({ error: 'rate limited — try again soon' });
+    }
+    const inference = await resolveInference();
+    const result = await planTrip(
+      options.pool,
+      {
+        touristId,
+        text: parsed.data.text,
+        language: parsed.data.language,
+        lat: parsed.data.lat,
+        lon: parsed.data.lon,
+        days: parsed.data.days,
+        pace: parsed.data.pace as TripPace,
+        ...(parsed.data.interests ? { interests: parsed.data.interests } : {}),
       },
-      payload: { text: body.text, language: body.language, lat: 10.4716, lon: -68.0056 },
-    }).then((res) => reply.code(res.statusCode).send(res.body));
+      {
+        minCandidates: options.minCandidates ?? Number(process.env.PLANNER_MIN_CANDIDATES ?? 3),
+        inference,
+      },
+    );
+    return reply.send(result);
+  });
+
+  app.get('/api/trips', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    return reply.send({ trips: await listTrips(options.pool, touristId) });
+  });
+
+  app.get('/api/trips/:id', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { id } = req.params as { id: string };
+    const trip = await tripById(options.pool, id, touristId);
+    if (!trip) return reply.code(404).send({ error: 'not found' });
+    return reply.send({ trip });
+  });
+
+  app.delete('/api/trips/:id', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { id } = req.params as { id: string };
+    const ok = await deleteTrip(options.pool, id, touristId);
+    if (!ok) return reply.code(404).send({ error: 'not found' });
+    return reply.send({ ok: true });
+  });
+
+  // The public share view: anyone holding the link reads the trip. No auth
+  // by design — a WhatsApp recipient may not have (or want) an account, and
+  // a trip contains only verified places and the question that made it.
+  // There is no update path anywhere; sharing is read-only by construction.
+  app.get('/api/t/:slug', async (req, reply) => {
+    const { slug } = req.params as { slug: string };
+    const trip = await tripBySlug(options.pool, slug);
+    if (!trip) return reply.code(404).send({ error: 'not found' });
+    return reply.send({ trip });
   });
 
   app.post('/api/register', async (req, reply) => {
