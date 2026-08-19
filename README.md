@@ -47,7 +47,7 @@ local's paycheck.
 Requires Node 24+, pnpm 11+, and Docker.
 
 ```bash
-pnpm install
+nvm use && corepack pnpm@11.13.0 install --frozen-lockfile
 docker compose up -d          # postgres+postgis, redis, minio
 pnpm migrate                  # schema
 pnpm seed                     # the pilot area, its zones and Spotters
