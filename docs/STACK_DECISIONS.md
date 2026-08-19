@@ -22,6 +22,7 @@ win. Status: **settled** (do not relitigate without new facts) ·
 | 14 | Operator CLI | commander | settled |
 | 15 | Deploy | Vercel (web) · VM + Compose + Caddy (api) | settled |
 | 16 | Payouts | Reloadly behind `PayoutProvider` | settled (mock) |
+| 17 | Weather (trend modulation) | Open-Meteo behind `WeatherProvider` | decided 2026-08-19 |
 
 ---
 
@@ -333,6 +334,28 @@ The interface-first design means the demo runs `MockPayoutProvider` and no
 financial compliance surface exists until pilot money is real.
 Alternatives — cash/manual (pilot-viable), per-country mobile money
 (fragmented), crypto (**rejected by product rule**: no token, no chain).
+
+## 17. Weather — Open-Meteo behind `WeatherProvider` *(decided 2026-08-19)*
+
+**Why**
+
+- The trend engine needed a seasonal signal; weather moves real advice
+  (rain pushes recommendations indoors, calm wind makes the beach honest).
+- Open-Meteo: free, keyless, no account — a provider a hackathon can run
+  and a privacy policy can name (coordinates only, no user data; CC-BY 4.0,
+  attributed in DATA_SOURCES.md).
+- Same seam pattern as `PayoutProvider`/`EmailSender`: in-memory 3h cache,
+  `WEATHER_ENABLED` kill switch, and every failure degrades to a null
+  forecast — trends run weather-free rather than failing an answer, a
+  mission, or a scheduler tick.
+
+**Alternatives**
+
+| Option | What it buys | Why it lost — and when it wins |
+|---|---|---|
+| OpenWeatherMap | More forecast detail | API key ceremony for no product gain at pilot scale. Wins if marine data (sea state) becomes load-bearing. |
+| Tomorrow.io / PredictWind | Sea-state specifics | Paid tiers for what is currently a bounded multiplier table. |
+| No weather | One fewer dependency | Trends lose their seasonal honesty; the category multipliers would go inert. |
 
 ---
 

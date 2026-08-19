@@ -12,17 +12,26 @@ Target: one area (Puerto Cabello), 10 Spotters, 30–50 verified places,
    a pre-created judge account.)
 3. **(1:00) Ask a covered question.** Instant answer from verified places.
    Tap a pin — a named local's face and name. "This was physically visited
-   by Yorman, on this date."
-4. **(2:00) Ask an uncovered question.** It refuses, live. Not an error — a
+   by Yorman, on this date." The answer ends with **trend chips** —
+   "🔥 trending / ✨ fresh" — every badge a computed fact about recorded
+   behaviour, never a vibe.
+4. **(1:45) Plan a 3-day trip.** "Plan three relaxed days of eating and
+   beaches." The guarded planner spreads verified stops across Day 1–3
+   with times; the trip saves to the account and gets a public share link
+   — send it over WhatsApp, open it logged out. "The model's entire
+   vocabulary was the integers of the catalog; the days and times are
+   integers too."
+5. **(2:45) Ask an uncovered question.** It refuses, live. Not an error — a
    confident product state: "No one has been there yet. 7 people have asked
    — a Spotter mission opens at 10."
-5. **(2:30) Cut to `guaca tail`.** The gap agent aggregates the demand,
-   scores it, weights it by the paying property, and commissions one mission
-   to one named Spotter — on screen, unprompted.
-6. **(3:30) The Spotter's phone** shows the mission arriving, in Spanish.
-7. **(4:00) Human oversight.** `guaca queue` → an operator approves/overrides
+6. **(3:15) Cut to `guaca tail`.** The gap agent aggregates the demand,
+   scores it (momentum from real asks included), weights it by the paying
+   property, and commissions one mission to one named Spotter — on screen,
+   unprompted. The brief names the human zone ("Malecón"), not a hex index.
+7. **(4:00) The Spotter's phone** shows the mission arriving, in Spanish.
+8. **(4:20) Human oversight.** `guaca queue` → an operator approves/overrides
    a verification. "Autonomy with a hand on the switch."
-8. **(4:30) Close.** "Witnessed, not inferred. The AI's own ignorance became
+9. **(4:40) Close.** "Witnessed, not inferred. The AI's own ignorance became
    a local's paycheck."
 
 **The loop, live.** A judge types a question about a zone deliberately left

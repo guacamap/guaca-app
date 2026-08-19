@@ -28,14 +28,17 @@ local's paycheck.
 ```
 .
 ├── apps/
-│   ├── web/            Next.js 15 · landing, map, villa QR view, Spotter PWA
+│   ├── web/            Next.js 15 · marketing landing + legal pages (guaca.live)
+│   ├── app/            Next.js 15 PWA · map, trips, villa QR, Spotter (app.guaca.live)
+│   ├── mobile/         Expo WebView wrapper → Play closed testing
 │   └── api/            Fastify + WebSockets · port 3001
 ├── packages/
-│   ├── agents/         gap · verification · planner, plus the grounding guard
+│   ├── agents/         gap · verification · planner · trends, plus the grounding guard
 │   ├── db/             Postgres + PostGIS · migrations, seed, queries
-│   ├── shared/         zod schemas, place taxonomy — the API contract
+│   ├── shared/         zod schemas, place taxonomy, trip contract
+│   ├── ui/             shared map + brand components (Mapbox GL)
 │   └── cli/            operator override CLI (human in the loop)
-├── docker-compose.yml  postgres+postgis · redis · minio
+├── docker-compose.yml  postgres+postgis · minio
 ├── PRODUCT.md          durable product truth — read before changing behaviour
 └── DESIGN.md           the visual system, recorded from the built result
 ```
@@ -48,7 +51,7 @@ Requires Node 24+, pnpm 11+, and Docker.
 
 ```bash
 pnpm install
-docker compose up -d          # postgres+postgis, redis, minio
+docker compose up -d          # postgres+postgis, minio
 pnpm migrate                  # schema
 pnpm seed                     # the pilot area, its zones and Spotters
 pnpm dev                      # every workspace in parallel
