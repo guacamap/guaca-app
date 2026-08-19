@@ -8,6 +8,12 @@ export interface GapSignalsRow {
   verifiedPlaces: Array<{ ageDays: number }>;
   spotterCapacityInZone: number;
   accessDifficulty: number;
+  /** Category momentum — real asks (answered + refused), area-wide, 14d. */
+  recentCategoryAsks: number;
+  /** Zone's human name (zones table, ST_Within on the cell centre). */
+  zoneName: string;
+  /** Verified places in the zone gone stale (>120d) — refresh brief fuel. */
+  stalePlaceNames: string[];
 }
 
 export interface SpotterCandidateRow {
@@ -30,9 +36,9 @@ export interface SpotterCandidateRow {
  */
 export async function loadGapSignals(
   pool: Pool,
-  gap: { id: string; category: string; h3_8: string },
+  gap: { id: string; category: string; h3_8: string; areaId?: string },
 ): Promise<GapSignalsRow> {
-  const [demand, props, coverage, capacity] = await Promise.all([
+  const [demand, props, coverage, capacity, momentum, zone, stale] = await Promise.all([
     pool.query<{ q: number; s: number; ages: number[] }>(
       `select count(*)::int as q,
               count(distinct session_id)::int as s,
@@ -65,6 +71,35 @@ export async function loadGapSignals(
         where active = true and (home_h3 = $1 or home_h3 is null)`,
       [gap.h3_8],
     ),
+    // Momentum: every real ask in this category across the area — answered
+    // ones included, because an answered question is demand evidence too.
+    pool.query<{ n: number }>(
+      `select count(*)::int as n from questions
+        where intent->>'category' = $1
+          and created_at > now() - interval '14 days'
+          and ($2::uuid is null or area_id = $2)`,
+      [gap.category, gap.areaId ?? null],
+    ),
+    // The zone a human would name — spotters read briefs, not h3 indexes.
+    pool.query<{ name: string }>(
+      `select z.name from zones z,
+              lateral (select h3_cell_to_lat_lng($1::h3index) as ll) h,
+              lateral (select ST_SetSRID(ST_MakePoint(h.ll[0], h.ll[1]), 4326) as pt) c
+         where ST_Covers(z.geom::geometry, c.pt)
+         limit 1`,
+      [gap.h3_8],
+    ),
+    pool.query<{ name: string }>(
+      `select name from places
+        where verification_status = 'verified'
+          and witness_count >= 2
+          and category = $1
+          and h3_8 = $2
+          and coalesce(verified_at, created_at) < now() - interval '120 days'
+        order by coalesce(verified_at, created_at) asc
+        limit 3`,
+      [gap.category, gap.h3_8],
+    ),
   ]);
 
   const tierOf = (plan: string, minor: number): GapSignalsRow['properties'][number]['tier'] => {
@@ -83,6 +118,9 @@ export async function loadGapSignals(
     verifiedPlaces: coverage.rows.map((r) => ({ ageDays: Number(r.age_days) })),
     spotterCapacityInZone: capacity.rows[0]?.n ?? 0,
     accessDifficulty: 0,
+    recentCategoryAsks: momentum.rows[0]?.n ?? 0,
+    zoneName: zone.rows[0]?.name ?? gap.h3_8,
+    stalePlaceNames: stale.rows.map((r) => r.name),
   };
 }
 

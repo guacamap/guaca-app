@@ -145,3 +145,30 @@ describe('scoreGap — components', () => {
     expect(market).toBeGreaterThan(spam);
   });
 });
+
+describe('scoreGap — category momentum (T)', () => {
+  it('absent momentum leaves the pinned scores untouched (T = 1)', () => {
+    const g = baseSignals({
+      properties: [{ tier: 'PARTNER' as const, distanceKm: 0.3 }],
+    });
+    const s = scoreGap(g);
+    expect(s.breakdown.T).toBe(1);
+    expect(s.score).toBe(288);
+  });
+
+  it('real asks in the category amplify the score, monotonically', () => {
+    const quiet = scoreGap(baseSignals({ recentCategoryAsks: 0 })).score;
+    const warm = scoreGap(baseSignals({ recentCategoryAsks: 10 })).score;
+    const hot = scoreGap(baseSignals({ recentCategoryAsks: 60 })).score;
+    expect(quiet).toBeLessThan(warm);
+    expect(warm).toBeLessThan(hot);
+  });
+
+  it('momentum alone cannot buy a mission — demand gates still need real asks', () => {
+    // No questions in the cell: D collapses and the hard gates refuse,
+    // however loud the rest of the category is.
+    const g = baseSignals({ questionCount: 0, distinctSessions: 0, recentCategoryAsks: 500 });
+    expect(HARD_GATES(g)).toBe(false);
+    expect(scoreGap(g).score).toBe(0);
+  });
+});

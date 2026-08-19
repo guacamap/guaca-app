@@ -44,6 +44,49 @@ export interface CancelResult {
   reason?: string;
 }
 
+export interface ExpireResult {
+  expired: number;
+  gapsReopened: number;
+}
+
+/**
+ * Expire offered missions past their deadline and reopen their gaps, so the
+ * demand a mission failed to serve recycles into the next cycle instead of
+ * dying inside a row nobody looks at. Only `offered` transitions: an
+ * accepted or submitted mission means a spotter is actively working it, and
+ * taking that away is an operator decision (`guaca override --cancel`),
+ * not a sweep's.
+ *
+ * Transactional: a mission must never expire without its gap reopening.
+ */
+export async function expireMissions(pool: Pool): Promise<ExpireResult> {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const expired = await client.query<{ id: string; gap_id: string }>(
+      `update missions set status = 'expired'
+        where status = 'offered' and expires_at < now()
+        returning id, gap_id`,
+    );
+    let gapsReopened = 0;
+    if (expired.rows.length > 0) {
+      const reopened = await client.query(
+        `update gaps set status = 'open', updated_at = now()
+          where id = any($1::uuid[]) and status = 'commissioned'`,
+        [expired.rows.map((r) => r.gap_id)],
+      );
+      gapsReopened = reopened.rowCount ?? 0;
+    }
+    await client.query('commit');
+    return { expired: expired.rowCount ?? 0, gapsReopened };
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * `guaca override <missionId> --cancel --reason` — audited operator cancel.
  * Writes an operator_actions row with before/after state.

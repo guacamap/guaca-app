@@ -66,6 +66,14 @@ describe('payMission (T5.8)', () => {
       [MISSION_ID],
     );
     expect(rows.rows[0]!.n).toBe(1);
+
+    // The lifecycle closes: a sent payment moves the mission to 'paid'.
+    const mission = await pool.query<{ status: string; paid_at: string | null }>(
+      'select status, paid_at from missions where id = $1',
+      [MISSION_ID],
+    );
+    expect(mission.rows[0]!.status).toBe('paid');
+    expect(mission.rows[0]!.paid_at).not.toBeNull();
   });
 
   it('paying the same mission twice produces exactly one payout row', async () => {

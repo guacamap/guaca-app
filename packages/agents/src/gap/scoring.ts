@@ -21,6 +21,17 @@ export interface GapSignals {
   spotterCapacityInZone: number;
   /** 0 walkable | 1 needs transport | 2 boat/4x4 */
   accessDifficulty: number;
+  /**
+   * Category momentum: questions (answered AND refused) in this category
+   * across the area, last 14 days. Real asks only — an answered question is
+   * demand evidence too, it just didn't become a gap. Momentum AMPLIFIES a
+   * gap that already passed the demand gates; it can never create one.
+   */
+  recentCategoryAsks?: number;
+  /** Human zone name for the brief — the raw h3 index otherwise. */
+  zoneName?: string;
+  /** Verified places in the zone gone stale (>120d) — refresh-mission fuel. */
+  stalePlaceNames?: string[];
 }
 
 export interface ScoredGap {
@@ -31,6 +42,7 @@ export interface ScoredGap {
     Cmult: number;
     S: number;
     F: number;
+    T: number;
     q: number;
     s: number;
   };
@@ -74,6 +86,10 @@ export function HARD_GATES(g: GapSignals): boolean {
  * uncovered zone → 288. Behaviour is pinned in scoring.test.ts.
  */
 export const SCARCITY_EXPONENT = 2.0;
+
+/** Category-momentum amplification: 1 + 0.4·log1p(asks). Bounded by demand. */
+export const TREND_GAIN = 0.4;
+
 export function scoreGap(g: GapSignals): ScoredGap {
   const q = g.questionCount;
   const s = g.distinctSessions;
@@ -103,8 +119,10 @@ export function scoreGap(g: GapSignals): ScoredGap {
     (g.spotterCapacityInZone > 0 ? 1 : 0) *
     (ACCESS_PENALTY[g.accessDifficulty] ?? ACCESS_PENALTY[0]!);
 
+  const T = 1 + TREND_GAIN * Math.log1p(g.recentCategoryAsks ?? 0);
+
   return {
-    score: Math.round(100 * D * Rmult * Cmult * S * F),
-    breakdown: { D, Rmult, Cmult, S, F, q, s },
+    score: Math.round(100 * D * Rmult * Cmult * S * F * T),
+    breakdown: { D, Rmult, Cmult, S, F, T, q, s },
   };
 }
