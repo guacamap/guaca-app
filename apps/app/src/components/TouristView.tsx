@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Bell,
+  CalendarRange,
   Check,
   Clock3,
   Flag,
@@ -23,6 +24,7 @@ import {
   Star,
   Store,
   Trash2,
+  TrendingUp,
   Trophy,
   UserRound,
   X,
@@ -63,6 +65,7 @@ interface ApiPlace {
   postsCount?: number
   avgRating?: number | null
   ratingCount?: number
+  trendBadge?: 'trending' | 'asked_about' | 'fresh' | null
 }
 
 interface CandidatePlace {
@@ -87,6 +90,7 @@ interface ChatMsg {
   text: string
   placeIds?: string[]
   questionId?: string
+  suggestions?: Rec[]
 }
 
 interface SavedPlan {
@@ -94,6 +98,25 @@ interface SavedPlan {
   text: string
   placeIds: string[]
   savedAt: string
+}
+
+/** A server-saved trip (GET /api/trips) — guard-minted stops, shareable. */
+interface ApiTrip {
+  id: string
+  question: string
+  language: string
+  stops: Array<{ placeId: string; dayIndex: number; startMin: number; durationMin: number; reasonCode: string }>
+  shareSlug: string
+  createdAt: string
+}
+
+type TripPaceChoice = 'relaxed' | 'balanced' | 'packed'
+
+/** A grounded follow-up from the trend engine — never model output. */
+interface Rec {
+  placeId: string
+  name: string
+  why: 'trending' | 'asked_about' | 'fresh'
 }
 
 interface Me {
@@ -217,6 +240,13 @@ export function TouristView() {
   const [guacaText, setGuacaText] = useState('')
   const [guacaBusy, setGuacaBusy] = useState(false)
   const [plan, setPlan] = useState<SavedPlan | null>(null)
+  const [trips, setTrips] = useState<ApiTrip[]>([])
+  const [tripText, setTripText] = useState('')
+  const [tripDays, setTripDays] = useState(2)
+  const [tripPace, setTripPace] = useState<TripPaceChoice>('balanced')
+  const [tripBusy, setTripBusy] = useState(false)
+  const [tripErr, setTripErr] = useState(false)
+  const [recs, setRecs] = useState<Rec[]>([])
   const [planPlaces, setPlanPlaces] = useState<Record<string, ApiPlace>>({})
   const [me, setMe] = useState<Me | null>(null)
   const [doubted, setDoubted] = useState<Set<string>>(new Set())
@@ -349,6 +379,31 @@ export function TouristView() {
       .catch(() => {})
   }, [])
 
+  // Saved trips for the Plan tab — server-side, per account.
+  useEffect(() => {
+    if (activeTab !== 'plan') return
+    fetch('/api/trips', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { trips: ApiTrip[] } | null) => {
+        if (d) setTrips(d.trips)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
+  // Grounded recommendations for the chat's opening state — trending
+  // verified places near the pilot centre, honestly badged.
+  useEffect(() => {
+    if (activeTab !== 'guaca' || thread.length > 0 || recs.length > 0) return
+    fetch(`/api/suggestions?lat=${center[1]}&lon=${center[0]}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { suggestions: Rec[] } | null) => {
+        if (d) setRecs(d.suggestions)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
   // "What locals say" for the open place — fetched eagerly so the toggle
   // can show a count before it is opened.
   useEffect(() => {
@@ -457,6 +512,7 @@ export function TouristView() {
     text: string
     placeIds: string[]
     questionId?: string
+    suggestions?: Rec[]
   } | null> => {
     const res = await fetch('/api/ask', {
       method: 'POST',
@@ -470,6 +526,7 @@ export function TouristView() {
       text: string
       placeIds: string[]
       questionId?: string
+      suggestions?: Rec[]
     }
   }
 
@@ -593,6 +650,67 @@ export function TouristView() {
     saveJson(PLAN_KEY, next)
   }
 
+  /** POST /api/plan — the guarded trip pipeline; a refusal is honest too. */
+  const planTripCall = async () => {
+    const text = tripText.trim()
+    if (!text || tripBusy) return
+    setTripBusy(true)
+    setTripErr(false)
+    try {
+      const res = await fetch('/api/plan', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          text,
+          language: lang,
+          lat: center[1],
+          lon: center[0],
+          days: tripDays,
+          pace: tripPace,
+        }),
+      })
+      if (!res.ok) {
+        setTripErr(true)
+        return
+      }
+      const body = (await res.json()) as {
+        kind: 'trip' | 'refusal'
+        trip?: ApiTrip
+      }
+      if (body.kind === 'trip' && body.trip) {
+        setTrips((prev) => [body.trip!, ...prev])
+        setTripText('')
+      } else {
+        // A refused trip request is a demand signal — show it as such.
+        setTripErr(true)
+      }
+    } catch {
+      setTripErr(true)
+    } finally {
+      setTripBusy(false)
+    }
+  }
+
+  const deleteTripCall = (id: string) => {
+    setTrips((prev) => prev.filter((x) => x.id !== id))
+    fetch(`/api/trips/${id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+  }
+
+  const shareTripWa = (trip: ApiTrip) => {
+    const days = [...new Set(trip.stops.map((s) => s.dayIndex))].sort((a, b) => a - b)
+    const lines = days.map((d) => {
+      const stops = trip.stops
+        .filter((s) => s.dayIndex === d)
+        .sort((a, b) => a.startMin - b.startMin)
+        .map((s) => placeById(s.placeId)?.name)
+        .filter(Boolean)
+        .join(' → ')
+      return `${t.tripDay} ${d + 1}: ${stops}`
+    })
+    waShare(`${t.tripsTitle} — ${lines.join(' | ')} ${APP_URL}/t/${trip.shareSlug}`)
+  }
+
   const ask = async () => {
     const text = askText.trim()
     if (!text || askState.kind === 'asking') return
@@ -642,6 +760,7 @@ export function TouristView() {
           text: body.text,
           placeIds: body.placeIds,
           ...(body.questionId ? { questionId: body.questionId } : {}),
+          ...(body.suggestions ? { suggestions: body.suggestions } : {}),
         }
         if (body.kind === 'answer') savePlanFromAnswer(text, body.text, body.placeIds)
       }
@@ -849,6 +968,12 @@ export function TouristView() {
                 <Star className="h-3.5 w-3.5 fill-guaca-mango text-guaca-mango" />
                 {selected.avgRating.toFixed(1)}
                 <span className="font-bold text-guaca-ink/40">({selected.ratingCount})</span>
+              </p>
+            )}
+            {selected.trendBadge && (
+              <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-guaca-mango/15 px-2.5 py-1 text-[10px] font-black text-guaca-ocean-deep">
+                <TrendingUp className="h-3 w-3" />
+                {selected.trendBadge === 'trending' ? t.whyTrending : selected.trendBadge === 'asked_about' ? t.whyAskedAbout : t.whyFresh}
               </p>
             )}
             {selected.landmark_description && (
@@ -1136,6 +1261,26 @@ export function TouristView() {
                 </button>
               ))}
             </div>
+            {recs.length > 0 && (
+              <div className="mt-4 border-t border-guaca-sand pt-3 text-left">
+                <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-ink/40">
+                  <TrendingUp className="h-3 w-3" /> {t.suggestionsTitle}
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {recs.map((r) => (
+                    <button
+                      key={r.placeId}
+                      type="button"
+                      title={r.why === 'trending' ? t.whyTrending : r.why === 'asked_about' ? t.whyAskedAbout : t.whyFresh}
+                      onClick={() => openPlaceOnMap(r.placeId)}
+                      className="rounded-full bg-guaca-mango/15 px-3 py-1.5 text-[10px] font-black text-guaca-ocean-deep hover:bg-guaca-mango/30"
+                    >
+                      {r.why === 'trending' ? '🔥' : r.why === 'asked_about' ? '❓' : '✨'} {r.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1193,6 +1338,26 @@ export function TouristView() {
                         </span>
                       )
                     })}
+                  </div>
+                )}
+                {(m.suggestions ?? []).length > 0 && (
+                  <div className="mt-2 border-t border-guaca-sand pt-2">
+                    <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-ink/40">
+                      <TrendingUp className="h-3 w-3" /> {t.suggestionsTitle}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {(m.suggestions ?? []).map((r) => (
+                        <button
+                          key={r.placeId}
+                          type="button"
+                          title={r.why === 'trending' ? t.whyTrending : r.why === 'asked_about' ? t.whyAskedAbout : t.whyFresh}
+                          onClick={() => openPlaceOnMap(r.placeId)}
+                          className="rounded-full bg-guaca-mango/15 px-3 py-1.5 text-[10px] font-black text-guaca-ocean-deep hover:bg-guaca-mango/30"
+                        >
+                          {r.why === 'trending' ? '🔥' : r.why === 'asked_about' ? '❓' : '✨'} {r.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1313,6 +1478,120 @@ export function TouristView() {
           </button>
         </>
       )}
+
+      {/* Saved trips — multi-day itineraries the server keeps per account. */}
+      <div className="mt-7">
+        <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+          <CalendarRange className="h-3.5 w-3.5 text-guaca-teal" /> {t.tripsTitle}
+        </p>
+        <p className="mt-1 px-1 text-[11px] font-semibold leading-relaxed text-guaca-ink/45">{t.tripsLede}</p>
+
+        {trips.length === 0 ? (
+          <p className="mt-2 rounded-[24px] border border-dashed border-guaca-sand bg-white/60 px-4 py-4 text-center text-[11px] font-semibold text-guaca-ink/45">{t.tripsEmpty}</p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {trips.map((trip) => {
+              const days = [...new Set(trip.stops.map((s) => s.dayIndex))].sort((a, b) => a - b)
+              return (
+                <div key={trip.id} className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-guaca-sand/75">
+                  <p className="text-[13px] font-black leading-snug text-guaca-ink">“{trip.question}”</p>
+                  {days.map((d) => (
+                    <div key={d} className="mt-2.5">
+                      <p className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-teal">{t.tripDay} {d + 1}</p>
+                      <div className="mt-1 space-y-1">
+                        {trip.stops
+                          .filter((s) => s.dayIndex === d)
+                          .sort((a, b) => a.startMin - b.startMin)
+                          .map((s, i, arr) => {
+                            const p = placeById(s.placeId)
+                            const hh = String(Math.floor(s.startMin / 60)).padStart(2, '0')
+                            const mm = String(s.startMin % 60).padStart(2, '0')
+                            return (
+                              <button
+                                key={`${s.placeId}-${d}-${i}`}
+                                type="button"
+                                onClick={() => openPlaceOnMap(s.placeId)}
+                                className="flex w-full items-center gap-2 rounded-2xl bg-guaca-sand-light/70 px-3 py-2 text-left hover:bg-guaca-teal/10"
+                              >
+                                <span className="text-[10px] font-black tabular-nums text-guaca-ink/40">{hh}:{mm}</span>
+                                <span className="min-w-0 flex-1 truncate text-[12px] font-black text-guaca-ink">
+                                  {p ? `${(CATEGORY_GLYPH[p.category] ?? { emoji: '📍' }).emoji} ${p.name}` : '…'}
+                                </span>
+                                {p?.spotter_name && <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-guaca-teal" />}
+                                {i === arr.length - 1 ? null : <span className="sr-only">→</span>}
+                              </button>
+                            )
+                          })}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-3 flex gap-2">
+                    <Button type="button" onClick={() => shareTripWa(trip)} className="h-9 flex-1 rounded-2xl bg-guaca-teal text-[10px] font-black text-white hover:bg-guaca-teal-dark">
+                      <Share2 className="mr-1 h-3.5 w-3.5" /> {t.tripShare}
+                    </Button>
+                    <button
+                      type="button"
+                      aria-label={t.tripDelete}
+                      title={t.tripDelete}
+                      onClick={() => deleteTripCall(trip.id)}
+                      className="grid h-9 w-9 place-items-center rounded-2xl bg-guaca-ink/5 text-guaca-ink/45 hover:bg-guaca-coral/12 hover:text-guaca-coral-dark"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Plan a trip — days, pace, and the same guarded pipeline. */}
+        <div className="mt-4 rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/70 p-4">
+          <div className="flex items-center gap-2">
+            <input
+              value={tripText}
+              onChange={(e) => setTripText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void planTripCall() }}
+              placeholder={t.guacaPlaceholder}
+              className="min-w-0 flex-1 rounded-2xl border border-guaca-sand bg-white px-3.5 py-2.5 text-[12px] font-bold text-guaca-ink outline-none placeholder:text-guaca-ink/30 focus:border-guaca-teal/50"
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-ink/40">{t.tripDaysLabel}</span>
+              {[1, 2, 3, 5, 7].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setTripDays(d)}
+                  className={`h-7 w-7 rounded-full text-[11px] font-black ${tripDays === d ? 'bg-guaca-teal text-white' : 'bg-guaca-teal/8 text-guaca-teal hover:bg-guaca-teal/15'}`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-ink/40">{t.tripPaceLabel}</span>
+              {([['relaxed', t.paceRelaxed], ['balanced', t.paceBalanced], ['packed', t.pacePacked]] as Array<[TripPaceChoice, string]>).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setTripPace(value)}
+                  className={`rounded-full px-3 py-1.5 text-[10px] font-black ${tripPace === value ? 'bg-guaca-ocean text-white' : 'bg-guaca-ocean/8 text-guaca-ocean hover:bg-guaca-ocean/15'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button type="button" disabled={tripBusy || tripText.trim().length === 0} onClick={() => void planTripCall()} className="mt-3 h-10 w-full rounded-2xl bg-guaca-mango text-[11px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light disabled:opacity-45">
+            <Sparkles className="mr-1.5 h-4 w-4" /> {tripBusy ? t.tripPlanning : t.planTripCta}
+          </Button>
+          {tripErr && (
+            <p className="mt-2 rounded-2xl bg-guaca-ocean-deep/90 px-3.5 py-2.5 text-[11px] font-bold leading-relaxed text-white">{t.tripRefused}</p>
+          )}
+        </div>
+      </div>
 
       {/* Saved places — the ♥ list, private to this account. */}
       <div className="mt-6">

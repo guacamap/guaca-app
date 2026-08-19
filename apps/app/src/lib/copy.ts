@@ -164,6 +164,24 @@ export interface AppCopy {
     planFromQuestion: string
     planViewOnMap: string
     planClear: string
+    tripsTitle: string
+    tripsLede: string
+    tripsEmpty: string
+    tripDaysLabel: string
+    tripPaceLabel: string
+    paceRelaxed: string
+    paceBalanced: string
+    pacePacked: string
+    planTripCta: string
+    tripPlanning: string
+    tripDay: string
+    tripShare: string
+    tripDelete: string
+    tripRefused: string
+    suggestionsTitle: string
+    whyTrending: string
+    whyAskedAbout: string
+    whyFresh: string
     profileTitle: string
     profileGuestOf: string
     profileLanguage: string
@@ -420,6 +438,24 @@ export const appCopy: Record<Lang, AppCopy> = {
       planFromQuestion: 'From your question',
       planViewOnMap: 'View on map',
       planClear: 'Clear plan',
+      tripsTitle: 'Saved trips',
+      tripsLede: 'Multi-day trips Guaca planned for you — shareable with anyone.',
+      tripsEmpty: 'No trips yet — plan one below.',
+      tripDaysLabel: 'Days',
+      tripPaceLabel: 'Pace',
+      paceRelaxed: 'Relaxed',
+      paceBalanced: 'Balanced',
+      pacePacked: 'Packed',
+      planTripCta: 'Plan this trip',
+      tripPlanning: 'Planning…',
+      tripDay: 'Day',
+      tripShare: 'Share trip',
+      tripDelete: 'Delete trip',
+      tripRefused: 'Not enough verified ground for that trip yet — a local has been asked to go look.',
+      suggestionsTitle: 'Worth a look',
+      whyTrending: 'Trending',
+      whyAskedAbout: 'People are asking about this',
+      whyFresh: 'Fresh on the map',
       profileTitle: 'Profile',
       profileGuestOf: 'Guest of',
       profileLanguage: 'Language',
@@ -681,6 +717,24 @@ export const appCopy: Record<Lang, AppCopy> = {
       planFromQuestion: 'De tu pregunta',
       planViewOnMap: 'Ver en el mapa',
       planClear: 'Borrar plan',
+      tripsTitle: 'Viajes guardados',
+      tripsLede: 'Viajes de varios días que Guaca planificó para ti — compartibles con cualquiera.',
+      tripsEmpty: 'Aún no hay viajes — planifica uno aquí abajo.',
+      tripDaysLabel: 'Días',
+      tripPaceLabel: 'Ritmo',
+      paceRelaxed: 'Relajado',
+      paceBalanced: 'Equilibrado',
+      pacePacked: 'Intenso',
+      planTripCta: 'Planificar este viaje',
+      tripPlanning: 'Planificando…',
+      tripDay: 'Día',
+      tripShare: 'Compartir viaje',
+      tripDelete: 'Eliminar viaje',
+      tripRefused: 'Aún no hay terreno verificado para ese viaje — ya le pedimos a un local que vaya a mirar.',
+      suggestionsTitle: 'Vale la pena ver',
+      whyTrending: 'En tendencia',
+      whyAskedAbout: 'La gente pregunta por esto',
+      whyFresh: 'Nuevo en el mapa',
       profileTitle: 'Perfil',
       profileGuestOf: 'Huésped de',
       profileLanguage: 'Idioma',
