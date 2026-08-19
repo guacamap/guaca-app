@@ -2,10 +2,12 @@
 
 ## Deadlines (corrected)
 
-- **Submission closes: 30 Aug 2026** (per project owner — the plan's 17 Aug
-  is superseded). Live demos + judging 16 Aug still stand; polish-only after
-  submission.
-- Demo video to be recorded before judging (15 Aug buffer).
+- **Submission closes: end of August 2026** — the whole of August is
+  building time (per project owner 2026-08-19; the plan's 17 Aug is
+  superseded).
+- **Judging starts in September 2026** — the plan's 16 Aug live-demo date
+  is also superseded.
+- Demo video to be recorded before judging starts in September.
 
 ## Open decisions / blockers
 
@@ -23,8 +25,21 @@
 
 - The AI never generates a place — assertGrounded is the only construction
   site; dependency-cruiser forbids render → inference as a build failure.
-- Exactly three agents: planner, gap, verification.
+- Exactly three agents: planner, gap, verification. The **trend engine**
+  (2026-08-19) is NOT a fourth agent: a deterministic scoring module in the
+  gap-scoring tradition — pure functions over recorded behaviour, zero
+  inference, versioned (`TREND_VERSION`). It ranks verified places and
+  modulates gap scoring; it cannot introduce a place or commission
+  anything by itself.
+- Missions stay **demand-first** (owner decision 2026-08-19): the wider
+  funnel (refusals, re-check doubts, category momentum from real asks,
+  stale-place refresh hints) all start from recorded demand. No
+  speculative commissioning toward density targets; the daily cap and
+  reward cap stay.
+- Raw engagement counts never reach tourist surfaces — badges only
+  ("trending" / "asked about" / "fresh"), each a literally-true statement.
 - MockPayoutProvider only; payouts keyed by mission_id.
 - `verified_needs_two_locals` is never relaxed — no machine-only
   verification, ever.
-- Tests run zero-network; the fetch ban in test/setup.ts is deliberate.
+- Tests run zero-network; the fetch ban in test/setup.ts is deliberate
+  (the weather provider's fetch is injected and faked in tests).

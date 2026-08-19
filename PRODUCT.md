@@ -87,7 +87,8 @@ franchises or tourist traps.
   hardcodes that bbox and centre. Regional scope is a product fact the schema
   already supports (`areas` is a table, not a constant) but the data does not
   yet exercise. Named expansion targets are Colombia and Costa Rica.
-- Map rendering is MapLibre GL over raster OpenStreetMap tiles.
+- Map rendering is Mapbox GL JS (decided 2026-08-08, replacing the original
+  MapLibre + raster-OSM plan — see `docs/STACK_DECISIONS.md` §2).
 - The API is Fastify with a WebSocket live operations stream (`opsStream.ts`);
   the web app reaches it via `NEXT_PUBLIC_API_URL`.
 - Inference is provider-agnostic behind an OpenAI-compatible
@@ -95,16 +96,35 @@ franchises or tourist traps.
 
 ## Capabilities and Constraints
 
-**Routes (confirmed plan, one move pending).** The landing page takes `/`; the
-existing tourist map + ask/refusal chat moves to `/map`. `/v/[qrToken]` and
-`/spotter` are unaffected.
+**Routes (as built 2026-08-19).** The marketing landing lives at `guaca.live`
+(`apps/web`); the product surfaces live at `app.guaca.live` (`apps/app`):
 
 ```
-/              landing            — to build
-/map           TouristMap         — to move from (tourist)/page.tsx, unchanged
-/v/[qrToken]   villa QR tool      — unchanged
-/spotter       Spotter PWA        — unchanged
+/              tourist map + ask/refusal chat      — apps/app
+/map           same map, deep-linked
+/guaca         chat tab (answers + grounded suggestions)
+/plan (tab)    working plan + SAVED TRIPS + trip planner
+/v/[qrToken]   villa QR tool
+/t/[slug]      public read-only shared trip (no account)
+/spotter       Spotter PWA
 ```
+
+**Trip planning (2026-08-19).** Guaca plans multi-day trips (1–7 days,
+pace: relaxed/balanced/packed) through the same guarded pipeline — the
+catalog gains a `dayIndex` integer, per-day coherence is guard-checked,
+and trips save server-side per account with public share links. A refused
+trip request is recorded as demand exactly like a refused ask. The catalog
+offered to the model is ranked by distance × trend score, so "trending"
+means computed evidence (answers citing the place, re-check doubts,
+presence-verified ratings, freshness), never popularity theatre.
+
+**Trend engine (2026-08-19).** A deterministic scoring module (NOT a fourth
+agent — see `docs/NOTES.md`): recorded behaviour only, zero inference,
+versioned. Tourist surfaces see badges ("trending", "asked about",
+"fresh") — each a literally-true statement; raw counts never leave the
+server. Weather (Open-Meteo, area-level, kill-switchable) modulates
+category weighting; a down provider degrades to weather-free, never to a
+failed answer.
 
 **Languages: bilingual English + Spanish**, on the landing surface as well as in
 answers. The taxonomy already carries `labelEs` / `labelEn` for every category;
@@ -144,7 +164,7 @@ not here.
 map off `/` means the cached shell list needs revisiting.
 
 **Delivery constraint:** the working deadline for a shippable version is
-2026-08-17.
+end of August 2026; judging starts in September (see `docs/NOTES.md`).
 
 ## Brand Commitments
 

@@ -11,6 +11,7 @@
 | Fastify + WebSockets | API and live ops stream | MIT |
 | sharp / sharp-phash | Photo hashing (sha256 + 64-bit pHash) | Apache-2.0 |
 | Reloadly (planned, NOT wired) | Airtime top-up payouts for Spotters | provider terms; MVP uses MockPayoutProvider |
+| Open-Meteo (wired 2026-08-19) | Area weather forecast modulating trend scores and category recommendations — coordinates only, no user data | CC-BY 4.0; free, keyless; `WEATHER_ENABLED` kill switch, degrades to weather-free |
 
 **Attribution.** OpenStreetMap data (Overpass candidates) is
 © OpenStreetMap contributors, used under the ODbL. Basemap attribution is

@@ -84,6 +84,9 @@ services:
       GAP_AGENT_MAX_REWARD_MINOR: ${GAP_AGENT_MAX_REWARD_MINOR:-500}
       MISSION_EXPIRY_HOURS: ${MISSION_EXPIRY_HOURS:-48}
       PLANNER_MIN_CANDIDATES: ${PLANNER_MIN_CANDIDATES:-3}
+      # Trend engine weather modulation (Open-Meteo; off = scores run weather-free).
+      WEATHER_ENABLED: ${WEATHER_ENABLED:-true}
+      WEATHER_BASE_URL: ${WEATHER_BASE_URL:-https://api.open-meteo.com}
     depends_on:
       postgres:
         condition: service_healthy
