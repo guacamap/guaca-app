@@ -1,5 +1,5 @@
 import { Catalog } from '../catalog/catalog.js';
-import { PlanDraft } from './planDraft.js';
+import { MAX_STOPS_PER_DAY, MAX_STOPS_TOTAL, PlanDraft } from './planDraft.js';
 
 /** A DB row sufficient for the step-6 TOCTOU re-read. */
 export interface PlaceRowForGuard {
@@ -28,6 +28,7 @@ export interface PlanArtifact {
   readonly placeIds: readonly string[];
   readonly stops: readonly {
     placeId: string;
+    dayIndex: number;
     startMin: number;
     durationMin: number;
     reasonCode: string;
@@ -48,6 +49,8 @@ export interface PlanArtifact {
 export function groundFromVerifiedRows(
   stops: ReadonlyArray<{
     placeId: string;
+    /** Omitted means day 0 — the deterministic fast path is a one-day plan. */
+    dayIndex?: number;
     startMin: number;
     durationMin: number;
     reasonCode: string;
@@ -61,7 +64,7 @@ export function groundFromVerifiedRows(
   }
   return {
     placeIds: stops.map((s) => s.placeId),
-    stops: stops.map((s) => ({ ...s })),
+    stops: stops.map((s) => ({ dayIndex: 0, ...s })),
   } as unknown as PlanArtifact;
 }
 
@@ -103,12 +106,12 @@ function fail(code: GuardViolationCode): never {
  * The anti-hallucination guard — §7.3, exactly.
  *
  * 1. PARSE       PlanDraft.safeParse            fail → SCHEMA
- * 2. SIZE        1 ≤ stops ≤ 8                  fail → EMPTY_PLAN / OVERSIZED_PLAN
+ * 2. SIZE        1 ≤ stops ≤ 24 total           fail → EMPTY_PLAN / OVERSIZED_PLAN
  * 3. MEMBERSHIP  catalog.refs.has(ref)          fail → UNKNOWN_REF
  * 4. UNIQUENESS  refs pairwise distinct         fail → DUP_REF
  * 5. PROJECT     ref → catalog.byRef(ref).placeId
  * 6. RE-READ     SELECT … WHERE id = ANY($placeIds) AND verified AND witness_count>=2
- * 7. COHERENCE   sorted, non-overlapping, travel time feasible
+ * 7. COHERENCE   per day: ≤ 8 stops, sorted, non-overlapping, travel feasible
  * 8. SWEEP       lexicalSweep(raw, catalog)     fail → FREE_TEXT_ENTITY
  * 9. FINGERPRINT ctx.fingerprint === catalog.fingerprint
  * 10. CONSTRUCT  return branded PlanArtifact
@@ -126,10 +129,10 @@ export async function assertGrounded(
   const parsed = PlanDraft.safeParse(raw);
   if (!parsed.success) fail('SCHEMA');
 
-  // 2. SIZE
+  // 2. SIZE — total cap at the schema, per-day cap here in step 7.
   const stops = parsed.data.stops;
   if (stops.length < 1) fail('EMPTY_PLAN');
-  if (stops.length > 8) fail('OVERSIZED_PLAN');
+  if (stops.length > MAX_STOPS_TOTAL) fail('OVERSIZED_PLAN');
 
   const refs = stops.map((s) => s.ref);
 
@@ -149,16 +152,27 @@ export async function assertGrounded(
   const fresh = await ctx.reReadVerified(placeIds);
   if (fresh.length !== placeIds.length) fail('NOT_VERIFIED_AT_RENDER');
 
-  // 7. COHERENCE — sorted, non-overlapping, travel time feasible.
-  const sorted = [...stops].sort((a, b) => a.startMin - b.startMin);
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = sorted[i]!;
-    const b = sorted[i + 1]!;
-    if (a.startMin + a.durationMin > b.startMin) fail('TIME_INCOHERENT');
-    // Travel-time feasibility: the next stop must start at least 10 minutes
-    // after the previous one ends (the deterministic minimum the pure guard
-    // can prove; the graph refines this with PostGIS at 4.5 km/h).
-    if (b.startMin - (a.startMin + a.durationMin) < 10) fail('TIME_INCOHERENT');
+  // 7. COHERENCE — per day: sorted, non-overlapping, travel-feasible. Days
+  // are independent: two stops at 10:00 on different days is a valid trip,
+  // and a rest day between used days is none of the guard's business.
+  const byDay = new Map<number, typeof stops>();
+  for (const s of stops) {
+    const day = byDay.get(s.dayIndex) ?? [];
+    day.push(s);
+    byDay.set(s.dayIndex, day);
+  }
+  for (const dayStops of byDay.values()) {
+    if (dayStops.length > MAX_STOPS_PER_DAY) fail('OVERSIZED_PLAN');
+    const sorted = [...dayStops].sort((a, b) => a.startMin - b.startMin);
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i]!;
+      const b = sorted[i + 1]!;
+      if (a.startMin + a.durationMin > b.startMin) fail('TIME_INCOHERENT');
+      // Travel-time feasibility: the next stop must start at least 10 minutes
+      // after the previous one ends (the deterministic minimum the pure guard
+      // can prove; the graph refines this with PostGIS at 4.5 km/h).
+      if (b.startMin - (a.startMin + a.durationMin) < 10) fail('TIME_INCOHERENT');
+    }
   }
 
   // 8. SWEEP
@@ -175,6 +189,7 @@ export async function assertGrounded(
     placeIds,
     stops: stops.map((s, i) => ({
       placeId: placeIds[i]!,
+      dayIndex: s.dayIndex,
       startMin: s.startMin,
       durationMin: s.durationMin,
       reasonCode: s.reasonCode,
