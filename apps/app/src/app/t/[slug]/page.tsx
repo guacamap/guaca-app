@@ -73,8 +73,8 @@ export default function SharedTripPage() {
           ids.map((id) =>
             fetch(`/api/places/${id}`)
               .then((r) => (r.ok ? r.json() : null))
-              .then((p: { place: PlaceLite } | null) => {
-                if (p?.place) setPlaces((prev) => ({ ...prev, [id]: p.place }));
+              .then((p: PlaceLite | null) => {
+                if (p) setPlaces((prev) => ({ ...prev, [id]: p }));
               })
               .catch(() => {}),
           ),
