@@ -39,6 +39,18 @@ export { selectSpotter, type SpotterCandidate } from './gap/spotterSelection.js'
 export { composeBrief, type BriefInput } from './gap/brief.js';
 export { runGapAgent, type GapAgentOptions, type GapAgentResult, type GapRow } from './gap/agent.js';
 export { scoreGap, HARD_GATES, SCARCITY_EXPONENT, type GapSignals, type ScoredGap } from './gap/scoring.js';
+export {
+  scoreTrends,
+  weatherMultiplier,
+  TREND_VERSION,
+  TRENDING_SCORE_MIN,
+  ENGAGEMENT_HALF_LIFE_DAYS,
+  INTEREST_HALF_LIFE_DAYS,
+  type TrendSignals,
+  type WeatherState,
+  type TrendBadge,
+  type ScoredTrend,
+} from './trends/score.js';
 export { analyzeMapHealth } from './health/analyze.js';
 export type { MapHealthStats, MapHealthAnalysis, HealthFinding, HealthFindingKind, MissionCandidate } from './health/analyze.js';
 export { narrateMapHealth } from './health/narrate.js';

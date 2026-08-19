@@ -3,6 +3,7 @@ import {
   clusterUnanswered,
   rankedGaps,
   commissionMission,
+  expireMissions,
   loadGapSignals,
   listSpotterCandidates,
 } from '@guaca/db';
@@ -14,6 +15,8 @@ import {
 } from '@guaca/agents';
 import { buildApp } from './app.js';
 import { runGapCycle, startGapScheduler } from './scheduler.js';
+import { recomputeTrends } from './trendsService.js';
+import { disabledWeatherProvider, openMeteoProvider } from './weather.js';
 
 const app = buildApp({ pool });
 const port = Number(process.env.API_PORT ?? 3001);
@@ -24,6 +27,15 @@ const AREA_ID =
 const gapEnabled = (process.env.GAP_AGENT_ENABLED ?? 'true') !== 'false';
 const gapIntervalMs = Number(process.env.GAP_AGENT_INTERVAL_MS ?? 300_000);
 const gapDryRun = process.env.GAP_AGENT_DRY_RUN === 'true';
+const weatherEnabled = (process.env.WEATHER_ENABLED ?? 'true') !== 'false';
+
+const weather = weatherEnabled
+  ? openMeteoProvider({
+      ...(process.env.WEATHER_BASE_URL
+        ? { baseUrl: process.env.WEATHER_BASE_URL }
+        : {}),
+    })
+  : disabledWeatherProvider();
 
 /**
  * The autonomy loop. Without this the gap agent is a function nobody calls:
@@ -35,6 +47,9 @@ const scheduler = startGapScheduler({
   intervalMs: gapIntervalMs,
   cycle: () =>
     runGapCycle({
+      recomputeTrends: () =>
+        recomputeTrends(pool, { areaId: AREA_ID, weather }),
+      expireMissions: () => expireMissions(pool),
       cluster: () => clusterUnanswered(pool, AREA_ID),
       runAgent: () =>
         runGapAgent({
@@ -57,19 +72,27 @@ const scheduler = startGapScheduler({
             );
             return r.rows[0]?.n ?? 0;
           },
-          // Real signals: existing coverage suppresses spending, and paying
-          // properties weight the score. Stubs here would make both inert.
+          // Real signals: existing coverage suppresses spending, paying
+          // properties weight the score, and the zone name keeps briefs
+          // human. Stubs here would make all three inert.
           loadSignals: (gap) =>
             loadGapSignals(pool, {
               id: gap.id,
               category: gap.category,
               h3_8: gap.h3_8,
+              areaId: AREA_ID,
             }),
           listSpotters: (zoneId) => listSpotterCandidates(pool, zoneId),
           score: scoreGap,
           selectSpotter: async (candidates, zoneId) =>
             selectSpotter(candidates, zoneId),
           composeBrief,
+          persistScore: async (gapId, score) => {
+            await pool.query(
+              `update gaps set score = $2, updated_at = now() where id = $1`,
+              [gapId, score],
+            );
+          },
           commission: (args) =>
             commissionMission(pool, {
               ...args,

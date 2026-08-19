@@ -1,4 +1,12 @@
 export interface GapCycleDeps {
+  /**
+   * Recompute place trend scores before anything else, so gap scoring sees
+   * the same tick's trends. Optional — a failure here is logged and skipped;
+   * trends must never break the autonomy loop.
+   */
+  recomputeTrends?: () => Promise<{ places: number; weatherState: string | null }>;
+  /** Expire dead offers and reopen their gaps — demand recycles. Optional. */
+  expireMissions?: () => Promise<{ expired: number; gapsReopened: number }>;
   /** Fold newly-refused questions into (area, category, h3) gaps. */
   cluster: () => Promise<{ gapsCreated: number; questionsClustered: number }>;
   /** Score the gaps and commission at most one mission. */
@@ -37,6 +45,26 @@ export async function runGapCycle(deps: GapCycleDeps): Promise<GapCycleResult> {
     }
   };
 
+  let trends: { places: number; weatherState: string | null } | null = null;
+  if (deps.recomputeTrends) {
+    try {
+      trends = await deps.recomputeTrends();
+    } catch {
+      // Trend scores are an input, not a dependency: a failed recompute
+      // degrades this tick's ranking, nothing else.
+    }
+  }
+
+  let expiry: { expired: number; gapsReopened: number } | null = null;
+  if (deps.expireMissions) {
+    try {
+      expiry = await deps.expireMissions();
+    } catch {
+      // Same tolerance as trends: a failed sweep degrades nothing that
+      // already worked, and the next tick retries it.
+    }
+  }
+
   const clustered = await deps.cluster();
   const agent = await deps.runAgent();
 
@@ -59,6 +87,8 @@ export async function runGapCycle(deps: GapCycleDeps): Promise<GapCycleResult> {
     tokens_in: 0,
     tokens_out: 0,
     detail: {
+      trendsRecomputed: trends?.places ?? 0,
+      missionsExpired: expiry?.expired ?? 0,
       gapsCreated: clustered.gapsCreated,
       questionsClustered: clustered.questionsClustered,
       commissioned: agent.commissioned.length,

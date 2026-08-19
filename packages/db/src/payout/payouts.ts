@@ -81,5 +81,15 @@ export async function payMission(
     `update payouts set status = $2, provider_ref = $3 where idempotency_key = $1`,
     [input.missionId, result.status, result.providerRef ?? null],
   );
+  if (result.status === 'sent') {
+    // Close the lifecycle: a paid mission must not sit at 'verified' forever
+    // with money already moving. Guarded on status so a re-run or a race can
+    // only ever move it forward, never back.
+    await pool.query(
+      `update missions set status = 'paid', paid_at = now()
+        where id = $1 and status = 'verified'`,
+      [input.missionId],
+    );
+  }
   return { status: result.status, idempotencyKey: input.missionId };
 }
