@@ -1,6 +1,6 @@
 export { Catalog } from './catalog/catalog.js';
 export type { PlaceId, CatalogEntry, CatalogRow } from './catalog/catalog.js';
-export { PlanDraft, ReasonCode } from './guard/planDraft.js';
+export { PlanDraft, ReasonCode, MAX_DAYS, MAX_STOPS_PER_DAY, MAX_STOPS_TOTAL } from './guard/planDraft.js';
 export { assertGrounded, GuardViolation } from './guard/assertGrounded.js';
 export type { GuardViolationCode, GuardCtx, PlanArtifact, PlaceRowForGuard } from './guard/assertGrounded.js';
 export { lexicalSweep, normaliseForSweep } from './guard/lexicalSweep.js';

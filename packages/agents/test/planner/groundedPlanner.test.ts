@@ -119,3 +119,71 @@ describe('T4.5 — guard wired into the planner', () => {
     }
   });
 });
+
+describe('multi-day trips', () => {
+  const P3 = '00000000-0000-4000-8000-000000000003';
+  const fourRows = [
+    ...rows,
+    { id: P3, name: 'Muelle de los Pescadores', category: 'eat_drink', verificationStatus: 'verified', witnessCount: 2 },
+  ];
+
+  it('a 3-day plan spans dayIndex 0..2 and survives the guard', async () => {
+    const clean: Inference = {
+      async json<T>(): Promise<JsonResult<T>> {
+        return {
+          raw: {
+            stops: [
+              { ref: 1, dayIndex: 0, startMin: 540, durationMin: 60, reasonCode: 'OPEN_NOW' },
+              { ref: 2, dayIndex: 1, startMin: 600, durationMin: 90, reasonCode: 'MATCHES_TOPIC' },
+              { ref: 3, dayIndex: 2, startMin: 660, durationMin: 60, reasonCode: 'SEQUENCE_FIT' },
+            ],
+            languageCode: 'en',
+          } as T,
+          usage: { tokensIn: 5, tokensOut: 5 },
+          model: 'clean',
+        };
+      },
+      async vision<T>(): Promise<JsonResult<T>> {
+        throw new Error('not used');
+      },
+    };
+    const outcome = await runGroundedPlanner(
+      options({ rows: fourRows, inference: clean, days: 3 }),
+    );
+    expect(outcome.kind).toBe('PlanArtifact');
+    if (outcome.kind === 'PlanArtifact') {
+      // Ref uniqueness is global per trip: a place anchors at most one stop,
+      // whatever the day — the simple invariant the property tests pin.
+      expect(outcome.placeIds).toEqual([P1, P2, P3]);
+    }
+  });
+
+  it('a day-span beyond the requested days is refused — conformance is the planner\'s job', async () => {
+    const sneaky: Inference = {
+      async json<T>(): Promise<JsonResult<T>> {
+        return {
+          raw: {
+            stops: [{ ref: 1, dayIndex: 5, startMin: 540, durationMin: 60, reasonCode: 'OPEN_NOW' }],
+            languageCode: 'en',
+          } as T,
+          usage: { tokensIn: 5, tokensOut: 5 },
+          model: 'sneaky',
+        };
+      },
+      async vision<T>(): Promise<JsonResult<T>> {
+        throw new Error('not used');
+      },
+    };
+    const gaps: string[] = [];
+    const outcome = await runGroundedPlanner(
+      options({ inference: sneaky, days: 2, onGap: async (r) => gaps.push(r) }),
+    );
+    // The GUARD accepts dayIndex 5 (it is a bounded integer; every stop is
+    // grounded) — the planner refuses the shape mismatch instead.
+    expect(outcome.kind).toBe('RefusalArtifact');
+    if (outcome.kind === 'RefusalArtifact') {
+      expect(outcome.reason).toBe('TRIP_SHAPE:day-span');
+    }
+    expect(gaps).toContain('TRIP_SHAPE');
+  });
+});

@@ -96,17 +96,51 @@ describe('assertGrounded', () => {
     expect(code).toBe('SCHEMA');
   });
 
-  it('G4b: oversized plan (9 stops) fails size (step 2)', async () => {
+  it('G4b: per-day cap — 9 stops on ONE day fail the guard (step 7)', async () => {
+    // The schema now allows 24 stops total (multi-day trips); the per-day
+    // bound of 8 is enforced by the guard's coherence step, so a 9-stop
+    // single-day draft parses but must still die before construction.
+    const nineRows = Array.from({ length: 9 }, (_, i) =>
+      row(`00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`),
+    );
+    const catalog9 = Catalog.build(nineRows);
     const raw = {
       stops: Array.from({ length: 9 }, (_, i) => stop(i + 1)),
       languageCode: 'en',
     };
     const parsed = PlanDraft.safeParse(raw);
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
     const code = await violationOf(() =>
-      assertGrounded(parsed.data as unknown as PlanDraft, CATALOG, ctx()),
+      assertGrounded(parsed.data as unknown as PlanDraft, catalog9, {
+        ...ctx(),
+        fingerprint: catalog9.fingerprint,
+        reReadVerified: async (ids: string[]) => ids.map((id) => row(id)),
+      }),
     );
-    expect(code).toBe('SCHEMA');
+    expect(code).toBe('OVERSIZED_PLAN');
+  });
+
+  it('G4c: 9 stops spread across two days is a legal trip', async () => {
+    const nineRows = Array.from({ length: 9 }, (_, i) =>
+      row(`00000000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`),
+    );
+    const catalog9 = Catalog.build(nineRows);
+    const raw = {
+      stops: [
+        ...Array.from({ length: 5 }, (_, i) => ({ ...stop(i + 1, 540 + i * 120) })),
+        ...Array.from({ length: 4 }, (_, i) => ({ ...stop(i + 6, 540 + i * 120, 90) })),
+      ].map((s, i) => ({ ...s, dayIndex: i < 5 ? 0 : 1 })),
+      languageCode: 'en',
+    };
+    const parsed = PlanDraft.safeParse(raw);
+    expect(parsed.success).toBe(true);
+    const artifact = await assertGrounded(parsed.data as unknown as PlanDraft, catalog9, {
+      ...ctx(),
+      fingerprint: catalog9.fingerprint,
+      reReadVerified: async (ids: string[]) => ids.map((id) => row(id)),
+    });
+    expect(artifact.stops).toHaveLength(9);
+    expect(new Set(artifact.stops.map((s) => s.dayIndex))).toEqual(new Set([0, 1]));
   });
 
   it('G5: extra keys fail parsing (step 1)', async () => {
@@ -183,5 +217,36 @@ describe('assertGrounded', () => {
     expect(artifact.stops).toHaveLength(2);
     const catalogIds = new Set<string>(CATALOG.placeIds());
     expect(artifact.placeIds.every((id) => catalogIds.has(id))).toBe(true);
+  });
+});
+
+describe('assertGrounded — multi-day coherence', () => {
+  it('identical times on different days is a legal trip, not an overlap', async () => {
+    const raw = {
+      stops: [
+        { ...stop(1, 540, 90), dayIndex: 0 },
+        { ...stop(2, 540, 90), dayIndex: 1 },
+      ],
+      languageCode: 'en',
+    };
+    const parsed = PlanDraft.safeParse(raw);
+    expect(parsed.success).toBe(true);
+    const artifact = await assertGrounded(parsed.data as unknown as PlanDraft, CATALOG, ctx());
+    expect(artifact.placeIds).toHaveLength(2);
+  });
+
+  it('overlap WITHIN a day still fails, whatever the day', async () => {
+    const raw = {
+      stops: [
+        { ...stop(1, 540, 90), dayIndex: 1 },
+        { ...stop(2, 600, 90), dayIndex: 1 },
+      ],
+      languageCode: 'en',
+    };
+    const parsed = PlanDraft.safeParse(raw);
+    const code = await violationOf(() =>
+      assertGrounded(parsed.data as unknown as PlanDraft, CATALOG, ctx()),
+    );
+    expect(code).toBe('TIME_INCOHERENT');
   });
 });

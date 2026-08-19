@@ -15,6 +15,8 @@ export interface GroundedPlannerOptions {
   language: string;
   rows: readonly PlaceRowForGuard[];
   inference: Inference;
+  /** Trip length in days, 1–7. Default 1 (a single-day plan). */
+  days?: number;
   /** Called with the violation code when the guard refuses — logs the gap. */
   onGap: (reason: string) => Promise<void> | void;
 }
@@ -34,6 +36,7 @@ export async function runGroundedPlanner(
   options: GroundedPlannerOptions,
 ): Promise<GroundedOutcome> {
   const catalog = Catalog.build(options.rows);
+  const days = Math.max(1, Math.min(7, options.days ?? 1));
 
   const refEnum = catalog.refEnum();
   const planSchema = z.object({
@@ -41,13 +44,14 @@ export async function runGroundedPlanner(
       .array(
         z.object({
           ref: z.number().int().positive(),
+          dayIndex: z.number().int().min(0).max(days - 1),
           startMin: z.number().int().min(0).max(1439),
           durationMin: z.number().int().min(10).max(300),
           reasonCode: z.enum(['OPEN_NOW', 'NEAREST', 'MATCHES_TOPIC', 'BEST_RATED', 'AVOID_CLOSED', 'SEQUENCE_FIT']),
         }),
       )
       .min(1)
-      .max(8),
+      .max(24),
     languageCode: z.enum(['es', 'en', 'pt', 'fr', 'de', 'it', 'nl']),
   });
 
@@ -68,23 +72,28 @@ export async function runGroundedPlanner(
                   ...z.ZodTypeAny[],
                 ],
               )) as z.ZodType<number>,
+          dayIndex: z.number().int().min(0).max(days - 1),
           startMin: z.number().int().min(0).max(1439),
           durationMin: z.number().int().min(10).max(300),
           reasonCode: z.enum(['OPEN_NOW', 'NEAREST', 'MATCHES_TOPIC', 'BEST_RATED', 'AVOID_CLOSED', 'SEQUENCE_FIT']),
         }),
       )
       .min(1)
-      .max(8),
+      .max(24),
     languageCode: z.enum(['es', 'en', 'pt', 'fr', 'de', 'it', 'nl']),
   });
+
+  const instruction =
+    days === 1
+      ? 'You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. Never invent places.'
+      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day. Never invent places.`;
 
   try {
     const res = await options.inference.json<z.infer<typeof requestSchema>>({
       schema: requestSchema,
       purpose: 'plan',
-      maxOutputTokens: 200,
-      system:
-        'You plan visits from a catalog. Each stop references a catalog entry by its integer ref. Never invent places.',
+      maxOutputTokens: Math.min(400, 200 + (days - 1) * 60),
+      system: instruction,
       user: options.text,
       untrusted: options.text,
     });
@@ -107,6 +116,17 @@ export async function runGroundedPlanner(
         );
       },
     });
+
+    // Trip-shape conformance is the PLANNER's job, not the guard's: the
+    // guard proves every place is witnessed (dayIndex is just a bounded
+    // integer to it); here we check the shape matches what was asked. A
+    // provider that answers a 2-day request with a 6-day plan is refused
+    // even though every stop in it is grounded.
+    const maxDay = artifact.stops.reduce((m, s) => Math.max(m, s.dayIndex), 0);
+    if (maxDay >= days) {
+      await options.onGap('TRIP_SHAPE');
+      return { kind: 'RefusalArtifact', reason: 'TRIP_SHAPE:day-span' };
+    }
 
     return { kind: 'PlanArtifact', placeIds: artifact.placeIds };
   } catch (e) {
