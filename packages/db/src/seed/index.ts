@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { Pool } from 'pg';
 import { CARIBBEAN_CITIES } from '@guaca/shared';
 
@@ -76,16 +77,18 @@ export async function seed(pool: Pool, options: SeedOptions = {}): Promise<void>
   // invented places: they make the multi-region model real, give OSM
   // candidate imports somewhere to land (`--caribbean-poi`, opt-in), and
   // cost nothing until a local Spotter actually starts there.
-  for (let i = 0; i < CARIBBEAN_CITIES.length; i++) {
-    const city = CARIBBEAN_CITIES[i]!;
+  for (const city of CARIBBEAN_CITIES) {
     const { lat, lon, span } = city;
-    // Deterministic id from the index: 0xc100.. keeps uuid shape valid.
-    const id = `00000000-0000-4000-8000-${String(0xc100 + i).padStart(12, '0')}`;
+    // Id derived from the SLUG, not the array position: reordering the
+    // zones (popularity) must never rename an existing area's identity.
+    const id = `00000000-0000-4000-8000-${createHash('sha1')
+      .update(`area:${city.slug}`)
+      .digest('hex')
+      .slice(0, 12)}`;
     await pool.query(
-      `insert into areas (id, name, slug, country, timezone, geom) values
-         ($1, $2, $3, $4, 'America/Caracas',
-          ST_GeogFromText($5))
-       on conflict (id) do nothing`,
+      `insert into areas (id, name, slug, country, timezone, geom)
+       select $1, $2, $3, $4, 'America/Caracas', ST_GeogFromText($5)
+        where not exists (select 1 from areas where slug = $3)`,
       [
         id,
         city.name,

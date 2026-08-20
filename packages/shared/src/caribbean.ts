@@ -58,10 +58,11 @@ export function liveCountries(): CaribbeanCountry[] {
 }
 
 /**
- * Cities seeded as AREAS so the multi-region model is exercised beyond the
- * pilot: OSM candidates can be imported into them on demand, and verified
- * places can exist there the day a local Spotter starts. Area geometry is a
- * modest bbox polygon around the city centre.
+ * Tourist zones seeded as AREAS — the result of the destination research
+ * (arrivals and search-volume rankings, 2025-26): within each country the
+ * zones are ordered MOST-SEARCHED FIRST, and the OSM POI import follows
+ * this order, so the most-searched zones get their interest points first.
+ * The pilot stays first in Venezuela. Geometry is a modest bbox polygon.
  */
 export interface CaribbeanCity {
   countryCode: string;
@@ -74,12 +75,71 @@ export interface CaribbeanCity {
 }
 
 export const CARIBBEAN_CITIES: readonly CaribbeanCity[] = [
-  { countryCode: 'CO', slug: 'cartagena', name: 'Cartagena', lat: 10.391, lon: -75.479, span: 0.05 },
-  { countryCode: 'CR', slug: 'san-jose', name: 'San José', lat: 9.928, lon: -84.091, span: 0.05 },
+  // Venezuela — the pilot first, then the country's most-searched zones.
+  { countryCode: 'VE', slug: 'puerto-cabello', name: 'Puerto Cabello', lat: 10.4716, lon: -68.0056, span: 0.05 },
+  { countryCode: 'VE', slug: 'margarita', name: 'Isla de Margarita', lat: 11.0, lon: -63.9, span: 0.12 },
+  { countryCode: 'VE', slug: 'morrocoy-tucacas', name: 'Morrocoy (Tucacas)', lat: 10.85, lon: -68.32, span: 0.06 },
+  { countryCode: 'VE', slug: 'los-roques', name: 'Los Roques', lat: 11.85, lon: -66.75, span: 0.08 },
+  { countryCode: 'VE', slug: 'la-guaira', name: 'La Guaira', lat: 10.6, lon: -66.93, span: 0.05 },
+  { countryCode: 'VE', slug: 'mochima', name: 'Mochima', lat: 10.3, lon: -64.4, span: 0.1 },
+  { countryCode: 'VE', slug: 'choroni', name: 'Choroní', lat: 10.49, lon: -67.74, span: 0.04 },
+  // Dominican Republic — the region's most-visited country; Punta Cana is
+  // the single most-searched Caribbean destination.
+  { countryCode: 'DO', slug: 'punta-cana', name: 'Punta Cana', lat: 18.58, lon: -68.37, span: 0.06 },
+  { countryCode: 'DO', slug: 'puerto-plata', name: 'Puerto Plata', lat: 19.79, lon: -70.69, span: 0.06 },
+  { countryCode: 'DO', slug: 'samana', name: 'Samaná (Las Terrenas)', lat: 19.39, lon: -69.53, span: 0.08 },
+  { countryCode: 'DO', slug: 'la-romana', name: 'La Romana (Bayahíbe)', lat: 18.38, lon: -68.9, span: 0.06 },
   { countryCode: 'DO', slug: 'santo-domingo', name: 'Santo Domingo', lat: 18.486, lon: -69.931, span: 0.05 },
-  { countryCode: 'CU', slug: 'la-habana', name: 'La Habana', lat: 23.113, lon: -82.366, span: 0.05 },
+  // Mexico — the Caribbean coast; Cancún tops US traveller searches.
+  { countryCode: 'MX', slug: 'cancun', name: 'Cancún', lat: 21.162, lon: -86.851, span: 0.06 },
+  { countryCode: 'MX', slug: 'tulum', name: 'Tulum', lat: 20.21, lon: -87.46, span: 0.05 },
+  { countryCode: 'MX', slug: 'playa-del-carmen', name: 'Playa del Carmen', lat: 20.63, lon: -87.07, span: 0.04 },
+  // Jamaica — record arrivals; Montego Bay the hub.
+  { countryCode: 'JM', slug: 'montego-bay', name: 'Montego Bay', lat: 18.47, lon: -77.92, span: 0.06 },
+  { countryCode: 'JM', slug: 'negril', name: 'Negril', lat: 18.27, lon: -78.35, span: 0.05 },
+  { countryCode: 'JM', slug: 'ocho-rios', name: 'Ocho Ríos', lat: 18.41, lon: -77.1, span: 0.05 },
   { countryCode: 'JM', slug: 'kingston', name: 'Kingston', lat: 17.971, lon: -76.793, span: 0.05 },
+  // Bahamas
+  { countryCode: 'BS', slug: 'nassau', name: 'Nassau', lat: 25.08, lon: -77.35, span: 0.06 },
+  { countryCode: 'BS', slug: 'exuma', name: 'Exuma', lat: 23.58, lon: -75.78, span: 0.08 },
+  { countryCode: 'BS', slug: 'freeport', name: 'Freeport', lat: 26.53, lon: -78.69, span: 0.06 },
+  // Puerto Rico
   { countryCode: 'PR', slug: 'san-juan', name: 'San Juan', lat: 18.466, lon: -66.106, span: 0.05 },
+  { countryCode: 'PR', slug: 'rincon', name: 'Rincón', lat: 18.34, lon: -67.24, span: 0.04 },
+  // Cuba
+  { countryCode: 'CU', slug: 'la-habana', name: 'La Habana', lat: 23.113, lon: -82.366, span: 0.05 },
+  { countryCode: 'CU', slug: 'varadero', name: 'Varadero', lat: 23.2, lon: -81.3, span: 0.05 },
+  { countryCode: 'CU', slug: 'trinidad-cuba', name: 'Trinidad', lat: 21.8, lon: -79.98, span: 0.04 },
+  // Colombia
+  { countryCode: 'CO', slug: 'cartagena', name: 'Cartagena', lat: 10.391, lon: -75.479, span: 0.05 },
+  { countryCode: 'CO', slug: 'santa-marta', name: 'Santa Marta', lat: 11.24, lon: -74.21, span: 0.05 },
+  { countryCode: 'CO', slug: 'san-andres', name: 'San Andrés', lat: 12.58, lon: -81.7, span: 0.05 },
+  // Costa Rica — the Caribbean side only.
+  { countryCode: 'CR', slug: 'puerto-viejo', name: 'Puerto Viejo', lat: 9.65, lon: -82.75, span: 0.05 },
+  { countryCode: 'CR', slug: 'san-jose', name: 'San José', lat: 9.928, lon: -84.091, span: 0.05 },
+  // Panama
+  { countryCode: 'PA', slug: 'bocas-del-toro', name: 'Bocas del Toro', lat: 9.34, lon: -82.22, span: 0.06 },
   { countryCode: 'PA', slug: 'panama', name: 'Panamá', lat: 8.984, lon: -79.519, span: 0.05 },
+  // Trinidad & Tobago
+  { countryCode: 'TT', slug: 'tobago', name: 'Tobago', lat: 11.18, lon: -60.74, span: 0.09 },
   { countryCode: 'TT', slug: 'port-of-spain', name: 'Port of Spain', lat: 10.654, lon: -61.502, span: 0.04 },
+  // The Lesser Antilles — one zone each, their touristic centre.
+  { countryCode: 'AW', slug: 'oranjestad', name: 'Oranjestad', lat: 12.521, lon: -70.027, span: 0.04 },
+  { countryCode: 'CW', slug: 'willemstad', name: 'Willemstad', lat: 12.111, lon: -68.935, span: 0.04 },
+  { countryCode: 'BB', slug: 'bridgetown', name: 'Bridgetown', lat: 13.113, lon: -59.599, span: 0.04 },
+  { countryCode: 'HT', slug: 'cap-haitien', name: 'Cap-Haïtien', lat: 19.76, lon: -72.2, span: 0.05 },
+  { countryCode: 'HT', slug: 'port-au-prince', name: 'Port-au-Prince', lat: 18.594, lon: -72.307, span: 0.05 },
+  { countryCode: 'GP', slug: 'pointe-a-pitre', name: 'Pointe-à-Pitre', lat: 16.24, lon: -61.53, span: 0.04 },
+  { countryCode: 'GP', slug: 'basse-terre', name: 'Basse-Terre', lat: 16.241, lon: -61.533, span: 0.04 },
+  { countryCode: 'MQ', slug: 'fort-de-france', name: 'Fort-de-France', lat: 14.604, lon: -61.068, span: 0.04 },
+  { countryCode: 'DM', slug: 'roseau', name: 'Roseau', lat: 15.301, lon: -61.388, span: 0.04 },
+  { countryCode: 'GD', slug: 'st-georges', name: "St George's", lat: 12.056, lon: -61.748, span: 0.04 },
+  { countryCode: 'LC', slug: 'castries', name: 'Castries', lat: 14.01, lon: -60.999, span: 0.04 },
+  { countryCode: 'VC', slug: 'kingstown', name: 'Kingstown', lat: 13.158, lon: -61.224, span: 0.04 },
+  { countryCode: 'AG', slug: 'st-johns', name: "St John's", lat: 17.117, lon: -61.845, span: 0.04 },
+  { countryCode: 'KN', slug: 'basseterre', name: 'Basseterre', lat: 17.297, lon: -62.719, span: 0.04 },
+  { countryCode: 'KY', slug: 'george-town', name: 'George Town', lat: 19.3, lon: -81.38, span: 0.05 },
+  { countryCode: 'BZ', slug: 'san-pedro', name: 'San Pedro (Ambergris)', lat: 17.92, lon: -87.97, span: 0.05 },
+  { countryCode: 'BZ', slug: 'belmopan', name: 'Belmopan', lat: 17.251, lon: -88.759, span: 0.05 },
+  { countryCode: 'HN', slug: 'roatán', name: 'Roatán', lat: 16.325, lon: -86.535, span: 0.06 },
 ];

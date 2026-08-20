@@ -43,8 +43,10 @@ describe('seed', () => {
     await seed(pool);
 
     const areas = await pool.query('select count(*)::int as n from areas');
-    // Pilot + the Caribbean expansion cities (reference geography).
-    expect(areas.rows[0]!.n).toBe(1 + CARIBBEAN_CITIES.length);
+    // Pilot + the tourist zones, minus the pilot's own entry in the list
+    // (the slug-existence check dedupes it).
+    const nonPilot = CARIBBEAN_CITIES.filter((c) => c.slug !== 'puerto-cabello').length;
+    expect(areas.rows[0]!.n).toBe(1 + nonPilot);
 
     const spotters = await pool.query(
       'select count(*)::int as n from spotters where active',
@@ -70,8 +72,10 @@ describe('seed', () => {
   it('is idempotent: re-running creates no duplicates', async () => {
     await seed(pool);
     const areas = await pool.query('select count(*)::int as n from areas');
-    // Pilot + the Caribbean expansion cities (reference geography).
-    expect(areas.rows[0]!.n).toBe(1 + CARIBBEAN_CITIES.length);
+    // Pilot + the tourist zones, minus the pilot's own entry in the list
+    // (the slug-existence check dedupes it).
+    const nonPilot = CARIBBEAN_CITIES.filter((c) => c.slug !== 'puerto-cabello').length;
+    expect(areas.rows[0]!.n).toBe(1 + nonPilot);
     const spotters = await pool.query('select count(*)::int as n from spotters');
     expect(spotters.rows[0]!.n).toBe(10);
     const props = await pool.query('select count(*)::int as n from properties');
