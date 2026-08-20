@@ -106,6 +106,22 @@ describe('GET /api/places', () => {
     expect(body.name).toBe('Arepera Verificada');
     await app.close();
   });
+  it('GET /api/areas lists areas with honest stats and a bbox', async () => {
+    const app = buildApp({ pool });
+    const res = await app.inject({ method: 'GET', url: '/api/areas' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as {
+      areas: Array<{ slug: string; country: string; bbox: number[]; verifiedCount: number; candidateCount: number }>;
+    };
+    expect(body.areas.length).toBeGreaterThan(0);
+    for (const a of body.areas) {
+      expect(a.bbox).toHaveLength(4);
+      expect(a.bbox[0]!).toBeLessThanOrEqual(a.bbox[2]!); // lonMin <= lonMax
+      expect(a.bbox[1]!).toBeLessThanOrEqual(a.bbox[3]!); // latMin <= latMax
+    }
+    await app.close();
+  });
+
   it('steward routes: operator-token gated, and approval enriches only a candidate', async () => {
     process.env.OPERATOR_TOKEN = 'test-operator-token';
     const scripted = {
