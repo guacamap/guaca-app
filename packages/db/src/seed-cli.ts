@@ -19,10 +19,18 @@ try {
 
   if (caribbeanPoi) {
     let total = 0;
-    for (let i = 0; i < CARIBBEAN_CITIES.length; i++) {
-      const city = CARIBBEAN_CITIES[i]!;
-      const id = `00000000-0000-4000-8000-${String(0xc100 + i).padStart(12, '0')}`;
+    for (const city of CARIBBEAN_CITIES) {
       const { lat, lon, span } = city;
+      // The area row is authoritative (it may predate the id scheme).
+      const area = await pool.query<{ id: string }>(
+        `select id from areas where slug = $1`,
+        [city.slug],
+      );
+      if (area.rows.length === 0) {
+        console.log(`  ${city.name}: SKIPPED (area not seeded)`);
+        continue;
+      }
+      const id = area.rows[0]!.id;
       const bbox = `${(lat - span).toFixed(4)},${(lon - span).toFixed(4)},${(lat + span).toFixed(4)},${(lon + span).toFixed(4)}`;
       try {
         const res = await importOsmCandidates(pool, id, { bbox });

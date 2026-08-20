@@ -191,6 +191,8 @@ export interface AppCopy {
     pickerCandidates: string
     pickerNoAreas: string
     pickerExplore: string
+    pickerShowAll: string
+    pickerNearMe: string
     zoneDemandTitle: string
     zoneDemandAsks: string
     profileTitle: string
@@ -476,6 +478,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       pickerCandidates: 'unverified candidates',
       pickerNoAreas: 'No areas yet — ask a question there and coverage starts',
       pickerExplore: 'Explore the Caribbean',
+      pickerShowAll: 'Show all countries',
+      pickerNearMe: 'Near me',
       zoneDemandTitle: 'Where people are asking',
       zoneDemandAsks: 'asks',
       profileTitle: 'Profile',
@@ -766,6 +770,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       pickerCandidates: 'candidatos sin verificar',
       pickerNoAreas: 'Aún sin áreas — pregunta ahí y la cobertura empieza',
       pickerExplore: 'Explora el Caribe',
+      pickerShowAll: 'Ver todos los países',
+      pickerNearMe: 'Cerca de mí',
       zoneDemandTitle: 'Dónde pregunta la gente',
       zoneDemandAsks: 'preguntas',
       profileTitle: 'Perfil',

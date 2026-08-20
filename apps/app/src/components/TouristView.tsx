@@ -274,6 +274,8 @@ export function TouristView() {
   const [openCountry, setOpenCountry] = useState<string | null>('VE')
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null)
   const [flyNonce, setFlyNonce] = useState(0)
+  /** Where the person actually is (geolocation), independent of map panning. */
+  const [userLatLng, setUserLatLng] = useState<[number, number] | null>(null)
   const [posts, setPosts] = useState<PlacePost[]>([])
   const [postsOpen, setPostsOpen] = useState(false)
   const [postText, setPostText] = useState('')
@@ -339,6 +341,7 @@ export function TouristView() {
       (pos) => {
         setCenter([pos.coords.longitude, pos.coords.latitude])
         setFix([pos.coords.longitude, pos.coords.latitude])
+        setUserLatLng([pos.coords.latitude, pos.coords.longitude])
       },
       () => setFix(null),
       { timeout: 5000, maximumAge: 300_000 },
@@ -576,6 +579,48 @@ export function TouristView() {
       })),
     }))
   }, [areas])
+
+  /**
+   * Location-aware default: inside the Caribbean basin the picker opens on
+   * the person's own country only (everything else behind "show all");
+   * outside the basin it opens on all countries. The nearest country
+   * marker within ~800km decides which country is "yours".
+   */
+  const nearCountryCode = useMemo(() => {
+    const origin = userLatLng ?? [center[1], center[0]]
+    const [lat, lon] = origin
+    const inBasin = lat > 4 && lat < 29.5 && lon > -101 && lon < -56
+    if (!inBasin) return null
+    let best: { code: string; km: number } | null = null
+    for (const c of CARIBBEAN_COUNTRIES) {
+      const dLat = (c.lat - lat) * 111
+      const dLon = (c.lon - lon) * 111 * Math.cos((lat * Math.PI) / 180)
+      const km = Math.hypot(dLat, dLon)
+      if (!best || km < best.km) best = { code: c.code, km }
+    }
+    return best && best.km < 800 ? best.code : null
+  }, [userLatLng, center])
+
+  const [showAllCountries, setShowAllCountries] = useState(false)
+  useEffect(() => {
+    // A newly-derived country (geolocation arriving) re-anchors the picker
+    // and collapses show-all back to near-me.
+    if (nearCountryCode) {
+      setOpenCountry(nearCountryCode)
+      setShowAllCountries(false)
+    }
+  }, [nearCountryCode])
+
+  /** The groups the picker renders: near-me only, or everything. */
+  const visiblePickerGroups = useMemo(() => {
+    if (showAllCountries || !nearCountryCode) return pickerGroups
+    return pickerGroups
+      .map((g) => ({
+        ...g,
+        countries: g.countries.filter((c) => c.country.code === nearCountryCode),
+      }))
+      .filter((g) => g.countries.length > 0)
+  }, [pickerGroups, showAllCountries, nearCountryCode])
 
   const selectArea = (a: ApiArea) => {
     setSelectedAreaId(a.id)
@@ -1084,12 +1129,21 @@ export function TouristView() {
               <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[.1em] text-guaca-teal">
                 <Globe className="h-4 w-4" /> {t.pickerTitle}
               </p>
+              {nearCountryCode && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllCountries((v) => !v)}
+                  className="rounded-full bg-guaca-teal/10 px-3 py-1.5 text-[10px] font-black text-guaca-teal hover:bg-guaca-teal/20"
+                >
+                  {showAllCountries ? t.pickerNearMe : t.pickerShowAll}
+                </button>
+              )}
               <button type="button" aria-label={t.close} onClick={() => setPickerOpen(false)} className="grid h-8 w-8 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {pickerGroups.map((group) => (
+            {visiblePickerGroups.map((group) => (
               <div key={group.status} className="mt-3">
                 <p className="px-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-ink/40">
                   {group.status === 'live' ? `🟢 ${t.countryLive}` : group.status === 'planned' ? `🟠 ${t.countryPlanned}` : `⚪ ${t.countryUncovered}`}
