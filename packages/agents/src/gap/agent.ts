@@ -131,6 +131,9 @@ export async function runGapAgent(
       zoneName: signals.zoneName ?? gap.h3_8,
       spotterName: spotter.name,
       photosRequired: 3,
+      ...(signals.zonePeopleCount && signals.zonePeopleCount > 0
+        ? { zonePeopleCount: signals.zonePeopleCount }
+        : {}),
       ...(signals.stalePlaceNames && signals.stalePlaceNames.length > 0
         ? {
             landmarkHint:

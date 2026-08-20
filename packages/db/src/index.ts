@@ -58,5 +58,7 @@ export { addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites
 export type { PlacePostRow, FavoriteRow } from './posts.js';
 export { loadTrendSignals, writeTrends, trendsForPlaces } from './trends.js';
 export type { TrendSignalsRow, TrendWriteEntry, TrendRow } from './trends.js';
+export { recomputeZoneDemand, zoneDemand } from './zoneDemand.js';
+export type { ZoneDemandRow } from './zoneDemand.js';
 export { createTrip, listTrips, tripById, tripBySlug, deleteTrip } from './tripsDb.js';
 export type { CreateTripInput } from './tripsDb.js';

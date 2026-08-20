@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
@@ -18,6 +18,8 @@ interface MapPin {
   verified: boolean
   /** e.g. "4.5" — shown as a small ★ badge when review activity exists. */
   ratingBadge?: string
+  /** Trend-engine badge — shown as a small 🔥 mark on the pin. */
+  trendBadge?: string | null
 }
 
 interface GapPin {
@@ -149,7 +151,7 @@ function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[])
   }
 }
 
-function createPinHTML(_emoji: string, iconSvg: string | undefined, color: string, verified: boolean, isSelected: boolean, ratingBadge?: string) {
+function createPinHTML(_emoji: string, iconSvg: string | undefined, color: string, verified: boolean, isSelected: boolean, ratingBadge?: string, trendBadge?: string | null) {
   const size = isSelected ? 46 : 40
   const border = isSelected ? '3px solid #D97E00' : '2.5px solid #fff'
   const iconContent = iconSvg
@@ -192,6 +194,21 @@ function createPinHTML(_emoji: string, iconSvg: string | undefined, color: strin
         border: 1.5px solid white;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
       ">★ ${ratingBadge}</div>` : ''}
+      ${trendBadge ? `
+      <div style="
+        position: absolute;
+        top: -7px;
+        right: -9px;
+        background: #E8735A;
+        color: white;
+        font-size: 9px;
+        font-weight: 800;
+        padding: 1px 5px;
+        border-radius: 8px;
+        white-space: nowrap;
+        border: 1.5px solid white;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      ">${trendBadge === 'trending' ? '🔥' : trendBadge === 'asked_about' ? '❓' : '✨'}</div>` : ''}
       ${verified ? `
       <div style="
         position: absolute;
@@ -226,6 +243,32 @@ function createPinHTML(_emoji: string, iconSvg: string | undefined, color: strin
 function createGapPinHTML(asks: number, isSelected: boolean) {
   const size = isSelected ? 42 : 36
   return `<div class="guaca-map-marker" style="display:flex;flex-direction:column;align-items:center;width:${size}px;cursor:pointer"><div style="width:${size}px;height:${size}px;border-radius:50%;background:rgba(232,115,90,0.9);display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-sizing:border-box;box-shadow:0 0 0 4px rgba(232,115,90,0.25),0 2px 8px rgba(0,0,0,0.3);animation:gapPulse 2s ease-in-out infinite"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div><div style="position:absolute;top:-8px;right:-8px;background:#E8735A;color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.2)">${asks}</div><div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid rgba(232,115,90,0.9);margin-top:-2px"></div></div>`
+}
+
+/**
+ * Co-located pins rendered on top of each other leave only the upper one
+ * tappable. Fan duplicates within ~11m out on a deterministic golden-angle
+ * spiral (~13m rings): invisible at city zoom, honest at street zoom, and
+ * stable across re-renders because it depends only on input order.
+ */
+function deCollide<T extends { id: string; lat: number; lng: number }>(
+  items: readonly T[],
+): Map<string, [number, number]> {
+  const seen = new Map<string, number>()
+  const out = new Map<string, [number, number]>()
+  for (const p of items) {
+    const key = `${p.lat.toFixed(4)}:${p.lng.toFixed(4)}`
+    const i = seen.get(key) ?? 0
+    seen.set(key, i + 1)
+    if (i === 0) {
+      out.set(p.id, [p.lng, p.lat])
+      continue
+    }
+    const angle = i * 2.399963 // golden angle
+    const r = 0.00012 * Math.sqrt(i)
+    out.set(p.id, [p.lng + r * Math.cos(angle), p.lat + r * Math.sin(angle)])
+  }
+  return out
 }
 
 function makeMarkerInteractive(el: HTMLElement, label: string, activate?: () => void) {
@@ -290,6 +333,8 @@ export function GuacaMap({
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
+  // De-collided pin positions — recomputed whenever the pin set changes.
+  const pinPositions = useMemo(() => deCollide(pins), [pins])
   const dotsRef = useRef<MapDot[]>(dots ?? [])
   const heatRef = useRef<HeatPoint[]>(heat ?? [])
   const onDotClickRef = useRef(onDotClick)
@@ -375,12 +420,12 @@ export function GuacaMap({
 
       pins.forEach((pin) => {
         const wrapper = document.createElement('div')
-        wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge)
+        wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge, pin.trendBadge)
         const el = wrapper.firstElementChild as HTMLElement
         if (!el) return
         makeMarkerInteractive(el, pin.label, () => onPinClick?.(pin.id))
         const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([pin.lng, pin.lat])
+          .setLngLat(pinPositions.get(pin.id) ?? [pin.lng, pin.lat])
           .addTo(map)
         markersRef.current.set(pin.id, marker)
       })
@@ -412,14 +457,14 @@ export function GuacaMap({
 
     pins.forEach((pin) => {
       const wrapper = document.createElement('div')
-      wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge)
+      wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge, pin.trendBadge)
       const el = wrapper.firstElementChild as HTMLElement
       if (!el) return
 
       makeMarkerInteractive(el, pin.label, () => onPinClick?.(pin.id))
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-        .setLngLat([pin.lng, pin.lat])
+        .setLngLat(pinPositions.get(pin.id) ?? [pin.lng, pin.lat])
         .addTo(map)
 
       markersRef.current.set(pin.id, marker)
@@ -486,6 +531,7 @@ export function GuacaMapTreasure({
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
+  const pinPositions = useMemo(() => deCollide(pins), [pins])
 
   useEffect(() => {
     if (!MAPBOX_TOKEN || !containerRef.current || mapRef.current) return
@@ -522,7 +568,7 @@ export function GuacaMapTreasure({
         if (!el) return
 
         new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([pin.lng, pin.lat])
+          .setLngLat(pinPositions.get(pin.id) ?? [pin.lng, pin.lat])
           .addTo(map)
       })
     })

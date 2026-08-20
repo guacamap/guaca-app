@@ -182,6 +182,9 @@ export interface AppCopy {
     whyTrending: string
     whyAskedAbout: string
     whyFresh: string
+    trendChip: string
+    zoneDemandTitle: string
+    zoneDemandAsks: string
     profileTitle: string
     profileGuestOf: string
     profileLanguage: string
@@ -456,6 +459,9 @@ export const appCopy: Record<Lang, AppCopy> = {
       whyTrending: 'Trending',
       whyAskedAbout: 'People are asking about this',
       whyFresh: 'Fresh on the map',
+      trendChip: 'Trending',
+      zoneDemandTitle: 'Where people are asking',
+      zoneDemandAsks: 'asks',
       profileTitle: 'Profile',
       profileGuestOf: 'Guest of',
       profileLanguage: 'Language',
@@ -735,6 +741,9 @@ export const appCopy: Record<Lang, AppCopy> = {
       whyTrending: 'En tendencia',
       whyAskedAbout: 'La gente pregunta por esto',
       whyFresh: 'Nuevo en el mapa',
+      trendChip: 'Tendencia',
+      zoneDemandTitle: 'Dónde pregunta la gente',
+      zoneDemandAsks: 'preguntas',
       profileTitle: 'Perfil',
       profileGuestOf: 'Huésped de',
       profileLanguage: 'Idioma',
