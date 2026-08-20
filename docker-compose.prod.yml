@@ -29,6 +29,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   minio:
     image: minio/minio:latest
@@ -44,6 +49,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api:
     build:
@@ -102,6 +112,20 @@ services:
         # answer as prod on the shared network.
         aliases:
           - ${EDGE_ALIAS:?set in infra/env/<tier>.env}
+    # Restart policy + rotation are inherited concerns of a long-lived box:
+    # a reboot or a chatty cycle must never wedge or fill the VM disk.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      # Readiness, not just liveness: the DB must actually answer.
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 networks:
   default: {}

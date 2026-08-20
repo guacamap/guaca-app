@@ -105,6 +105,23 @@ describe('GET /api/places', () => {
     expect(body.name).toBe('Arepera Verificada');
     await app.close();
   });
+  it('GET /healthz reports readiness, and fails closed when the DB dies', async () => {
+    const app = buildApp({ pool });
+    const ok = await app.inject({ method: 'GET', url: '/healthz' });
+    expect(ok.statusCode).toBe(200);
+    expect((ok.json() as { ok: boolean; db: boolean }).db).toBe(true);
+    await app.close();
+
+    // A dead database must surface as 503, not a hang — that is what the
+    // container healthcheck and any uptime monitor rely on.
+    const dead = new pg.Pool({ connectionString: 'postgres://guaca:guaca@localhost:5432/does_not_exist' });
+    const sick = buildApp({ pool: dead });
+    const res = await sick.inject({ method: 'GET', url: '/healthz' });
+    expect(res.statusCode).toBe(503);
+    await dead.end();
+    await sick.close();
+  });
+
   it('exposes the persisted people-per-zone snapshot publicly', async () => {
     const app = buildApp({ pool });
     const res = await app.inject({ method: 'GET', url: '/api/zones/demand' });

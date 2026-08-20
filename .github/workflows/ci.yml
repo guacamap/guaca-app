@@ -56,3 +56,21 @@ jobs:
       - run: pnpm build
       - run: pnpm migrate
       - run: pnpm test:integration
+
+  # Advisory supply-chain check: KNOWN CVEs in the dependency tree. Fails
+  # the job on high/critical so someone has to look — but a fix usually
+  # arrives as a Dependabot PR within the week, not as an emergency.
+  audit:
+    name: Dependency audit (high+ critical only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.13.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level high

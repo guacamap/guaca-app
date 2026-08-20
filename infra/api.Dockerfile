@@ -25,7 +25,8 @@ RUN pnpm --filter @guaca/shared build \
 
 FROM node:24-alpine
 WORKDIR /app
-ENV NODE_ENV=production
+ARG GIT_SHA=unknown
+ENV NODE_ENV=production GIT_SHA=${GIT_SHA}
 COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/packages/shared/package.json packages/shared/
 COPY --from=build /app/packages/shared/dist packages/shared/dist

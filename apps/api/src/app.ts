@@ -90,6 +90,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
   });
 
+  // Liveness + readiness in one: the process answers, and the database
+  // actually takes a query. No auth by design — this is what the container
+  // healthcheck, the smoke gate, and an uptime monitor poll.
+  app.get('/healthz', async (_req, reply) => {
+    try {
+      await options.pool.query('select 1');
+      return reply.send({ ok: true, db: true, sha: process.env.GIT_SHA ?? null });
+    } catch {
+      return reply.code(503).send({ ok: false, db: false, sha: process.env.GIT_SHA ?? null });
+    }
+  });
+
   app.get('/api/places', async (req, reply) => {
     const { bbox, category } = req.query as {
       bbox?: string;

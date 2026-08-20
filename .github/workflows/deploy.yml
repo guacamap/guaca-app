@@ -1,0 +1,73 @@
+name: Deploy
+
+# The real version of DEPLOY.md's "merge main → auto-staging" line.
+#   push to main        → staging on the VM
+#   push a tag v*       → production on the VM, then the smoke gate
+#   workflow_dispatch   → either tier, by hand
+#
+# OPT-IN: nothing runs until the repo has the DEPLOY_* variables/secrets
+# below (Settings → Secrets and variables → Actions). Without them the job
+# skips with a note — safe on forks and before the VM exists.
+#
+# Required repository VARIABLES:  DEPLOY_HOST, DEPLOY_USER (default root),
+#                                 DEPLOY_PATH (default /root/guaca)
+# Required repository SECRETS:    DEPLOY_SSH_KEY (ed25519 private key whose
+#                                 public half is in the VM's authorized_keys)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: 'Tier to deploy'
+        type: choice
+        options: [staging, prod]
+        default: staging
+
+concurrency:
+  # Never two deploys at once — compose builds on one VM are not concurrent.
+  group: deploy-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to the VM
+    runs-on: ubuntu-latest
+    if: vars.DEPLOY_HOST != ''
+    environment: "${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || inputs.tier == 'prod' ? 'production' : 'staging' }}"
+    env:
+      TIER: ${{ inputs.tier || (startsWith(github.ref, 'refs/tags/v') && 'prod') || 'staging' }}
+    steps:
+      - name: Show intent
+        run: |
+          echo "Deploying $GITHUB_SHA to $TIER on ${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_PATH || '/root/guaca' }}"
+          if [ "$TIER" = prod ] && [ "$GITHUB_REF_TYPE" = branch ]; then
+            echo "::warning::Deploying PROD from a branch push — tags are the intended path."
+          fi
+
+      - name: Warn (not configured)
+        if: vars.DEPLOY_HOST == ''
+        run: echo "::notice::Set DEPLOY_HOST/DEPLOY_USER/DEPLOY_PATH variables and the DEPLOY_SSH_KEY secret to enable deploys."
+
+      - name: Install SSH key
+        if: vars.DEPLOY_HOST != ''
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Fetch, checkout, deploy
+        if: vars.DEPLOY_HOST != ''
+        run: |
+          ssh "${{ vars.DEPLOY_USER || 'root' }}@${{ vars.DEPLOY_HOST }}" \
+            "set -e; cd ${{ vars.DEPLOY_PATH || '/root/guaca' }}; \
+             git fetch --tags origin; \
+             git checkout --detach $GITHUB_SHA; \
+             ./infra/deploy.sh $TIER"
+
+      - name: Smoke gate (production only)
+        if: vars.DEPLOY_HOST != '' && env.TIER == 'prod'
+        run: ./infra/smoke.sh https://api.guaca.live https://app.guaca.live https://guaca.live

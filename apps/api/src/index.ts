@@ -135,6 +135,7 @@ app.listen({ port, host: '0.0.0.0' }, (err) => {
       agent: 'system',
       detail: {
         port,
+        sha: process.env.GIT_SHA ?? null,
         gapAgent: gapEnabled
           ? `every ${gapIntervalMs}ms${gapDryRun ? ' (dry-run)' : ''}`
           : 'disabled',
