@@ -51,6 +51,8 @@ export {
   type TrendBadge,
   type ScoredTrend,
 } from './trends/score.js';
+export { draftCandidate, CandidateDraftSchema } from './steward/draft.js';
+export type { CandidateDraft, CandidateInput, DraftOutcome } from './steward/draft.js';
 export { analyzeMapHealth } from './health/analyze.js';
 export type { MapHealthStats, MapHealthAnalysis, HealthFinding, HealthFindingKind, MissionCandidate } from './health/analyze.js';
 export { narrateMapHealth } from './health/narrate.js';

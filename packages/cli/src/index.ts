@@ -443,6 +443,66 @@ spotter
   });
 
 /**
+ * The AI steward's review queue — machine-drafted candidate enrichment the
+ * team confirms by hand. Over the API (inference lives there), same
+ * OPERATOR_TOKEN as every other mutating command.
+ */
+const steward = program.command('steward').description('AI candidate drafts — team review');
+steward
+  .command('enrich')
+  .description('draft enrichment for OSM candidates (AI steward run)')
+  .option('--limit <n>', 'how many candidates to consider', '10')
+  .action(async (opts) => {
+    const token = requireOperatorToken(process.env.OPERATOR_TOKEN);
+    const { stewardApi } = await import('./commands/steward.js');
+    const base = process.env.GUACA_API_URL ?? 'http://localhost:3001';
+    const res = await stewardApi(base, token).enrich(Number(opts.limit) || 10);
+    process.stdout.write(
+      `steward: drafted ${res.drafted}, skipped ${res.skipped} (considered ${res.considered}) — review with: guaca steward drafts\n`,
+    );
+  });
+steward
+  .command('drafts')
+  .description('the review queue (pending by default)')
+  .option('--status <s>', 'pending | approved | rejected', 'pending')
+  .option('--json', 'machine-readable output')
+  .action(async (opts) => {
+    const token = requireOperatorToken(process.env.OPERATOR_TOKEN);
+    const { stewardApi, renderDraft } = await import('./commands/steward.js');
+    const base = process.env.GUACA_API_URL ?? 'http://localhost:3001';
+    const drafts = await stewardApi(base, token).drafts(opts.status);
+    if (drafts.length === 0) {
+      process.stdout.write(`no ${opts.status} drafts\n`);
+      return;
+    }
+    process.stdout.write(drafts.map(renderDraft).join('\n\n') + '\n');
+  });
+steward
+  .command('approve <id>')
+  .description('confirm a draft — enrichment lands on the candidate')
+  .option('--note <note>', 'why (audited)')
+  .action(async (id: string, opts) => {
+    const token = requireOperatorToken(process.env.OPERATOR_TOKEN);
+    const { stewardApi } = await import('./commands/steward.js');
+    const base = process.env.GUACA_API_URL ?? 'http://localhost:3001';
+    const res = await stewardApi(base, token).approve(id, opts.note);
+    if (!res.ok) throw new Error(res.error);
+    process.stdout.write(`approved ${id} — the candidate is enriched; a Spotter still verifies on the ground\n`);
+  });
+steward
+  .command('reject <id>')
+  .description('reject a draft (audited)')
+  .requiredOption('--note <note>', 'why (audited)')
+  .action(async (id: string, opts) => {
+    const token = requireOperatorToken(process.env.OPERATOR_TOKEN);
+    const { stewardApi } = await import('./commands/steward.js');
+    const base = process.env.GUACA_API_URL ?? 'http://localhost:3001';
+    const res = await stewardApi(base, token).reject(id, opts.note);
+    if (!res.ok) throw new Error(res.error);
+    process.stdout.write(`rejected ${id}\n`);
+  });
+
+/**
  * Post moderation — the human half of the Play user-content requirement.
  * Reports auto-hide at a threshold; an operator reviews and decides.
  */

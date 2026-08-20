@@ -139,7 +139,12 @@ export async function runGapAgent(
             landmarkHint:
               'revisar si siguen igual: ' + signals.stalePlaceNames.join(', '),
           }
-        : {}),
+        : signals.candidateHints && signals.candidateHints.length > 0
+          ? {
+              landmarkHint:
+                'candidatos ya revisados por el equipo: ' + signals.candidateHints.join(', '),
+            }
+          : {}),
     });
 
     if (options.dryRun) {

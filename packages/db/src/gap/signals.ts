@@ -17,6 +17,8 @@ export interface GapSignalsRow {
   zonePeopleCount: number;
   /** Verified places in the zone gone stale (>120d) — refresh brief fuel. */
   stalePlaceNames: string[];
+  /** Steward-enriched OSM candidates in the zone — team-approved starting points. */
+  candidateHints: string[];
 }
 
 export interface SpotterCandidateRow {
@@ -41,7 +43,7 @@ export async function loadGapSignals(
   pool: Pool,
   gap: { id: string; category: string; h3_8: string; areaId?: string },
 ): Promise<GapSignalsRow> {
-  const [demand, props, coverage, capacity, momentum, zone, stale] = await Promise.all([
+  const [demand, props, coverage, capacity, momentum, zone, stale, hints] = await Promise.all([
     pool.query<{ q: number; s: number; ages: number[] }>(
       `select count(*)::int as q,
               count(distinct session_id)::int as s,
@@ -109,6 +111,22 @@ export async function loadGapSignals(
         limit 3`,
       [gap.category, gap.h3_8],
     ),
+    // Steward-enriched candidates: the team approved the AI's draft, so the
+    // spotter gets named starting points instead of a bare cell.
+    pool.query<{ name: string }>(
+      `select p.name from places p
+         where p.source = 'osm_candidate'
+           and p.verification_status = 'candidate'
+           and p.category = $1
+           and p.h3_8 = $2
+           and exists (
+             select 1 from candidate_drafts d
+              where d.candidate_id = p.id and d.status = 'approved'
+           )
+         order by p.name asc
+         limit 3`,
+      [gap.category, gap.h3_8],
+    ),
   ]);
 
   const tierOf = (plan: string, minor: number): GapSignalsRow['properties'][number]['tier'] => {
@@ -131,6 +149,7 @@ export async function loadGapSignals(
     zoneName: zone.rows[0]?.name ?? gap.h3_8,
     zonePeopleCount: zone.rows[0]?.people ?? 0,
     stalePlaceNames: stale.rows.map((r) => r.name),
+    candidateHints: hints.rows.map((r) => r.name),
   };
 }
 

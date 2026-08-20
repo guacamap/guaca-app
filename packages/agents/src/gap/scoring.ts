@@ -34,6 +34,8 @@ export interface GapSignals {
   zonePeopleCount?: number;
   /** Verified places in the zone gone stale (>120d) — refresh-mission fuel. */
   stalePlaceNames?: string[];
+  /** Steward-enriched candidates in the zone — team-approved starting points. */
+  candidateHints?: string[];
 }
 
 export interface ScoredGap {

@@ -10,6 +10,7 @@ import {
   useInfoStore,
   type UpdateCategory,
 } from '@guaca/ui'
+import { StewardReview } from './StewardReview'
 
 interface FormErrors {
   businessName?: string
@@ -222,7 +223,7 @@ export function OperatorView() {
   }
 
   return (
-    <div className="relative h-full min-h-screen overflow-hidden bg-guaca-sand-light px-5 pb-8 pt-12 sm:min-h-full">
+    <div className="relative h-full min-h-screen overflow-y-auto bg-guaca-sand-light px-5 pb-36 pt-12 sm:min-h-full">
       <div className="text-center">
         <p className="text-[15px] font-extrabold text-guaca-ink">Join as a Business</p>
         <p className="mt-1 text-[11px] text-guaca-ink/45">Share current information directly</p>
@@ -245,6 +246,8 @@ export function OperatorView() {
       </div>
 
       <div className="mt-7 h-px bg-guaca-sand" />
+
+      <StewardReview />
 
       <div className="mt-6 space-y-4">
         {[
