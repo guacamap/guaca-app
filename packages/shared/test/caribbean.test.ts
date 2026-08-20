@@ -9,6 +9,17 @@ describe('CARIBBEAN_COUNTRIES — every marker is an honest claim', () => {
     expect(live[0]!.note).toContain('Puerto Cabello');
   });
 
+  it('Mexico is not a Caribbean country — it must never appear', () => {
+    expect(CARIBBEAN_COUNTRIES.some((c) => c.code === 'MX')).toBe(false);
+  });
+
+  it('the UN-geoscheme islands are all present', () => {
+    const codes = new Set(CARIBBEAN_COUNTRIES.map((c) => c.code));
+    for (const code of ['AI', 'VG', 'VI', 'TC', 'MS', 'BL', 'SX', 'BQ']) {
+      expect(codes.has(code)).toBe(true);
+    }
+  });
+
   it('the named expansion targets are planned, not implied-live', () => {
     const planned = CARIBBEAN_COUNTRIES.filter((c) => c.status === 'planned').map((c) => c.code);
     expect(planned).toContain('CO');

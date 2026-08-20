@@ -1,5 +1,9 @@
 /**
- * The Caribbean scope, honestly. PRODUCT.md: the region is the product;
+ * The Caribbean scope, honestly. Country roster follows the UN geoscheme
+ * (islands + the basin's mainland states the product operates in);
+ * Mexico is deliberately absent — it is not a Caribbean country.
+ * Bermuda is grouped with the Caribbean by the UN but sits outside the
+ * basin in the North Atlantic, so it is not on this map. PRODUCT.md: the region is the product;
  * Puerto Cabello is where coverage BEGINS. A country marker is a claim, so
  * each status is a fact:
  *
@@ -47,9 +51,16 @@ export const CARIBBEAN_COUNTRIES: readonly CaribbeanCountry[] = [
   { code: 'GP', name: 'Guadeloupe', nameEs: 'Guadalupe', capital: 'Basse-Terre', lat: 16.241, lon: -61.533, status: 'uncovered' },
   { code: 'MQ', name: 'Martinique', nameEs: 'Martinica', capital: 'Fort-de-France', lat: 14.604, lon: -61.068, status: 'uncovered' },
   { code: 'KY', name: 'Cayman Islands', nameEs: 'Islas Caimán', capital: 'George Town', lat: 19.287, lon: -81.367, status: 'uncovered' },
+  { code: 'AI', name: 'Anguilla', nameEs: 'Anguila', capital: 'The Valley', lat: 18.222, lon: -63.058, status: 'uncovered' },
+  { code: 'VG', name: 'British Virgin Islands', nameEs: 'Islas Vírgenes Británicas', capital: 'Road Town', lat: 18.425, lon: -64.62, status: 'uncovered' },
+  { code: 'VI', name: 'United States Virgin Islands', nameEs: 'Islas Vírgenes de los EE. UU.', capital: 'Charlotte Amalie', lat: 18.343, lon: -64.931, status: 'uncovered' },
+  { code: 'TC', name: 'Turks and Caicos Islands', nameEs: 'Islas Turcas y Caicos', capital: 'Cockburn Town', lat: 21.783, lon: -72.25, status: 'uncovered' },
+  { code: 'MS', name: 'Montserrat', nameEs: 'Montserrat', capital: 'Brades', lat: 16.79, lon: -62.212, status: 'uncovered' },
+  { code: 'BL', name: 'Saint Barthélemy', nameEs: 'San Bartolomé', capital: 'Gustavia', lat: 17.9, lon: -62.853, status: 'uncovered' },
+  { code: 'SX', name: 'Saint Martin / Sint Maarten', nameEs: 'San Martín / Sint Maarten', capital: 'Philipsburg', lat: 18.029, lon: -63.049, status: 'uncovered' },
+  { code: 'BQ', name: 'Bonaire', nameEs: 'Bonaire', capital: 'Kralendijk', lat: 12.151, lon: -68.27, status: 'uncovered' },
   { code: 'BZ', name: 'Belize', nameEs: 'Belice', capital: 'Belmopan', lat: 17.251, lon: -88.759, status: 'uncovered' },
   { code: 'HN', name: 'Honduras', nameEs: 'Honduras', capital: 'Roatán', lat: 16.325, lon: -86.535, status: 'uncovered' },
-  { code: 'MX', name: 'Mexico', nameEs: 'México', capital: 'Cancún', lat: 21.162, lon: -86.851, status: 'uncovered' },
 ];
 
 /** Exactly one country may claim 'live' — the pilot. Enforced by test. */
@@ -91,9 +102,6 @@ export const CARIBBEAN_CITIES: readonly CaribbeanCity[] = [
   { countryCode: 'DO', slug: 'la-romana', name: 'La Romana (Bayahíbe)', lat: 18.38, lon: -68.9, span: 0.06 },
   { countryCode: 'DO', slug: 'santo-domingo', name: 'Santo Domingo', lat: 18.486, lon: -69.931, span: 0.05 },
   // Mexico — the Caribbean coast; Cancún tops US traveller searches.
-  { countryCode: 'MX', slug: 'cancun', name: 'Cancún', lat: 21.162, lon: -86.851, span: 0.06 },
-  { countryCode: 'MX', slug: 'tulum', name: 'Tulum', lat: 20.21, lon: -87.46, span: 0.05 },
-  { countryCode: 'MX', slug: 'playa-del-carmen', name: 'Playa del Carmen', lat: 20.63, lon: -87.07, span: 0.04 },
   // Jamaica — record arrivals; Montego Bay the hub.
   { countryCode: 'JM', slug: 'montego-bay', name: 'Montego Bay', lat: 18.47, lon: -77.92, span: 0.06 },
   { countryCode: 'JM', slug: 'negril', name: 'Negril', lat: 18.27, lon: -78.35, span: 0.05 },
@@ -142,4 +150,13 @@ export const CARIBBEAN_CITIES: readonly CaribbeanCity[] = [
   { countryCode: 'BZ', slug: 'san-pedro', name: 'San Pedro (Ambergris)', lat: 17.92, lon: -87.97, span: 0.05 },
   { countryCode: 'BZ', slug: 'belmopan', name: 'Belmopan', lat: 17.251, lon: -88.759, span: 0.05 },
   { countryCode: 'HN', slug: 'roatán', name: 'Roatán', lat: 16.325, lon: -86.535, span: 0.06 },
+  // The Lesser-Antillean islands added from the UN geoscheme roster.
+  { countryCode: 'AI', slug: 'anguilla', name: 'Anguilla (Shoal Bay)', lat: 18.19, lon: -63.01, span: 0.04 },
+  { countryCode: 'VG', slug: 'tortola', name: 'Tortola (Road Town)', lat: 18.425, lon: -64.62, span: 0.05 },
+  { countryCode: 'VI', slug: 'st-thomas', name: 'St Thomas', lat: 18.343, lon: -64.931, span: 0.05 },
+  { countryCode: 'TC', slug: 'provodenciales', name: 'Providenciales (Grace Bay)', lat: 21.783, lon: -72.25, span: 0.06 },
+  { countryCode: 'MS', slug: 'montserrat', name: 'Montserrat (Little Bay)', lat: 16.78, lon: -62.2, span: 0.04 },
+  { countryCode: 'BL', slug: 'gustavia', name: 'Gustavia', lat: 17.9, lon: -62.853, span: 0.03 },
+  { countryCode: 'SX', slug: 'philipsburg', name: 'Philipsburg', lat: 18.029, lon: -63.049, span: 0.04 },
+  { countryCode: 'BQ', slug: 'kralendijk', name: 'Kralendijk', lat: 12.151, lon: -68.27, span: 0.04 },
 ];
