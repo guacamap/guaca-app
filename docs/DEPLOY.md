@@ -229,8 +229,52 @@ does not survive the failure it exists for.
 ## Redeploy
 
 `./infra/deploy.sh prod` (or `staging`) — pulls bases, rebuilds the api
-image, `up -d`, migrates, prints health. `./infra/deploy.sh edge` only when
-the Caddyfile or domains change. See T2.5 for the CI hook.
+image (stamped with its commit SHA), `up -d`, migrates, prints health.
+`./infra/deploy.sh edge` only when the Caddyfile or domains change.
+
+## CI/CD (`.github/workflows/deploy.yml`)
+
+The automated version of the promote line above — **opt-in until the repo
+variables exist**, then:
+
+- **push to `main`** → staging on the VM
+- **push a tag `v*`** → production, followed by `infra/smoke.sh` as a gate
+- **manual dispatch** → either tier
+- one deploy at a time (`concurrency: deploy-vm`) — compose builds on a
+  single VM are not concurrent-safe
+
+Enable it once (Settings → Secrets and variables → Actions):
+
+| Kind | Name | Value |
+|---|---|---|
+| Variable | `DEPLOY_HOST` | VM hostname/IP |
+| Variable | `DEPLOY_USER` | `root` (default) |
+| Variable | `DEPLOY_PATH` | `/root/guaca` (default) |
+| Secret | `DEPLOY_SSH_KEY` | private key whose public half is in the VM's `authorized_keys` |
+
+The production job runs in the `production` GitHub environment — set its
+required reviewers there for a human approve-gate on prod deploys.
+
+CI (`.github/workflows/ci.yml`) additionally runs a dependency audit at
+`high+`; Dependabot (`.github/dependabot.yml`) opens weekly grouped update
+PRs for npm, Docker images, and Actions.
+
+## Runtime hygiene (what the compose file already enforces)
+
+- **Restart policies** on every service — a VM reboot brings the stack back.
+- **Log rotation** (`json-file`, 10 MB × 3) on every service — a chatty gap
+  cycle can never fill the VM disk.
+- **API healthcheck** polls `/healthz` (DB-aware readiness, returns 503
+  when Postgres is down) — `docker ps` shows real health, and `docker compose
+  restart` semantics work.
+- **Version stamping** — deploy builds pass `GIT_SHA`; `/healthz` and the
+  `api.started` log line report it, so "what is live?" never requires
+  guesswork.
+- **Backups** — see above; verified by an actual restore.
+
+For uptime monitoring, point any pinger (UptimeRobot, Better Stack, a cron
+with `curl -f`) at `https://api.guaca.live/healthz` — 200 means the process
+AND the database answer; anything else pages a human.
 
 ## Local dev with real inference
 

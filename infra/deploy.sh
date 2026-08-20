@@ -40,7 +40,10 @@ echo "==> [$TIER] pulling base images"
 dc pull minio
 
 echo "==> [$TIER] building images"
-dc build postgres api
+# Stamp the running container with its commit — /healthz and api.started
+# report it, so "what is live?" never requires guesswork.
+GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unversioned)"
+dc build --build-arg GIT_SHA="$GIT_SHA" postgres api
 
 echo "==> [$TIER] starting stack"
 dc up -d

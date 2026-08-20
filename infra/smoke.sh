@@ -26,6 +26,7 @@ check() { # name, expected, actual
 code() { curl -sS -o /dev/null -w '%{http_code}' -m 25 "$1" 2>/dev/null || echo 000; }
 
 echo "== TLS and reachability =="
+check "api healthz (process + db ready)" 200 "$(code "$API/healthz")"
 check "api TLS + places (needs bbox → 400)" 400 "$(code "$API/api/places")"
 check "api places with bbox" 200 "$(code "$API/api/places?bbox=-68.1,10.4,-67.9,10.6")"
 check "app root" 200 "$(code "$APP/")"
