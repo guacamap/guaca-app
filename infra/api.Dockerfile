@@ -2,7 +2,7 @@
 # Workspace chain: api → {agents, db, shared}; db → agents; agents → sharp.
 # Every workspace package.json must be present BEFORE pnpm install or the
 # workspace links cannot resolve.
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 RUN corepack enable
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc tsconfig.base.json ./
@@ -23,7 +23,7 @@ RUN pnpm --filter @guaca/shared build \
  && pnpm --filter @guaca/api build \
  && pnpm --filter @guaca/cli build
 
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 ARG GIT_SHA=unknown
 ENV NODE_ENV=production GIT_SHA=${GIT_SHA}
