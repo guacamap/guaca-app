@@ -26,6 +26,7 @@ import {
   Trash2,
   TrendingUp,
   Trophy,
+  UsersRound,
   UserRound,
   X,
 } from 'lucide-react'
@@ -252,6 +253,8 @@ export function TouristView() {
   const [doubted, setDoubted] = useState<Set<string>>(new Set())
   const [notified, setNotified] = useState<Set<string>>(new Set())
   const [catFilter, setCatFilter] = useState<string | null>(null)
+  const [trendOnly, setTrendOnly] = useState(false)
+  const [zoneDemandList, setZoneDemandList] = useState<Array<{ zoneId: string; zoneName: string; peopleCount: number; askCount: number }>>([])
   const [posts, setPosts] = useState<PlacePost[]>([])
   const [postsOpen, setPostsOpen] = useState(false)
   const [postText, setPostText] = useState('')
@@ -370,6 +373,17 @@ export function TouristView() {
   }, [center])
 
   // Saved places ride the session.
+  // Zone demand — the scheduler's people-per-zone snapshot; what the gap
+  // agent scores is what this card shows.
+  useEffect(() => {
+    fetch('/api/zones/demand', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { zones: typeof zoneDemandList } | null) => {
+        if (d) setZoneDemandList(d.zones.filter((z) => z.peopleCount > 0).slice(0, 4))
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     fetch('/api/tourist/favorites', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
@@ -464,7 +478,9 @@ export function TouristView() {
 
   const pins = useMemo(
     () =>
-      (catFilter ? places.filter((p) => p.category === catFilter) : places).map((p) => {
+      (catFilter ? places.filter((p) => p.category === catFilter) : places)
+        .filter((p) => (trendOnly ? p.trendBadge != null : true))
+        .map((p) => {
         const glyph = CATEGORY_GLYPH[p.category] ?? { emoji: '📍', color: '#0D8B8B' }
         return {
           id: p.id,
@@ -475,12 +491,13 @@ export function TouristView() {
           spotterColor: glyph.color,
           spotterInitials: initials(p.spotter_name),
           verified: true,
+          ...(p.trendBadge ? { trendBadge: p.trendBadge } : {}),
           ...(p.avgRating != null && (p.ratingCount ?? 0) > 0
             ? { ratingBadge: p.avgRating.toFixed(1) }
             : {}),
         }
       }),
-    [places, catFilter],
+    [places, catFilter, trendOnly],
   )
 
   const dots = useMemo(
@@ -939,8 +956,35 @@ export function TouristView() {
               {glyph.emoji} {t.categoryLabels[key] ?? key}
             </button>
           ))}
+          <button
+            type="button"
+            aria-pressed={trendOnly}
+            onClick={() => setTrendOnly((prev) => !prev)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md ${trendOnly ? 'bg-guaca-coral text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70'}`}
+          >
+            🔥 {t.trendChip}
+          </button>
         </div>
       </div>
+
+      {/* Zone demand — the honest "N people asked here" that funds missions. */}
+      {!selected && !selectedCandidate && zoneDemandList.length > 0 && (
+        <div className="absolute bottom-24 left-4 z-[600] w-[190px] rounded-[22px] bg-guaca-ocean-deep/92 p-3.5 text-white shadow-lg backdrop-blur-md">
+          <p className="text-[8.5px] font-black uppercase tracking-[.12em] text-white/60">
+            <UsersRound className="mr-1 inline h-3 w-3" /> {t.zoneDemandTitle}
+          </p>
+          <div className="mt-1.5 space-y-1">
+            {zoneDemandList.map((z) => (
+              <div key={z.zoneId} className="flex items-baseline justify-between gap-2">
+                <span className="min-w-0 flex-1 truncate text-[11px] font-bold">{z.zoneName}</span>
+                <span className="shrink-0 text-[11px] font-black tabular-nums text-guaca-mango-light">
+                  {z.peopleCount}👤
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
       {selected && (

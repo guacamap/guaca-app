@@ -6,6 +6,7 @@ import {
   expireMissions,
   loadGapSignals,
   listSpotterCandidates,
+  recomputeZoneDemand,
 } from '@guaca/db';
 import {
   runGapAgent,
@@ -51,6 +52,9 @@ const scheduler = startGapScheduler({
         recomputeTrends(pool, { areaId: AREA_ID, weather }),
       expireMissions: () => expireMissions(pool),
       cluster: () => clusterUnanswered(pool, AREA_ID),
+      // People-per-zone snapshot AFTER clustering: this tick's refusals
+      // are already in the counts surfaces read.
+      recomputeZoneDemand: () => recomputeZoneDemand(pool, AREA_ID),
       runAgent: () =>
         runGapAgent({
           areaId: AREA_ID,

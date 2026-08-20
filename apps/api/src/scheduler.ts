@@ -9,6 +9,12 @@ export interface GapCycleDeps {
   expireMissions?: () => Promise<{ expired: number; gapsReopened: number }>;
   /** Fold newly-refused questions into (area, category, h3) gaps. */
   cluster: () => Promise<{ gapsCreated: number; questionsClustered: number }>;
+  /**
+   * Persist the people-per-zone demand snapshot AFTER clustering, so the
+   * counts surfaces show already include this tick's refusals. Optional —
+   * failure degrades to a stale snapshot, never a broken cycle.
+   */
+  recomputeZoneDemand?: () => Promise<number>;
   /** Score the gaps and commission at most one mission. */
   runAgent: () => Promise<{
     commissioned: Array<{ gapId: string; missionId?: string; score: number }>;
@@ -66,6 +72,15 @@ export async function runGapCycle(deps: GapCycleDeps): Promise<GapCycleResult> {
   }
 
   const clustered = await deps.cluster();
+
+  let zonesSnapshotted = 0;
+  if (deps.recomputeZoneDemand) {
+    try {
+      zonesSnapshotted = await deps.recomputeZoneDemand();
+    } catch {
+      // A stale snapshot is preferable to a dead autonomy loop.
+    }
+  }
   const agent = await deps.runAgent();
 
   for (const m of agent.commissioned) {
@@ -89,6 +104,7 @@ export async function runGapCycle(deps: GapCycleDeps): Promise<GapCycleResult> {
     detail: {
       trendsRecomputed: trends?.places ?? 0,
       missionsExpired: expiry?.expired ?? 0,
+      zonesSnapshotted,
       gapsCreated: clustered.gapsCreated,
       questionsClustered: clustered.questionsClustered,
       commissioned: agent.commissioned.length,

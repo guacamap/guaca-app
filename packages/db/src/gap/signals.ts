@@ -12,6 +12,9 @@ export interface GapSignalsRow {
   recentCategoryAsks: number;
   /** Zone's human name (zones table, ST_Within on the cell centre). */
   zoneName: string;
+  /** People (distinct sessions) who asked in this zone, last 30d — the
+   *  persisted zone_demand snapshot the scheduler keeps warm. */
+  zonePeopleCount: number;
   /** Verified places in the zone gone stale (>120d) — refresh brief fuel. */
   stalePlaceNames: string[];
 }
@@ -80,13 +83,19 @@ export async function loadGapSignals(
           and ($2::uuid is null or area_id = $2)`,
       [gap.category, gap.areaId ?? null],
     ),
-    // The zone a human would name — spotters read briefs, not h3 indexes.
-    pool.query<{ name: string }>(
-      `select z.name from zones z,
+    // The zone a human would name — spotters read briefs, not h3 indexes —
+    // with the persisted people-count for the same zone, so the brief can
+    // say how many real people asked. (h3_cell_to_lat_lng returns a 0-based
+    // [lng, lat] array — verified empirically; ll[0], ll[1] is exactly
+    // MakePoint(lng, lat).)
+    pool.query<{ name: string; people: number | null }>(
+      `select z.name, zd.people_count as people
+         from zones z
+         left join zone_demand zd on zd.zone_id = z.id,
               lateral (select h3_cell_to_lat_lng($1::h3index) as ll) h,
               lateral (select ST_SetSRID(ST_MakePoint(h.ll[0], h.ll[1]), 4326) as pt) c
-         where ST_Covers(z.geom::geometry, c.pt)
-         limit 1`,
+        where ST_Covers(z.geom::geometry, c.pt)
+        limit 1`,
       [gap.h3_8],
     ),
     pool.query<{ name: string }>(
@@ -120,6 +129,7 @@ export async function loadGapSignals(
     accessDifficulty: 0,
     recentCategoryAsks: momentum.rows[0]?.n ?? 0,
     zoneName: zone.rows[0]?.name ?? gap.h3_8,
+    zonePeopleCount: zone.rows[0]?.people ?? 0,
     stalePlaceNames: stale.rows.map((r) => r.name),
   };
 }

@@ -30,6 +30,8 @@ export interface GapSignals {
   recentCategoryAsks?: number;
   /** Human zone name for the brief — the raw h3 index otherwise. */
   zoneName?: string;
+  /** People who asked in this zone (30d) — the mission's justification. */
+  zonePeopleCount?: number;
   /** Verified places in the zone gone stale (>120d) — refresh-mission fuel. */
   stalePlaceNames?: string[];
 }

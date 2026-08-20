@@ -35,3 +35,38 @@ describe('composeBrief (T5.4)', () => {
     expect(brief).toMatch(/3/);
   });
 });
+
+describe('composeBrief — zone people-count', () => {
+  it('es: names the demand that justified the mission', () => {
+    const brief = composeBrief({
+      language: 'es',
+      category: 'eat_drink',
+      zoneName: 'Malecón',
+      spotterName: 'Yorman',
+      zonePeopleCount: 7,
+    });
+    expect(brief).toContain('7 personas han preguntado por esta zona');
+    expect(brief).toContain('Malecón');
+  });
+
+  it('en: singular person gets singular grammar', () => {
+    const one = composeBrief({
+      language: 'en',
+      category: 'eat_drink',
+      zoneName: 'Malecón',
+      spotterName: 'Yorman',
+      zonePeopleCount: 1,
+    });
+    expect(one).toContain('1 person has asked');
+  });
+
+  it('no count, no demand line — never a fabricated number', () => {
+    const brief = composeBrief({
+      language: 'es',
+      category: 'eat_drink',
+      zoneName: 'Malecón',
+      spotterName: 'Yorman',
+    });
+    expect(brief).not.toContain('personas han preguntado');
+  });
+});

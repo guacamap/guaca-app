@@ -81,6 +81,7 @@ describe('GET /api/places', () => {
       method: 'GET',
       url: '/api/places?bbox=-68.03,10.44,-67.98,10.52&category=eat_drink',
     });
+    if (res.statusCode !== 200) console.log('PAYLOAD:', res.payload);
     expect(res.statusCode).toBe(200);
     const body = res.json() as { places: { name: string }[] };
     const names = body.places.map((p) => p.name);
@@ -98,9 +99,19 @@ describe('GET /api/places', () => {
       method: 'GET',
       url: `/api/places/${found.rows[0]!.id}`,
     });
+    if (res.statusCode !== 200) console.log('PAYLOAD:', res.payload);
     expect(res.statusCode).toBe(200);
     const body = res.json() as { name: string };
     expect(body.name).toBe('Arepera Verificada');
+    await app.close();
+  });
+  it('exposes the persisted people-per-zone snapshot publicly', async () => {
+    const app = buildApp({ pool });
+    const res = await app.inject({ method: 'GET', url: '/api/zones/demand' });
+    if (res.statusCode !== 200) console.log('PAYLOAD:', res.payload);
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { zones: Array<{ zoneName: string; peopleCount: number }> };
+    expect(Array.isArray(body.zones)).toBe(true);
     await app.close();
   });
 });
