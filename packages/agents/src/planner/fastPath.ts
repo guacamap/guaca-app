@@ -55,11 +55,13 @@ export interface RouteOptions {
  * duplicating a stop.
  */
 export function greedyRoute(options: RouteOptions): FastPathStop[] {
+  // After 23:00 the same-day minute schema cannot express "open for a
+  // full more hour" — requiring closeAt >= startMin+1400s would filter out
+  // EVERY place and turn every late-night "where can I eat now" into a
+  // refusal. Demand openness to the last representable minute instead.
+  const latestNeeded = Math.min(options.startMin + 60, 1439);
   const open = options.places.filter(
-    (p) =>
-      p.category === options.category &&
-      p.openAt <= options.startMin &&
-      p.closeAt >= options.startMin + 60,
+    (p) => p.category === options.category && p.openAt <= options.startMin && p.closeAt >= latestNeeded,
   );
   // Distances are measured from the traveller, not from a hardcoded pilot
   // coordinate — the bug version always walked you from the town centre.

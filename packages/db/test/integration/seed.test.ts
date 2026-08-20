@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 import { migrate } from '../../src/migrate.ts';
 import { seed } from '../../src/seed/index.ts';
+import { CARIBBEAN_CITIES } from '@guaca/shared';
 
 const TEST_DB = 'guaca_seed';
 const pool = new pg.Pool({
@@ -42,7 +43,8 @@ describe('seed', () => {
     await seed(pool);
 
     const areas = await pool.query('select count(*)::int as n from areas');
-    expect(areas.rows[0]!.n).toBe(1);
+    // Pilot + the Caribbean expansion cities (reference geography).
+    expect(areas.rows[0]!.n).toBe(1 + CARIBBEAN_CITIES.length);
 
     const spotters = await pool.query(
       'select count(*)::int as n from spotters where active',
@@ -68,7 +70,8 @@ describe('seed', () => {
   it('is idempotent: re-running creates no duplicates', async () => {
     await seed(pool);
     const areas = await pool.query('select count(*)::int as n from areas');
-    expect(areas.rows[0]!.n).toBe(1);
+    // Pilot + the Caribbean expansion cities (reference geography).
+    expect(areas.rows[0]!.n).toBe(1 + CARIBBEAN_CITIES.length);
     const spotters = await pool.query('select count(*)::int as n from spotters');
     expect(spotters.rows[0]!.n).toBe(10);
     const props = await pool.query('select count(*)::int as n from properties');

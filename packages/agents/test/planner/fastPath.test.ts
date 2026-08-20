@@ -86,6 +86,9 @@ describe('answerDeterministic (T4.4)', () => {
       lon: -68.0056,
       places,
       inference: new FakeInference({}),
+      // Injected noon: without it this test only passes at hours the
+      // fixture's places are "open" — it flaked on every overnight run.
+      nowMin: 12 * 60,
     });
     if (result === null) throw new Error('expected a fast-path plan');
     const plan = result;

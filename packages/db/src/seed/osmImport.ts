@@ -79,17 +79,26 @@ export interface OsmImportResult {
 export interface OsmImportOptions {
   /** Injectable fetch — tests substitute a fixture; prod uses global fetch. */
   fetchImpl?: typeof fetch;
-  /** Overpass query URL; defaults to the Puerto Cabello bbox. */
+  /** Overpass endpoint; the kumi mirror is the reliable default. */
   overpassUrl?: string;
+  /** Bounding box `latSouth,lonWest,latNorth,lonEast`; defaults to the pilot. */
+  bbox?: string;
 }
 
 const DEFAULT_BBOX = '10.44,-68.03,10.52,-67.98';
 
-const QUERY = (bbox: string) => `[out:xml][timeout:60];
+// POI-keyed, not every named thing: elements without a taxonomy-mappable
+// tag are discarded on insert anyway, and a generic ["name"] sweep over a
+// whole city is what got Overpass returning 500s. This fetches only what
+// can become a candidate.
+const QUERY = (bbox: string) => `[out:xml][timeout:90];
 (
-  node["name"](${bbox});
-  way["name"](${bbox});
-  relation["name"](${bbox});
+  nwr["name"]["amenity"](${bbox});
+  nwr["name"]["shop"](${bbox});
+  nwr["name"]["tourism"](${bbox});
+  nwr["name"]["leisure"](${bbox});
+  nwr["name"]["historic"](${bbox});
+  nwr["name"]["natural"="beach"](${bbox});
 );
 out center;`;
 
@@ -104,23 +113,42 @@ export async function importOsmCandidates(
   options: OsmImportOptions = {},
 ): Promise<OsmImportResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const bbox = DEFAULT_BBOX;
+  const bbox = options.bbox ?? DEFAULT_BBOX;
   // POST + explicit User-Agent: overpass-api.de rejects anonymous GETs
-  // (406) and rate-limits hard; the kumi mirror is the reliable default.
-  const endpoint = options.overpassUrl ?? 'https://overpass.kumi.systems/api/interpreter';
+  // (406) and rate-limits hard. Mirrors fall over under load — try kumi,
+  // then the main instance, before giving up.
+  const endpoints = [
+    ...new Set([
+      options.overpassUrl ?? 'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass-api.de/api/interpreter',
+    ]),
+  ];
 
-  const res = await fetchImpl(endpoint, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-      'user-agent': 'guaca-app/0.1 (pilot; contact via guaca.live)',
-    },
-    body: `data=${encodeURIComponent(QUERY(bbox))}`,
-  });
-  if (!res.ok) {
-    throw new Error(`overpass request failed: ${res.status} ${res.statusText}`);
+  let xml: string | null = null;
+  let lastError = 'overpass unavailable';
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetchImpl(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'user-agent': 'guaca-app/0.1 (pilot; contact via guaca.live)',
+        },
+        body: `data=${encodeURIComponent(QUERY(bbox))}`,
+      });
+      if (!res.ok) {
+        lastError = `overpass request failed: ${res.status} ${res.statusText}`;
+        continue;
+      }
+      xml = await res.text();
+      break;
+    } catch (e) {
+      lastError = (e as Error).message;
+    }
   }
-  const xml = await res.text();
+  if (xml === null) {
+    throw new Error(lastError);
+  }
   const parsed = new XMLParser({ ignoreAttributes: false }).parse(xml);
   const root = parsed?.osm;
   if (!root) return { inserted: 0 };
