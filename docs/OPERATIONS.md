@@ -16,6 +16,10 @@ authenticates with `OPERATOR_TOKEN` and supports `--json`.
 | `guaca override <missionId> --cancel --reason "…"` | Cancel a mission — audited. |
 | `guaca pay <missionId>` | Payout through the mock provider (idempotency key = mission_id). |
 | `guaca spotter add <name> <phone>` / `list` / `code <id>` | Operator-issued spotter accounts and one-time login codes. |
+| `guaca steward enrich [--limit N]` | Run the AI steward: draft enrichment for OSM candidates. |
+| `guaca steward drafts [--status pending\|approved\|rejected] [--json]` | The review queue. |
+| `guaca steward approve <id> [--note "…"]` | Confirm a draft — enrichment lands on the candidate; a Spotter still verifies it on the ground. |
+| `guaca steward reject <id> --note "…"` | Reject a draft — audited. |
 
 ## When a human must intervene
 

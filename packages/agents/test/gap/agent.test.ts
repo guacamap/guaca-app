@@ -171,3 +171,35 @@ describe('runGapAgent — continuous-loop fixes', () => {
     expect(briefs).toEqual(['Malecón|revisar si siguen igual: Arepera del Muelle']);
   });
 });
+
+describe('runGapAgent — steward-enriched candidates in briefs', () => {
+  it('team-approved candidates become the spotter named starting points', async () => {
+    const briefs: string[] = [];
+    await runGapAgent(
+      options({
+        listGaps: async () => [
+          { id: 'g1', category: 'eat_drink', h3_8: 'h', questionCount: 7, distinctSessionCount: 6 },
+        ],
+        loadSignals: async () => ({
+          questionCount: 7,
+          distinctSessions: 6,
+          askAgeDays: [0],
+          properties: [],
+          verifiedPlaces: [],
+          spotterCapacityInZone: 1,
+          accessDifficulty: 0,
+          candidateHints: ['Cantina El Puerto', 'Arepera La Bahía'],
+        }),
+        score: () => ({ score: 120, breakdown: { D: 1, Rmult: 1, Cmult: 1, S: 1, F: 1, T: 1, q: 7, s: 6 } }),
+        selectSpotter: async () => ({ id: 's1', name: 'Yorman', zoneId: 'h', homeH3: 'h', level: 2, openMissions: 0 }),
+        composeBrief: (input) => {
+          briefs.push(`${input.zoneName}|${input.landmarkHint ?? ''}`);
+          return 'brief';
+        },
+        commission: async () => ({ status: 'offered' as const, missionId: 'm1' }),
+      }),
+    );
+    expect(briefs).toHaveLength(1);
+    expect(briefs[0]).toContain('candidatos ya revisados por el equipo: Cantina El Puerto, Arepera La Bahía');
+  });
+});

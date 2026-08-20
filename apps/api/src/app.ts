@@ -1,12 +1,13 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
-import { randomUUID } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand } from '@guaca/db';
+import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
 import { ask, planTrip } from './plannerService.js';
+import { draftCandidate } from '@guaca/agents';
 import { suggestionsNear } from './suggestionsService.js';
 import { TripRequestSchema, type TripPace } from '@guaca/shared';
 import { opsStreamPlugin } from './opsStream.js';
@@ -265,6 +266,35 @@ export function buildApp(options: AppOptions): FastifyInstance {
     }
     return new TextEncoder().encode(secret || 'changeme-32-bytes-min!');
   };
+
+  /**
+   * Operator auth: the same shared OPERATOR_TOKEN the CLI uses, over
+   * Authorization: Bearer. Hash-then-compare so token length never leaks
+   * through timing. 501 when unset — a route that silently accepts because
+   * the token is blank would be the worst failure mode.
+   */
+  const requireOperator = (req: FastifyRequest, reply: import('fastify').FastifyReply): boolean => {
+    const expected = process.env.OPERATOR_TOKEN;
+    if (!expected) {
+      reply.code(501).send({ error: 'OPERATOR_TOKEN is not configured' });
+      return false;
+    }
+    const bearer = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7)
+      : '';
+    const ok =
+      bearer.length > 0 &&
+      timingSafeEqual(
+        createHash('sha256').update(bearer).digest(),
+        createHash('sha256').update(expected).digest(),
+      );
+    if (!ok) {
+      reply.code(401).send({ error: 'operator token required' });
+      return false;
+    }
+    return true;
+  };
+
   const emailSender = options.emailSender ?? createEmailSender();
   const objectStore = options.objectStore ?? createObjectStore();
   const resolveInference = async () =>
@@ -829,10 +859,66 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return reply.send({ trip });
   });
 
+  /*
+   * The AI steward — machine-drafted candidate enrichment for the team to
+   * confirm by hand. NOT an agent: no loop, no scheduler; an operator runs
+   * a batch, drafts land in a review queue, and approval only enriches a
+   * CANDIDATE (tourist visibility still requires a Spotter's physical
+   * verification under the two-witness rule). Tourists have no route to
+   * anything here — every path requires the operator token.
+   */
+  app.post('/api/operator/steward/enrich', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const body = (req.body ?? {}) as { limit?: number };
+    const limit = Math.max(1, Math.min(Number(body.limit) || 10, 50));
+    const inference = await resolveInference();
+    const candidates = await unenrichedCandidates(options.pool, { limit });
+    let drafted = 0;
+    let skipped = 0;
+    for (const c of candidates) {
+      const outcome = await draftCandidate(inference, c);
+      if (outcome.kind === 'skipped') {
+        skipped += 1;
+        continue;
+      }
+      await saveDraft(options.pool, {
+        candidateId: c.id,
+        model: 'inference',
+        draft: outcome.draft,
+      });
+      drafted += 1;
+    }
+    return { drafted, skipped, considered: candidates.length };
+  });
+
+  app.get('/api/operator/steward/drafts', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { status } = req.query as { status?: string };
+    const s = status === 'approved' || status === 'rejected' ? status : 'pending';
+    return { drafts: await stewardDrafts(options.pool, s) };
+  });
+
+  app.post('/api/operator/steward/drafts/:id/approve', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { note?: string };
+    const res = await approveDraft(options.pool, id, 'operator', body.note);
+    if (!res.ok) return reply.code(res.reason === 'not found' ? 404 : 409).send({ error: res.reason });
+    return { draft: res.draft };
+  });
+
+  app.post('/api/operator/steward/drafts/:id/reject', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { note?: string };
+    const res = await rejectDraft(options.pool, id, 'operator', body.note ?? '');
+    if (!res.ok) return reply.code(res.reason === 'not found' ? 404 : 409).send({ error: res.reason });
+    return { draft: res.draft };
+  });
+
   // Grounded recommendations: verified places with honestly-earned trend
   // badges near the caller. Empty list beats a guess — always.
-  app.get('/api/suggestions', async (req, reply) => {
-    const token = tokenFrom(req, 'guaca_tourist');
+  app.get('/api/suggestions', async (req, reply) => {    const token = tokenFrom(req, 'guaca_tourist');
     if (!token) return reply.code(401).send({ error: 'login required' });
     const { touristId } = await verifyTouristToken(token, sessionSecret());
     if (!touristId) return reply.code(401).send({ error: 'login required' });

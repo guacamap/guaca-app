@@ -37,7 +37,11 @@
   gap-scoring tradition — pure functions over recorded behaviour, zero
   inference, versioned (`TREND_VERSION`). It ranks verified places and
   modulates gap scoring; it cannot introduce a place or commission
-  anything by itself.
+  anything by itself. The **AI steward** (2026-08-20) is likewise NOT an
+  agent: an operator-invoked tool that drafts enrichment for OSM
+  candidates; drafts land in a review queue, and approval enriches a
+  CANDIDATE only — tourist visibility still requires a Spotter's physical
+  verification under the two-witness rule.
 - Missions stay **demand-first** (owner decision 2026-08-19): the wider
   funnel (refusals, re-check doubts, category momentum from real asks,
   stale-place refresh hints) all start from recorded demand. No
