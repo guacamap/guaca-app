@@ -11,6 +11,13 @@
 
 ## Open decisions / blockers
 
+- **Inference provider — DECIDED 2026-08-19 (owner): Nebius Token Factory.**
+  Qwen3-30B-A3B (text) + Qwen2.5-VL-72B (vision), both live-verified with
+  integer-enum json_schema. MiniMax failover is blocked until the provider
+  gains the json_object fallback (its validator rejects numeric enums);
+  the Buildathon GPU credits (Highrise/Impala AI) fund the self-hosted
+  vLLM tier POST-submission. See STACK_DECISIONS §9.
+
 - **T5.2 scoring discrepancy** — plan §7.5 table says 219/42/143, the
   verbatim formula yields 288/55/187. Implemented verbatim; tests pinned to
   verbatim values. NEEDS a decision on which is authoritative.
