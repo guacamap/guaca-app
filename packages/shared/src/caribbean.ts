@@ -60,6 +60,8 @@ export const CARIBBEAN_COUNTRIES: readonly CaribbeanCountry[] = [
   { code: 'SX', name: 'Saint Martin / Sint Maarten', nameEs: 'San Martín / Sint Maarten', capital: 'Philipsburg', lat: 18.029, lon: -63.049, status: 'uncovered' },
   { code: 'BQ', name: 'Bonaire', nameEs: 'Bonaire', capital: 'Kralendijk', lat: 12.151, lon: -68.27, status: 'uncovered' },
   { code: 'BZ', name: 'Belize', nameEs: 'Belice', capital: 'Belmopan', lat: 17.251, lon: -88.759, status: 'uncovered' },
+  { code: 'GY', name: 'Guyana', nameEs: 'Guyana', capital: 'Georgetown', lat: 6.802, lon: -58.155, status: 'uncovered' },
+  { code: 'SR', name: 'Suriname', nameEs: 'Surinam', capital: 'Paramaribo', lat: 5.852, lon: -55.204, status: 'uncovered' },
   { code: 'HN', name: 'Honduras', nameEs: 'Honduras', capital: 'Roatán', lat: 16.325, lon: -86.535, status: 'uncovered' },
 ];
 
@@ -159,4 +161,8 @@ export const CARIBBEAN_CITIES: readonly CaribbeanCity[] = [
   { countryCode: 'BL', slug: 'gustavia', name: 'Gustavia', lat: 17.9, lon: -62.853, span: 0.03 },
   { countryCode: 'SX', slug: 'philipsburg', name: 'Philipsburg', lat: 18.029, lon: -63.049, span: 0.04 },
   { countryCode: 'BQ', slug: 'kralendijk', name: 'Kralendijk', lat: 12.151, lon: -68.27, span: 0.04 },
+  // The Guianas — CARICOM members on the UN Caribbean roster; Georgetown
+  // is literally the seat of the Caribbean Community.
+  { countryCode: 'GY', slug: 'georgetown', name: 'Georgetown', lat: 6.802, lon: -58.155, span: 0.05 },
+  { countryCode: 'SR', slug: 'paramaribo', name: 'Paramaribo', lat: 5.852, lon: -55.204, span: 0.05 },
 ];

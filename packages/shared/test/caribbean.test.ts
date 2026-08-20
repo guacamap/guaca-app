@@ -15,7 +15,7 @@ describe('CARIBBEAN_COUNTRIES — every marker is an honest claim', () => {
 
   it('the UN-geoscheme islands are all present', () => {
     const codes = new Set(CARIBBEAN_COUNTRIES.map((c) => c.code));
-    for (const code of ['AI', 'VG', 'VI', 'TC', 'MS', 'BL', 'SX', 'BQ']) {
+    for (const code of ['AI', 'VG', 'VI', 'TC', 'MS', 'BL', 'SX', 'BQ', 'GY', 'SR']) {
       expect(codes.has(code)).toBe(true);
     }
   });
@@ -37,7 +37,7 @@ describe('CARIBBEAN_COUNTRIES — every marker is an honest claim', () => {
       expect(c.lat).toBeGreaterThan(5);
       expect(c.lat).toBeLessThan(28);
       expect(c.lon).toBeGreaterThan(-100);
-      expect(c.lon).toBeLessThan(-58);
+      expect(c.lon).toBeLessThan(-54); // Suriname's Paramaribo sets the edge
     }
   });
 });
