@@ -4,16 +4,16 @@
   "private": true,
   "main": "index.ts",
   "dependencies": {
-    "expo": "~57.0.12",
+    "expo": "~57.0.13",
     "expo-splash-screen": "~57.0.6",
     "expo-status-bar": "~57.0.1",
-    "react": "19.2.3",
-    "react-native": "0.86.2",
-    "react-native-webview": "13.16.1"
+    "react": "19.2.8",
+    "react-native": "0.87.0",
+    "react-native-webview": "14.0.1"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "typescript": "~7.0.2"
   },
   "scripts": {
     "start": "expo start",

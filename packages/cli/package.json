@@ -11,15 +11,15 @@
   "dependencies": {
     "@guaca/db": "workspace:*",
     "@guaca/shared": "workspace:*",
-    "commander": "^12.1.0",
-    "pg": "^8.13.1",
+    "commander": "^15.0.0",
+    "pg": "^8.23.0",
     "@guaca/agents": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/pg": "^8.11.10",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.21.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "bin": {
     "guaca": "./dist/index.js"
