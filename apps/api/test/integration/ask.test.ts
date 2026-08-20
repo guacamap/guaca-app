@@ -97,6 +97,30 @@ describe('POST /api/ask', () => {
     await app.close();
   });
 
+  it('a single-topic question is answered from its CATEGORY only — live music never cites arepas', async () => {
+    // The DB holds one verified eat_drink place; the question is nightlife.
+    // The old model path offered the whole catalog and answered with an
+    // arepera. Now: catalog filtered to nightlife = empty → honest refusal,
+    // zero inference calls, demand recorded for the gap agent.
+    const fake = new FakeInference({});
+    const cap = captureSender();
+    const app = buildApp({ pool, inference: fake, minCandidates: 1, emailSender: cap.sender });
+    const headers = await authTourist(app, cap.codes);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/ask',
+      headers,
+      payload: { text: 'where can I hear live music tonight?', language: 'en', lat: 10.4716, lon: -68.0056 },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { kind: string; placeIds: string[]; questionId?: string };
+    expect(body.kind).toBe('refusal');
+    expect(body.placeIds).toHaveLength(0);
+    expect(body.questionId).toBeTruthy();
+    expect(fake.calls).toHaveLength(0); // refused before any token was spent
+    await app.close();
+  });
+
   it('refuses an uncovered question as a first-class result, never an error', async () => {
     const cap = captureSender();
     const app = buildApp({

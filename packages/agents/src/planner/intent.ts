@@ -85,6 +85,28 @@ export function classifiesIntent(text: string): boolean {
 }
 
 /**
+ * Every DISTINCT category the lexicon sees in the question. One hit means
+ * single-topic: the caller may hard-filter the catalog to that category —
+ * "where can I hear live music?" must never be answered with arepa places.
+ * Two or more hits means a cross-category question (a day, a trip) and
+ * filtering would lie about coverage.
+ */
+export function categoryHits(text: string): PlaceCategory[] {
+  const words = text
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const hits = new Set<PlaceCategory>();
+  for (const w of words) {
+    const c = LEXICON[w];
+    if (c) hits.add(c);
+  }
+  return [...hits];
+}
+
+/**
  * Deterministic intent extraction (plan §7.8: lexicon first, ~60% of answers
  * use zero inference). Unparseable input degrades to the broad category —
  * see classifiesIntent for whether that degradation happened.
