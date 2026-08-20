@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -164,6 +164,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
         trendBadge: trends.get(p.id)?.badge ?? null,
       })),
     };
+  });
+
+  // Areas with honest stats — the country→city picker's data source.
+  // Public like /api/places: names and counts, nothing personal.
+  app.get('/api/areas', async () => {
+    return { areas: await areaSummaries(options.pool) };
   });
 
   // Zone demand — the persisted people-per-zone snapshot the scheduler

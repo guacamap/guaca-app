@@ -186,6 +186,11 @@ export interface AppCopy {
     countryLive: string
     countryPlanned: string
     countryUncovered: string
+    pickerTitle: string
+    pickerVerified: string
+    pickerCandidates: string
+    pickerNoAreas: string
+    pickerExplore: string
     zoneDemandTitle: string
     zoneDemandAsks: string
     profileTitle: string
@@ -466,6 +471,11 @@ export const appCopy: Record<Lang, AppCopy> = {
       countryLive: 'Pilot live',
       countryPlanned: 'Expansion target',
       countryUncovered: 'Not covered yet',
+      pickerTitle: 'Choose where to look',
+      pickerVerified: 'verified',
+      pickerCandidates: 'unverified candidates',
+      pickerNoAreas: 'No areas yet — ask a question there and coverage starts',
+      pickerExplore: 'Explore the Caribbean',
       zoneDemandTitle: 'Where people are asking',
       zoneDemandAsks: 'asks',
       profileTitle: 'Profile',
@@ -751,6 +761,11 @@ export const appCopy: Record<Lang, AppCopy> = {
       countryLive: 'Piloto activo',
       countryPlanned: 'Próxima expansión',
       countryUncovered: 'Sin cobertura aún',
+      pickerTitle: 'Elige dónde mirar',
+      pickerVerified: 'verificados',
+      pickerCandidates: 'candidatos sin verificar',
+      pickerNoAreas: 'Aún sin áreas — pregunta ahí y la cobertura empieza',
+      pickerExplore: 'Explora el Caribe',
       zoneDemandTitle: 'Dónde pregunta la gente',
       zoneDemandAsks: 'preguntas',
       profileTitle: 'Perfil',

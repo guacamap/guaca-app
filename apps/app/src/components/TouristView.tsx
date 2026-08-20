@@ -7,6 +7,7 @@ import {
   Check,
   Clock3,
   Flag,
+  ChevronDown,
   Globe,
   Heart,
   LogOut,
@@ -113,6 +114,18 @@ interface ApiTrip {
 }
 
 type TripPaceChoice = 'relaxed' | 'balanced' | 'packed'
+
+/** An area from GET /api/areas — the country→city picker's unit. */
+interface ApiArea {
+  id: string
+  name: string
+  slug: string
+  country: string
+  bbox: [number, number, number, number]
+  verifiedCount: number
+  candidateCount: number
+  zoneCount: number
+}
 
 /** A grounded follow-up from the trend engine — never model output. */
 interface Rec {
@@ -256,6 +269,11 @@ export function TouristView() {
   const [catFilter, setCatFilter] = useState<string | null>(null)
   const [trendOnly, setTrendOnly] = useState(false)
   const [zoneDemandList, setZoneDemandList] = useState<Array<{ zoneId: string; zoneName: string; peopleCount: number; askCount: number }>>([])
+  const [areas, setAreas] = useState<ApiArea[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [openCountry, setOpenCountry] = useState<string | null>('VE')
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null)
+  const [flyNonce, setFlyNonce] = useState(0)
   const [posts, setPosts] = useState<PlacePost[]>([])
   const [postsOpen, setPostsOpen] = useState(false)
   const [postText, setPostText] = useState('')
@@ -406,6 +424,29 @@ export function TouristView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
+  // Areas for the country→city picker, with the persisted selection.
+  useEffect(() => {
+    fetch('/api/areas', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { areas: ApiArea[] } | null) => {
+        if (!d) return
+        setAreas(d.areas)
+        try {
+          const saved = localStorage.getItem('guaca:area')
+          const found = saved ? d.areas.find((a) => a.id === saved) : undefined
+          const pilot = d.areas.find((a) => a.slug === 'puerto-cabello')
+          const chosen = found ?? pilot ?? null
+          setSelectedAreaId(chosen?.id ?? null)
+          if (chosen) {
+            const midLng = (chosen.bbox[0]! + chosen.bbox[2]!) / 2
+            const midLat = (chosen.bbox[1]! + chosen.bbox[3]!) / 2
+            setCenter([midLng, midLat])
+          }
+        } catch { /* best-effort */ }
+      })
+      .catch(() => {})
+  }, [])
+
   // Grounded recommendations for the chat's opening state — trending
   // verified places near the pilot centre, honestly badged.
   useEffect(() => {
@@ -512,6 +553,39 @@ export function TouristView() {
       })),
     [candidates, catFilter],
   )
+
+  const selectedArea = useMemo(
+    () => areas.find((a) => a.id === selectedAreaId) ?? null,
+    [areas, selectedAreaId],
+  )
+
+  /** Countries grouped for the picker: live, planned, then the rest. */
+  const pickerGroups = useMemo(() => {
+    const byCountry = new Map<string, ApiArea[]>()
+    for (const a of areas) {
+      const list = byCountry.get(a.country) ?? []
+      list.push(a)
+      byCountry.set(a.country, list)
+    }
+    const order: Array<'live' | 'planned' | 'uncovered'> = ['live', 'planned', 'uncovered']
+    return order.map((status) => ({
+      status,
+      countries: CARIBBEAN_COUNTRIES.filter((c) => c.status === status).map((c) => ({
+        country: c,
+        areas: (byCountry.get(c.code) ?? []).sort((x, y) => y.verifiedCount - x.verifiedCount),
+      })),
+    }))
+  }, [areas])
+
+  const selectArea = (a: ApiArea) => {
+    setSelectedAreaId(a.id)
+    setPickerOpen(false)
+    try { localStorage.setItem('guaca:area', a.id) } catch { /* best-effort */ }
+    const midLng = (a.bbox[0]! + a.bbox[2]!) / 2
+    const midLat = (a.bbox[1]! + a.bbox[3]!) / 2
+    setCenter([midLng, midLat])
+    setFlyNonce((n) => n + 1)
+  }
 
   // Country coverage markers — the honest Caribbean-wide layer. One label
   // per country, each a fact: pilot live, named expansion target, or not
@@ -907,6 +981,8 @@ export function TouristView() {
           dots={dots}
           heat={heat}
           countries={countryMarkers}
+          areaHighlight={selectedArea ? { bbox: selectedArea.bbox, label: selectedArea.name } : null}
+          flyTo={selectedArea ? { lat: (selectedArea.bbox[1]! + selectedArea.bbox[3]!) / 2, lng: (selectedArea.bbox[0]! + selectedArea.bbox[2]!) / 2, zoom: 12.2, nonce: flyNonce } : undefined}
           selectedPinId={selected?.id ?? null}
           onPinClick={(id) => { setSelectedCandidate(null); openPlace(id) }}
           onDotClick={(id) => {
@@ -988,7 +1064,84 @@ export function TouristView() {
             🔥 {t.trendChip}
           </button>
         </div>
+        {/* Location pill — the country→city picker entry point. */}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="mt-1.5 flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep/85 px-3 py-1.5 text-[11px] font-black text-white shadow-md backdrop-blur-md"
+        >
+          <MapPin className="h-3 w-3 text-guaca-mango-light" />
+          {selectedArea?.name ?? t.pickerExplore}
+          <ChevronDown className="h-3 w-3" />
+        </button>
       </div>
+
+      {/* Country → city picker — every label an honest claim. */}
+      {pickerOpen && (
+        <div className="absolute inset-0 z-[950] flex items-end bg-guaca-ocean-deep/55 p-4" onClick={() => setPickerOpen(false)}>
+          <div className="guaca-card max-h-[75%] w-full overflow-y-auto rounded-[30px] p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[.1em] text-guaca-teal">
+                <Globe className="h-4 w-4" /> {t.pickerTitle}
+              </p>
+              <button type="button" aria-label={t.close} onClick={() => setPickerOpen(false)} className="grid h-8 w-8 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {pickerGroups.map((group) => (
+              <div key={group.status} className="mt-3">
+                <p className="px-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-ink/40">
+                  {group.status === 'live' ? `🟢 ${t.countryLive}` : group.status === 'planned' ? `🟠 ${t.countryPlanned}` : `⚪ ${t.countryUncovered}`}
+                </p>
+                <div className="mt-1.5 space-y-1">
+                  {group.countries.map(({ country, areas: countryAreas }) => {
+                    const isOpen = openCountry === country.code
+                    const hasAreas = countryAreas.length > 0
+                    return (
+                      <div key={country.code} className="rounded-2xl bg-guaca-sand-light/60">
+                        <button
+                          type="button"
+                          onClick={() => setOpenCountry(isOpen ? null : country.code)}
+                          className="flex w-full items-center justify-between px-3.5 py-2.5 text-left"
+                        >
+                          <span className="text-[12px] font-black text-guaca-ink">
+                            {lang === 'es' ? country.nameEs : country.name}
+                          </span>
+                          <ChevronDown className={`h-3.5 w-3.5 text-guaca-ink/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isOpen && (
+                          <div className="px-2 pb-2">
+                            {hasAreas ? countryAreas.map((a) => (
+                              <button
+                                key={a.id}
+                                type="button"
+                                onClick={() => selectArea(a)}
+                                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-guaca-teal/10 ${a.id === selectedAreaId ? 'bg-guaca-teal/12' : ''}`}
+                              >
+                                <span className="text-[12px] font-bold text-guaca-ink">
+                                  {a.id === selectedAreaId ? '📍 ' : ''}{a.name}
+                                </span>
+                                <span className="shrink-0 text-[9px] font-bold text-guaca-ink/45">
+                                  {a.verifiedCount > 0 && <span className="text-guaca-teal">{a.verifiedCount} {t.pickerVerified}</span>}
+                                  {a.verifiedCount > 0 && a.candidateCount > 0 && ' · '}
+                                  {a.candidateCount > 0 && <span>{a.candidateCount} {t.pickerCandidates}</span>}
+                                </span>
+                              </button>
+                            )) : (
+                              <p className="px-3 py-2 text-[10px] font-semibold leading-relaxed text-guaca-ink/40">{t.pickerNoAreas}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Zone demand — the honest "N people asked here" that funds missions. */}
       {!selected && !selectedCandidate && zoneDemandList.length > 0 && (

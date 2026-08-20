@@ -78,6 +78,10 @@ interface GuacaMapProps {
   dots?: MapDot[]
   heat?: HeatPoint[]
   countries?: CountryMarker[]
+  /** Selected-area outline — the city/area the user picked. */
+  areaHighlight?: AreaHighlight | null
+  /** Imperative fly-to; fires when `nonce` changes. */
+  flyTo?: { lat: number; lng: number; zoom?: number; nonce: number }
   selectedPinId?: string | null
   selectedGapId?: string | null
   onPinClick?: (id: string) => void
@@ -122,7 +126,36 @@ function heatGeoJson(points: HeatPoint[]): GeoJsonData {
 }
 
 /** (Re)installs the dots + heat sources/layers; safe after style swaps. */
-function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[]) {
+/** Bounding box of the selected area, drawn as an outline + soft fill. */
+export interface AreaHighlight {
+  /** [lonMin, latMin, lonMax, latMax] */
+  bbox: [number, number, number, number]
+  label?: string
+}
+
+const AREA_SOURCE = 'guaca-area'
+
+function areaGeoJson(h: AreaHighlight): { type: "FeatureCollection"; features: unknown[] } {
+  const [lonMin, latMin, lonMax, latMax] = h.bbox
+  return {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[
+            [lonMin, latMin], [lonMax, latMin], [lonMax, latMax],
+            [lonMin, latMax], [lonMin, latMin],
+          ]],
+        },
+      },
+    ],
+  }
+}
+
+function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[], area?: AreaHighlight | null) {
   if (!map.getSource(HEAT_SOURCE)) {
     map.addSource(HEAT_SOURCE, { type: 'geojson', data: heatGeoJson(heat) })
     map.addLayer({
@@ -163,6 +196,29 @@ function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[])
     })
   } else {
     ;(map.getSource(DOTS_SOURCE) as mapboxgl.GeoJSONSource).setData(dotsGeoJson(dots))
+  }
+  if (area) {
+    if (!map.getSource(AREA_SOURCE)) {
+      map.addSource(AREA_SOURCE, { type: 'geojson', data: areaGeoJson(area) })
+      // Soft fill + crisp outline — the selected area reads at any zoom,
+      // under markers and above the basemap.
+      map.addLayer({
+        id: `${AREA_SOURCE}-fill`,
+        type: 'fill',
+        source: AREA_SOURCE,
+        paint: { 'fill-color': '#0D7A72', 'fill-opacity': 0.07 },
+      })
+      map.addLayer({
+        id: `${AREA_SOURCE}-outline`,
+        type: 'line',
+        source: AREA_SOURCE,
+        paint: { 'line-color': '#0D7A72', 'line-width': 2, 'line-dasharray': [2, 1.5] },
+      })
+    } else {
+      ;(map.getSource(AREA_SOURCE) as mapboxgl.GeoJSONSource).setData(areaGeoJson(area))
+    }
+  } else if (map.getSource(AREA_SOURCE)) {
+    ;(map.getSource(AREA_SOURCE) as mapboxgl.GeoJSONSource).setData({ type: 'FeatureCollection', features: [] })
   }
 }
 
@@ -333,6 +389,8 @@ export function GuacaMap({
   dots,
   heat,
   countries,
+  areaHighlight,
+  flyTo,
   selectedPinId,
   selectedGapId,
   onPinClick,
@@ -352,9 +410,11 @@ export function GuacaMap({
   // De-collided pin positions — recomputed whenever the pin set changes.
   const pinPositions = useMemo(() => deCollide(pins), [pins])
   const dotsRef = useRef<MapDot[]>(dots ?? [])
+  const areaHighlightRef = useRef<AreaHighlight | null | undefined>(areaHighlight)
   const heatRef = useRef<HeatPoint[]>(heat ?? [])
   const onDotClickRef = useRef(onDotClick)
   dotsRef.current = dots ?? []
+  areaHighlightRef.current = areaHighlight
   heatRef.current = heat ?? []
   onDotClickRef.current = onDotClick
 
@@ -401,7 +461,7 @@ export function GuacaMap({
           }
         }
       }
-      installDataLayers(map, dotsRef.current, heatRef.current)
+      installDataLayers(map, dotsRef.current, heatRef.current, areaHighlightRef.current)
     })
 
     map.on('click', `${DOTS_SOURCE}-layer`, (e) => {
@@ -432,7 +492,7 @@ export function GuacaMap({
     map.setStyle(styleUrl)
     map.once('style.load', () => {
       // Re-add all markers and data layers after style swap clears them
-      installDataLayers(map, dotsRef.current, heatRef.current)
+      installDataLayers(map, dotsRef.current, heatRef.current, areaHighlightRef.current)
       markersRef.current.forEach((m) => m.remove())
       markersRef.current.clear()
 
@@ -511,8 +571,8 @@ export function GuacaMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
-    installDataLayers(map, dots ?? [], heat ?? [])
-  }, [dots, heat])
+    installDataLayers(map, dots ?? [], heat ?? [], areaHighlight)
+  }, [dots, heat, areaHighlight])
 
   // Country coverage markers — visible only when zoomed out (≤ 5.5).
   // A country marker is a status claim, never a place pin; zooming in
@@ -569,6 +629,14 @@ export function GuacaMap({
       countryMarkersRef.current.clear()
     }
   }, [countries])
+
+  // Imperative fly-to (country/city selection) — nonce-keyed so picking
+  // the same target twice still flies.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !flyTo) return
+    map.flyTo({ center: [flyTo.lng, flyTo.lat], zoom: flyTo.zoom ?? 11, duration: 1500 })
+  }, [flyTo?.nonce])
 
   // Fly to selected pin
   useEffect(() => {

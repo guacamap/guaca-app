@@ -99,3 +99,59 @@ export async function zoneDemand(
     lastAskedAt: r.last_asked_at ? r.last_asked_at.toISOString() : null,
   }));
 }
+
+export interface AreaSummaryRow {
+  id: string;
+  name: string;
+  slug: string;
+  country: string;
+  /** Bounding box the map highlights: [lonMin, latMin, lonMax, latMax]. */
+  bbox: [number, number, number, number];
+  verifiedCount: number;
+  candidateCount: number;
+  zoneCount: number;
+}
+
+/**
+ * Every area with honest stats — the country→city picker's data source.
+ * Verified counts are what a tourist can actually get answers about;
+ * candidate counts are the unverified OSM backdrop (dots, never pins).
+ */
+export async function areaSummaries(pool: Pool): Promise<AreaSummaryRow[]> {
+  const res = await pool.query<{
+    id: string;
+    name: string;
+    slug: string;
+    country: string;
+    lon_min: string;
+    lat_min: string;
+    lon_max: string;
+    lat_max: string;
+    verified: number;
+    candidates: number;
+    zones: number;
+  }>(
+    `select a.id, a.name, a.slug, a.country,
+            ST_XMin(a.geom::geometry) as lon_min, ST_YMin(a.geom::geometry) as lat_min,
+            ST_XMax(a.geom::geometry) as lon_max, ST_YMax(a.geom::geometry) as lat_max,
+            (select count(*)::int from places p
+              where p.area_id = a.id and p.verification_status = 'verified' and p.witness_count >= 2) as verified,
+            (select count(*)::int from places p
+              where p.area_id = a.id and p.source = 'osm_candidate') as candidates,
+            (select count(*)::int from zones z where z.area_id = a.id) as zones
+       from areas a
+      order by a.country asc, a.name asc`,
+  );
+  return res.rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    country: r.country,
+    bbox: [
+      Number(r.lon_min), Number(r.lat_min), Number(r.lon_max), Number(r.lat_max),
+    ],
+    verifiedCount: r.verified,
+    candidateCount: r.candidates,
+    zoneCount: r.zones,
+  }));
+}
