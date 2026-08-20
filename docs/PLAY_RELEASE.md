@@ -205,10 +205,12 @@ Until that file exists the links simply open in the browser — no breakage.
 
 ## Remaining work before the closed test
 
-1. **Deploy the current code.** `guaca.live/privacy` and `/terms` return 404
-   on the live site — the deployment predates those pages, and the app links
-   straight at them. Play requires a reachable privacy policy, so this is a
-   release blocker until Vercel is redeployed.
+1. **DNS records — the top blocker (verified 2026-08-20).** `guaca.live`
+   resolves and serves (privacy/terms now return 200 — the old 404 note is
+   fixed), but **`app.guaca.live` and `api.guaca.live` have no A/CNAME
+   records at all** — the product app and the API are unreachable until the
+   DNS provider gets the records from the table below. Only the account
+   holder can do this.
 2. Verify on a physical Android phone over HTTPS: camera capture and
    geolocation inside the WebView (they cannot be tested over plain-HTTP LAN).
 3. `assetlinks.json` above, after the first build produces a fingerprint.

@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import {
   answerDeterministic,
+  categoryHits,
   classifiesIntent,
   classifyWithModel,
   extractIntent,
@@ -193,6 +194,25 @@ export async function ask(
     };
   }
 
+  // Single-topic honesty: a question the lexicon places in exactly ONE
+  // category is answered from that category only — "where can I hear live
+  // music?" must refuse (and fund a mission) rather than cite arepa places.
+  // Cross-category questions keep the whole catalog; a day plan is the
+  // point of those. Grounding is untouched: a subset of a grounded set is
+  // grounded.
+  const hits = categoryHits(input.text);
+  const singleCategory: string | null = resolvedCategory
+    ? resolvedCategory // lexicon missed; the model placed it in ONE category
+    : hits.length === 1
+      ? hits[0]!
+      : null;
+  const catalogRows = singleCategory
+    ? rows.filter((r) => r.category === singleCategory)
+    : rows;
+  if (catalogRows.length < opts.minCandidates) {
+    return refuse('INSUFFICIENT_COVERAGE');
+  }
+
   // T4.5 — the guarded model path, wired. The catalog IS the retrieved rows;
   // the model's only vocabulary is their integer refs; assertGrounded (10
   // steps, in-memory re-read) mints the artifact; the re-mint below is the
@@ -200,7 +220,7 @@ export async function ask(
   const outcome = await runGroundedPlanner({
     text: input.text,
     language: input.language,
-    rows: rows.map((r) => ({
+    rows: catalogRows.map((r) => ({
       id: r.id,
       name: r.name,
       category: r.category,
