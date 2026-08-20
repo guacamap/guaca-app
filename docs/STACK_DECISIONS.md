@@ -14,7 +14,7 @@ win. Status: **settled** (do not relitigate without new facts) ·
 | 6 | Database | Postgres 16 + PostGIS 3.4, raw SQL | settled |
 | 7 | Queues & checkpoints | Postgres tables (Redis unwired) | **OPEN** |
 | 8 | Object storage | MinIO | settled |
-| 9 | Inference | vLLM + Qwen3-VL-8B on L40S | settled |
+| 9 | Inference | Nebius Token Factory — Qwen3-30B-A3B (text) + Qwen2.5-VL-72B (vision) | settled, verified 2026-08-19 |
 | 10 | Agent orchestration | plain-TS graph runner | settled |
 | 11 | Auth | hand-rolled jose JWT + one-time codes | settled |
 | 12 | Email delivery | Resend vs SMTP | **OPEN** |
@@ -196,29 +196,40 @@ exists.
 | Vercel Blob | Zero setup | Couples storage to the web platform; photos belong to the API side. |
 | Postgres `bytea` | One store | Bloats backups; PG is not a CDN. |
 
-## 9. Inference — vLLM + Qwen3-VL-8B on Nebius L40S · MiniMax-M3 fallback
+## 9. Inference — Nebius Token Factory · Qwen3-30B-A3B (text) + Qwen2.5-VL-72B (vision) *(settled, verified 2026-08-19)*
 
-**Why**
+**As built and confirmed by the owner 2026-08-19** — the original row said
+"vLLM + Qwen3-VL-8B on L40S", which was the architecture *sketch*, not what
+runs. What runs (and what both provider paths were live-verified against):
 
-- One 8B multimodal model covers both jobs: schema-only JSON planning
-  (integer refs) and the single-call L5 vision verification.
-- Self-hosted vLLM: flat cost, data stays in-region, xgrammar guided
-  decoding.
-- L40S is right-sized — the 8B model cannot fill an H200's 141 GB, and the
-  L40S is ~2.9× cheaper. Compute efficiency is a scored criterion; this
-  choice is part of the pitch.
-- `INFERENCE_BASE_URL` makes the provider swappable in one env var; the
+- **Nebius Token Factory API** (serverless, OpenAI-compatible) with
+  `INFERENCE_MODEL=Qwen/Qwen3-30B-A3B-Instruct-2507` for the planner/gap
+  text work and `INFERENCE_VISION_MODEL=Qwen/Qwen2.5-VL-72B-Instruct` for
+  the single-call L5 vision rung.
+- Both honor `response_format: json_schema` **including integer enums** —
+  the guard's `ref: 1..N` vocabulary constrains at decode time, not just at
+  parse time. Verified live: a real 2-day trip planned through the guarded
+  schema (2026-08-19), and vision JSON probed in all three response modes.
+- `INFERENCE_BASE_URL` keeps the provider swappable in one env var; the
   guard does **not** depend on provider capability — constrained decoding
   is an optimisation, `assertGrounded` is the guarantee. `FakeInference`
   keeps CI deterministic and free.
+
+**Why Token Factory over self-hosted vLLM (for now)**
+
+- Zero ops under deadline: no GPU to keep healthy through a live demo.
+- One provider serves both a strong text model and a large VL model —
+  the original "one 8B model for both jobs" economy, without the 8B
+  vision quality compromise.
 
 **Alternatives**
 
 | Option | What it buys | Why it lost — and when it wins |
 |---|---|---|
-| Frontier APIs (Claude/GPT/Gemini) | Reasoning quality | The planner's output vocabulary is integers — quality headroom is wasted; per-token cost, data leaves region. The MiniMax slot proves any OpenAI-compatible API can A/B in later. |
-| Other open VLMs (Pixtral, InternVL, Llama vision) | Maybe better vision-per-GB | Qwen3-VL-8B won the spike; revisit quarterly — the swap is a model name. |
-| Serverless GPU (Modal/Replicate) | Scale-to-zero economics | Cold starts vs a live demo. Genuinely reconsider post-demo when idle hours dominate the bill. |
+| Self-hosted vLLM + Qwen3-VL-8B on L40S (the original sketch) | Flat cost, in-region data, xgrammar | Ops burden mid-crunch. **This is what the Buildathon's GPU credits (Highrise/Impala AI) are for** — claim them and build it as the post-submission tier, where compute efficiency (a scored criterion) becomes the pitch. vLLM's guided decoding handles integer enums fine. |
+| MiniMax (key already in `.env`, roster: M3/M2.7/M2.5/M2.1) | Documented failover, one env var | **Blocked as of 2026-08-19**: its `json_schema` validator rejects numeric enums (400 `Mismatch type string with value number`) — exactly the guard's ref vocabulary — and the roster is text-only, so L5 vision has nowhere to go. Needs the `json_object` fallback the vision path already has before it can take failover duty. |
+| Frontier APIs (Claude/GPT/Gemini) | Reasoning quality | The planner's output vocabulary is integers — quality headroom is wasted; per-token cost, data leaves region. |
+| Serverless GPU (Modal/Replicate) | Scale-to-zero economics | Cold starts vs a live demo. Reconsider post-demo when idle hours dominate the bill. |
 
 ## 10. Agent orchestration — plain-TS graph runner *(no framework)*
 
