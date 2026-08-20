@@ -31,6 +31,20 @@ interface GapPin {
   category: string
 }
 
+/**
+ * A country-level coverage marker — an honest claim, not a place pin.
+ * Shown only when the map is zoomed out (zoom ≤ 5.5); zooming in hands
+ * the canvas back to verified pins and unverified candidate dots.
+ */
+export interface CountryMarker {
+  code: string
+  label: string
+  status: 'live' | 'planned' | 'uncovered'
+  statusLabel: string
+  lat: number
+  lng: number
+}
+
 /** Unverified candidates (OSM import) — rendered as a GPU circle layer,
  *  never as DOM markers: there can be hundreds. */
 interface MapDot {
@@ -63,6 +77,7 @@ interface GuacaMapProps {
   gapPins?: GapPin[]
   dots?: MapDot[]
   heat?: HeatPoint[]
+  countries?: CountryMarker[]
   selectedPinId?: string | null
   selectedGapId?: string | null
   onPinClick?: (id: string) => void
@@ -317,6 +332,7 @@ export function GuacaMap({
   gapPins,
   dots,
   heat,
+  countries,
   selectedPinId,
   selectedGapId,
   onPinClick,
@@ -357,7 +373,9 @@ export function GuacaMap({
       projection: 'mercator',
       attributionControl: true,
       maxZoom: 19,
-      minZoom: zoom < 12 ? 2.5 : 12,
+      // The Caribbean is the product: the map must zoom out to the whole
+      // basin (and past it) — country coverage markers live at low zoom.
+      minZoom: 2.5,
     })
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
@@ -495,6 +513,62 @@ export function GuacaMap({
     if (!map || !map.isStyleLoaded()) return
     installDataLayers(map, dots ?? [], heat ?? [])
   }, [dots, heat])
+
+  // Country coverage markers — visible only when zoomed out (≤ 5.5).
+  // A country marker is a status claim, never a place pin; zooming in
+  // hands the canvas back to pins and dots.
+  const countryMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    countryMarkersRef.current.forEach((m) => m.remove())
+    countryMarkersRef.current.clear()
+    if (!countries || countries.length === 0) return
+
+    const STATUS_STYLE: Record<CountryMarker['status'], { dot: string; text: string }> = {
+      live: { dot: '#0D7A72', text: '#0D7A72' },
+      planned: { dot: '#D97E00', text: '#8A5A10' },
+      uncovered: { dot: '#9aa5a3', text: '#5f6b69' },
+    }
+    const visibleAtZoom = (z: number) => z <= 5.5
+    const applyVisibility = () => {
+      const show = visibleAtZoom(map.getZoom())
+      countryMarkersRef.current.forEach((m) => {
+        const el = m.getElement()
+        el.style.display = show ? 'flex' : 'none'
+      })
+    }
+
+    for (const c of countries) {
+      const s = STATUS_STYLE[c.status]
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;pointer-events:auto;transition:opacity .2s`
+      wrapper.innerHTML = `
+        <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.93);border:1px solid rgba(23,39,43,.12);border-radius:999px;padding:3px 9px 3px 6px;box-shadow:0 2px 8px rgba(23,39,43,.18)">
+          <span style="width:9px;height:9px;border-radius:50%;background:${s.dot};box-shadow:0 0 0 3px ${s.dot}25"></span>
+          <span style="font:800 11px/1 ui-sans-serif,system-ui;white-space:nowrap;color:#17272B">${c.label}</span>
+        </div>
+        <span style="font:700 9px/1.3 ui-sans-serif,system-ui;white-space:nowrap;color:${s.text};background:rgba(255,255,255,.85);padding:1px 5px;border-radius:6px;margin-top:2px">${c.statusLabel}</span>`
+      const el = wrapper as HTMLElement
+      el.addEventListener('click', (event) => {
+        event.stopPropagation()
+        map.flyTo({ center: [c.lng, c.lat], zoom: 11, duration: 1600 })
+      })
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([c.lng, c.lat])
+        .addTo(map)
+      countryMarkersRef.current.set(c.code, marker)
+    }
+    applyVisibility()
+    map.on('zoom', applyVisibility)
+    return () => {
+      /* eslint-disable-next-line react-hooks/exhaustive-deps */
+      map.off('zoom', applyVisibility)
+      countryMarkersRef.current.forEach((m) => m.remove())
+      countryMarkersRef.current.clear()
+    }
+  }, [countries])
 
   // Fly to selected pin
   useEffect(() => {

@@ -183,6 +183,9 @@ export interface AppCopy {
     whyAskedAbout: string
     whyFresh: string
     trendChip: string
+    countryLive: string
+    countryPlanned: string
+    countryUncovered: string
     zoneDemandTitle: string
     zoneDemandAsks: string
     profileTitle: string
@@ -460,6 +463,9 @@ export const appCopy: Record<Lang, AppCopy> = {
       whyAskedAbout: 'People are asking about this',
       whyFresh: 'Fresh on the map',
       trendChip: 'Trending',
+      countryLive: 'Pilot live',
+      countryPlanned: 'Expansion target',
+      countryUncovered: 'Not covered yet',
       zoneDemandTitle: 'Where people are asking',
       zoneDemandAsks: 'asks',
       profileTitle: 'Profile',
@@ -742,6 +748,9 @@ export const appCopy: Record<Lang, AppCopy> = {
       whyAskedAbout: 'La gente pregunta por esto',
       whyFresh: 'Nuevo en el mapa',
       trendChip: 'Tendencia',
+      countryLive: 'Piloto activo',
+      countryPlanned: 'Próxima expansión',
+      countryUncovered: 'Sin cobertura aún',
       zoneDemandTitle: 'Dónde pregunta la gente',
       zoneDemandAsks: 'preguntas',
       profileTitle: 'Perfil',

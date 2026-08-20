@@ -9,6 +9,12 @@ export {
   PACE_STOPS_PER_DAY,
 } from './trips.js';
 export type { Trip, TripRequest, TripStop, TripPace as TripPaceType } from './trips.js';
+export {
+  CARIBBEAN_COUNTRIES,
+  CARIBBEAN_CITIES,
+  liveCountries,
+} from './caribbean.js';
+export type { CaribbeanCountry, CaribbeanCity, CountryCoverageStatus } from './caribbean.js';
 export { TAXONOMY, TAXONOMY_BY_CATEGORY, targetDensityFor } from './taxonomy.js';
 export type { TaxonomyEntry } from './taxonomy.js';
 export type { LogLine } from './log.js';

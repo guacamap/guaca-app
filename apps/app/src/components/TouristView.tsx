@@ -30,7 +30,8 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage } from '@guaca/ui'
+import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker } from '@guaca/ui'
+import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 import { InstallApp } from './InstallApp'
 
@@ -512,6 +513,27 @@ export function TouristView() {
     [candidates, catFilter],
   )
 
+  // Country coverage markers — the honest Caribbean-wide layer. One label
+  // per country, each a fact: pilot live, named expansion target, or not
+  // covered yet. Never a place pin.
+  const countryMarkers = useMemo<CountryMarker[]>(
+    () =>
+      CARIBBEAN_COUNTRIES.map((c) => ({
+        code: c.code,
+        label: lang === 'es' ? c.nameEs : c.name,
+        status: c.status,
+        statusLabel:
+          c.status === 'live'
+            ? t.countryLive
+            : c.status === 'planned'
+              ? t.countryPlanned
+              : t.countryUncovered,
+        lat: c.lat,
+        lng: c.lon,
+      })),
+    [lang, t],
+  )
+
   // Review-activity heat: verified places weighted by their post volume.
   const heat = useMemo(
     () =>
@@ -884,6 +906,7 @@ export function TouristView() {
           pins={pins}
           dots={dots}
           heat={heat}
+          countries={countryMarkers}
           selectedPinId={selected?.id ?? null}
           onPinClick={(id) => { setSelectedCandidate(null); openPlace(id) }}
           onDotClick={(id) => {

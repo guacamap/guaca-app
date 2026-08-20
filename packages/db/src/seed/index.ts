@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import { CARIBBEAN_CITIES } from '@guaca/shared';
 
 const AREA_ID = '00000000-0000-4000-8000-00000000000a';
 
@@ -68,6 +69,30 @@ export async function seed(pool: Pool, options: SeedOptions = {}): Promise<void>
          ($1, $2, $3, ST_GeogFromText($4), $5)
        on conflict (id) do nothing`,
       [zone.id, AREA_ID, zone.name, zone.geom, zone.access],
+    );
+  }
+
+  // Caribbean expansion cities as AREAS — reference geography only, no
+  // invented places: they make the multi-region model real, give OSM
+  // candidate imports somewhere to land (`--caribbean-poi`, opt-in), and
+  // cost nothing until a local Spotter actually starts there.
+  for (let i = 0; i < CARIBBEAN_CITIES.length; i++) {
+    const city = CARIBBEAN_CITIES[i]!;
+    const { lat, lon, span } = city;
+    // Deterministic id from the index: 0xc100.. keeps uuid shape valid.
+    const id = `00000000-0000-4000-8000-${String(0xc100 + i).padStart(12, '0')}`;
+    await pool.query(
+      `insert into areas (id, name, slug, country, timezone, geom) values
+         ($1, $2, $3, $4, 'America/Caracas',
+          ST_GeogFromText($5))
+       on conflict (id) do nothing`,
+      [
+        id,
+        city.name,
+        city.slug,
+        city.countryCode,
+        `POLYGON((${lon - span} ${lat - span},${lon + span} ${lat - span},${lon + span} ${lat + span},${lon - span} ${lat + span},${lon - span} ${lat - span}))`,
+      ],
     );
   }
 
