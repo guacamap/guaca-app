@@ -95,8 +95,8 @@ interface GuacaMapProps {
   zones?: ZoneMarker[]
   onZoneSelect?: (id: string) => void
   onCountrySelect?: (code: string) => void
-  /** Selected-area outline — the city/area the user picked. */
-  areaHighlight?: AreaHighlight | null
+  /** Every zone's boundary — subtle unselected, bold selected, all tappable. */
+  zoneOutlines?: readonly ZoneOutline[]
   /** Imperative fly-to; fires when `nonce` changes. */
   flyTo?: { lat: number; lng: number; zoom?: number; nonce: number }
   selectedPinId?: string | null
@@ -143,36 +143,42 @@ function heatGeoJson(points: HeatPoint[]): GeoJsonData {
 }
 
 /** (Re)installs the dots + heat sources/layers; safe after style swaps. */
-/** Bounding box of the selected area, drawn as an outline + soft fill. */
-export interface AreaHighlight {
+/**
+ * A zone's boundary on the map. EVERY zone in view gets one — subtle when
+ * unselected, bold and dashed when selected — so a zoomed-in zone always
+ * shows its line and can always be selected (tap the pill, or tap inside
+ * the boundary).
+ */
+export interface ZoneOutline {
+  id: string
   /** [lonMin, latMin, lonMax, latMax] */
   bbox: [number, number, number, number]
-  label?: string
+  selected?: boolean
 }
 
 const AREA_SOURCE = 'guaca-area'
 
-function areaGeoJson(h: AreaHighlight): { type: "FeatureCollection"; features: unknown[] } {
-  const [lonMin, latMin, lonMax, latMax] = h.bbox
+function zoneOutlinesGeoJson(zones: readonly ZoneOutline[]): { type: 'FeatureCollection'; features: Array<{ type: 'Feature'; properties: { id: string; selected: boolean }; geometry: { type: 'Polygon'; coordinates: number[][][] } }> } {
   return {
     type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        properties: {},
+    features: zones.map((z) => {
+      const [lonMin, latMin, lonMax, latMax] = z.bbox
+      return {
+        type: 'Feature' as const,
+        properties: { id: z.id, selected: z.selected ?? false },
         geometry: {
-          type: 'Polygon',
+          type: 'Polygon' as const,
           coordinates: [[
             [lonMin, latMin], [lonMax, latMin], [lonMax, latMax],
             [lonMin, latMax], [lonMin, latMin],
           ]],
         },
-      },
-    ],
+      }
+    }),
   }
 }
 
-function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[], area?: AreaHighlight | null) {
+function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[], zoneOutlines?: readonly ZoneOutline[]) {
   if (!map.getSource(HEAT_SOURCE)) {
     map.addSource(HEAT_SOURCE, { type: 'geojson', data: heatGeoJson(heat) })
     map.addLayer({
@@ -214,28 +220,41 @@ function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[],
   } else {
     ;(map.getSource(DOTS_SOURCE) as mapboxgl.GeoJSONSource).setData(dotsGeoJson(dots))
   }
-  if (area) {
-    if (!map.getSource(AREA_SOURCE)) {
-      map.addSource(AREA_SOURCE, { type: 'geojson', data: areaGeoJson(area) })
-      // Soft fill + crisp outline — the selected area reads at any zoom,
-      // under markers and above the basemap.
-      map.addLayer({
-        id: `${AREA_SOURCE}-fill`,
-        type: 'fill',
-        source: AREA_SOURCE,
-        paint: { 'fill-color': '#0D7A72', 'fill-opacity': 0.07 },
-      })
-      map.addLayer({
-        id: `${AREA_SOURCE}-outline`,
-        type: 'line',
-        source: AREA_SOURCE,
-        paint: { 'line-color': '#0D7A72', 'line-width': 2, 'line-dasharray': [2, 1.5] },
-      })
-    } else {
-      ;(map.getSource(AREA_SOURCE) as mapboxgl.GeoJSONSource).setData(areaGeoJson(area))
-    }
-  } else if (map.getSource(AREA_SOURCE)) {
-    ;(map.getSource(AREA_SOURCE) as mapboxgl.GeoJSONSource).setData({ type: 'FeatureCollection', features: [] })
+  const data = zoneOutlinesGeoJson(zoneOutlines ?? [])
+  if (!map.getSource(AREA_SOURCE)) {
+    map.addSource(AREA_SOURCE, { type: 'geojson', data })
+    // Fill: soft for unselected zones, clearer for the selected one — and
+    // clickable, so tapping inside a zoomed-in zone selects it.
+    map.addLayer({
+      id: `${AREA_SOURCE}-fill`,
+      type: 'fill',
+      source: AREA_SOURCE,
+      filter: ['==', ['get', 'selected'], false],
+      paint: { 'fill-color': '#0D7A72', 'fill-opacity': 0.03 },
+    })
+    map.addLayer({
+      id: `${AREA_SOURCE}-fill-selected`,
+      type: 'fill',
+      source: AREA_SOURCE,
+      filter: ['==', ['get', 'selected'], true],
+      paint: { 'fill-color': '#0D7A72', 'fill-opacity': 0.08 },
+    })
+    map.addLayer({
+      id: `${AREA_SOURCE}-outline`,
+      type: 'line',
+      source: AREA_SOURCE,
+      filter: ['==', ['get', 'selected'], false],
+      paint: { 'line-color': '#0D7A72', 'line-width': 1.2, 'line-opacity': 0.4 },
+    })
+    map.addLayer({
+      id: `${AREA_SOURCE}-outline-selected`,
+      type: 'line',
+      source: AREA_SOURCE,
+      filter: ['==', ['get', 'selected'], true],
+      paint: { 'line-color': '#0D7A72', 'line-width': 2.5, 'line-dasharray': [2, 1.5] },
+    })
+  } else {
+    ;(map.getSource(AREA_SOURCE) as mapboxgl.GeoJSONSource).setData(data)
   }
 }
 
@@ -409,7 +428,7 @@ export function GuacaMap({
   zones,
   onZoneSelect,
   onCountrySelect,
-  areaHighlight,
+  zoneOutlines,
   flyTo,
   selectedPinId,
   selectedGapId,
@@ -430,11 +449,11 @@ export function GuacaMap({
   // De-collided pin positions — recomputed whenever the pin set changes.
   const pinPositions = useMemo(() => deCollide(pins), [pins])
   const dotsRef = useRef<MapDot[]>(dots ?? [])
-  const areaHighlightRef = useRef<AreaHighlight | null | undefined>(areaHighlight)
+  const zoneOutlinesRef = useRef<readonly ZoneOutline[] | undefined>(zoneOutlines)
   const heatRef = useRef<HeatPoint[]>(heat ?? [])
   const onDotClickRef = useRef(onDotClick)
   dotsRef.current = dots ?? []
-  areaHighlightRef.current = areaHighlight
+  zoneOutlinesRef.current = zoneOutlines
   heatRef.current = heat ?? []
   onDotClickRef.current = onDotClick
 
@@ -481,7 +500,7 @@ export function GuacaMap({
           }
         }
       }
-      installDataLayers(map, dotsRef.current, heatRef.current, areaHighlightRef.current)
+      installDataLayers(map, dotsRef.current, heatRef.current, zoneOutlinesRef.current)
     })
 
     map.on('click', `${DOTS_SOURCE}-layer`, (e) => {
@@ -512,7 +531,7 @@ export function GuacaMap({
     map.setStyle(styleUrl)
     map.once('style.load', () => {
       // Re-add all markers and data layers after style swap clears them
-      installDataLayers(map, dotsRef.current, heatRef.current, areaHighlightRef.current)
+      installDataLayers(map, dotsRef.current, heatRef.current, zoneOutlinesRef.current)
       markersRef.current.forEach((m) => m.remove())
       markersRef.current.clear()
 
@@ -591,8 +610,8 @@ export function GuacaMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.isStyleLoaded()) return
-    installDataLayers(map, dots ?? [], heat ?? [], areaHighlight)
-  }, [dots, heat, areaHighlight])
+    installDataLayers(map, dots ?? [], heat ?? [], zoneOutlines)
+  }, [dots, heat, zoneOutlines])
 
   // Country coverage markers — visible only when zoomed out (≤ 5.5).
   // A country marker is a status claim, never a place pin; zooming in
@@ -666,7 +685,8 @@ export function GuacaMap({
     zoneMarkersRef.current.clear()
     if (!zones || zones.length === 0) return
 
-    const visibleAtZoom = (z: number) => z > 5.5 && z <= 9
+    // No upper cap: a zoomed-in unselected zone keeps its tappable pill.
+    const visibleAtZoom = (z: number) => z > 5.5
     const applyVisibility = () => {
       const show = visibleAtZoom(map.getZoom())
       zoneMarkersRef.current.forEach((m) => {
@@ -700,6 +720,21 @@ export function GuacaMap({
       zoneMarkersRef.current.clear()
     }
   }, [zones])
+
+  // Tap inside a zone's boundary selects it — the affordance for zones
+  // you're zoomed into, whose centre pill may be off-canvas.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const handler = (e: mapboxgl.MapLayerMouseEvent) => {
+      const f = e.features?.[0] as { properties: { id: string; selected: boolean } } | undefined
+      if (f && !f.properties.selected) onZoneSelectRef.current?.(f.properties.id)
+    }
+    map.on('click', `${AREA_SOURCE}-fill`, handler)
+    return () => {
+      map.off('click', `${AREA_SOURCE}-fill`, handler)
+    }
+  }, [])
 
   // Imperative fly-to (country/city selection) — nonce-keyed so picking
   // the same target twice still flies.
