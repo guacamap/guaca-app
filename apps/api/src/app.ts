@@ -34,6 +34,18 @@ function tokenFrom(req: FastifyRequest, cookieName: string): string | undefined 
   return auth?.startsWith('Bearer ') ? auth.slice(7) : undefined;
 }
 
+/** Session cookie attributes, shared by the set and clear paths. A clearing
+ *  cookie must carry the SAME attributes as the one it replaces, or a strict
+ *  client keeps the original and the session outlives "log out". */
+function sessionCookie() {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  };
+}
+
 /** Fixed-window in-memory rate limit — deliberate §7 decision: no Redis
  *  while a single API instance exists. */
 function rateLimiter(limit: number, windowMs: number) {
@@ -388,10 +400,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!result.ok) return reply.code(401).send({ error: result.reason });
     return reply
       .setCookie('guaca_tourist', result.token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
+        ...sessionCookie(),
         maxAge: 30 * 24 * 60 * 60,
       })
       .send({ ok: true, token: result.token, language: result.tourist.language });
@@ -407,7 +416,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const deleted = await deleteTourist(options.pool, touristId);
     if (!deleted) return reply.code(404).send({ error: 'account not found' });
     return reply
-      .clearCookie('guaca_tourist', { path: '/' })
+      .clearCookie('guaca_tourist', sessionCookie())
       .send({ ok: true, deleted: true });
   });
 
@@ -445,11 +454,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/tourist/logout', async (_req, reply) => {
-    return reply.clearCookie('guaca_tourist', { path: '/' }).send({ ok: true });
+    return reply.clearCookie('guaca_tourist', sessionCookie()).send({ ok: true });
   });
 
   app.post('/api/spotter/logout', async (_req, reply) => {
-    return reply.clearCookie('guaca_spotter', { path: '/' }).send({ ok: true });
+    return reply.clearCookie('guaca_spotter', sessionCookie()).send({ ok: true });
   });
 
   const doubtLimiter = rateLimiter(5, 24 * 60 * 60 * 1000); // 5 doubts/day/tourist
@@ -1025,10 +1034,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     );
     return reply
       .setCookie('guaca_spotter', result.token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
+        ...sessionCookie(),
         // Without maxAge the 7-day JWT died with the WebView process.
         maxAge: 7 * 24 * 60 * 60,
       })
