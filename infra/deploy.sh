@@ -42,7 +42,10 @@ dc pull minio
 echo "==> [$TIER] building images"
 # Stamp the running container with its commit — /healthz and api.started
 # report it, so "what is live?" never requires guesswork.
-GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unversioned)"
+# Code reaches the VM by `git archive`, which carries no .git — so rev-parse
+# there yields "unversioned" and the stamp is useless exactly where it is
+# needed. Let the shipping side pass the sha in.
+GIT_SHA="${GIT_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo unversioned)}"
 dc build --build-arg GIT_SHA="$GIT_SHA" postgres api
 
 echo "==> [$TIER] starting stack"
