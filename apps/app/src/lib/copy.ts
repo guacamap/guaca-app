@@ -193,6 +193,7 @@ export interface AppCopy {
     pickerExplore: string
     pickerShowAll: string
     pickerNearMe: string
+    pickerSearch: string
     zoneDemandTitle: string
     zoneDemandAsks: string
     profileTitle: string
@@ -480,6 +481,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       pickerExplore: 'Explore the Caribbean',
       pickerShowAll: 'Show all countries',
       pickerNearMe: 'Near me',
+      pickerSearch: 'Search country or zone…',
       zoneDemandTitle: 'Where people are asking',
       zoneDemandAsks: 'asks',
       profileTitle: 'Profile',
@@ -772,6 +774,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       pickerExplore: 'Explora el Caribe',
       pickerShowAll: 'Ver todos los países',
       pickerNearMe: 'Cerca de mí',
+      pickerSearch: 'Busca país o zona…',
       zoneDemandTitle: 'Dónde pregunta la gente',
       zoneDemandAsks: 'preguntas',
       profileTitle: 'Perfil',
