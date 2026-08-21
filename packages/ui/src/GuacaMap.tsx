@@ -45,6 +45,20 @@ export interface CountryMarker {
   lng: number
 }
 
+/**
+ * A tappable zone marker — the area picker, directly on the map. Visible
+ * in the mid-zoom band (5.5 < zoom ≤ 9): countries at low zoom hand over
+ * to their zones as you zoom in, so a person can go basin → country →
+ * zone without ever opening the menu.
+ */
+export interface ZoneMarker {
+  id: string
+  label: string
+  lat: number
+  lng: number
+  selected?: boolean
+}
+
 /** Unverified candidates (OSM import) — rendered as a GPU circle layer,
  *  never as DOM markers: there can be hundreds. */
 interface MapDot {
@@ -78,6 +92,9 @@ interface GuacaMapProps {
   dots?: MapDot[]
   heat?: HeatPoint[]
   countries?: CountryMarker[]
+  zones?: ZoneMarker[]
+  onZoneSelect?: (id: string) => void
+  onCountrySelect?: (code: string) => void
   /** Selected-area outline — the city/area the user picked. */
   areaHighlight?: AreaHighlight | null
   /** Imperative fly-to; fires when `nonce` changes. */
@@ -389,6 +406,9 @@ export function GuacaMap({
   dots,
   heat,
   countries,
+  zones,
+  onZoneSelect,
+  onCountrySelect,
   areaHighlight,
   flyTo,
   selectedPinId,
@@ -578,6 +598,8 @@ export function GuacaMap({
   // A country marker is a status claim, never a place pin; zooming in
   // hands the canvas back to pins and dots.
   const countryMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
+  const onCountrySelectRef = useRef(onCountrySelect)
+  onCountrySelectRef.current = onCountrySelect
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -613,6 +635,7 @@ export function GuacaMap({
       const el = wrapper as HTMLElement
       el.addEventListener('click', (event) => {
         event.stopPropagation()
+        onCountrySelectRef.current?.(c.code)
         map.flyTo({ center: [c.lng, c.lat], zoom: 11, duration: 1600 })
       })
       const marker = new mapboxgl.Marker({ element: el })
@@ -629,6 +652,54 @@ export function GuacaMap({
       countryMarkersRef.current.clear()
     }
   }, [countries])
+
+  // Zone markers — the map-native picker (mid-zoom band). Country markers
+  // cover zoom ≤ 5.5; these take over from there up to street level.
+  const zoneMarkersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
+  const onZoneSelectRef = useRef(onZoneSelect)
+  onZoneSelectRef.current = onZoneSelect
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    zoneMarkersRef.current.forEach((m) => m.remove())
+    zoneMarkersRef.current.clear()
+    if (!zones || zones.length === 0) return
+
+    const visibleAtZoom = (z: number) => z > 5.5 && z <= 9
+    const applyVisibility = () => {
+      const show = visibleAtZoom(map.getZoom())
+      zoneMarkersRef.current.forEach((m) => {
+        m.getElement().style.display = show ? 'flex' : 'none'
+      })
+    }
+
+    for (const z of zones) {
+      const wrapper = document.createElement('div')
+      wrapper.style.cssText = `display:flex;align-items:center;cursor:pointer;pointer-events:auto`
+      wrapper.innerHTML = `
+        <div style="display:flex;align-items:center;gap:4px;background:${z.selected ? '#0D7A72' : 'rgba(255,255,255,.93)'};border:1px solid ${z.selected ? '#0D7A72' : 'rgba(23,39,43,.14)'};border-radius:999px;padding:2px 8px 2px 5px;box-shadow:0 2px 6px rgba(23,39,43,.2)">
+          <span style="font-size:9px">${z.selected ? '📍' : '⚪'}</span>
+          <span style="font:800 10px/1.2 ui-sans-serif,system-ui;white-space:nowrap;color:${z.selected ? '#fff' : '#17272B'}">${z.label}</span>
+        </div>`
+      const el = wrapper as HTMLElement
+      el.addEventListener('click', (event) => {
+        event.stopPropagation()
+        onZoneSelectRef.current?.(z.id)
+      })
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([z.lng, z.lat])
+        .addTo(map)
+      zoneMarkersRef.current.set(z.id, marker)
+    }
+    applyVisibility()
+    map.on('zoom', applyVisibility)
+    return () => {
+      map.off('zoom', applyVisibility)
+      zoneMarkersRef.current.forEach((m) => m.remove())
+      zoneMarkersRef.current.clear()
+    }
+  }, [zones])
 
   // Imperative fly-to (country/city selection) — nonce-keyed so picking
   // the same target twice still flies.

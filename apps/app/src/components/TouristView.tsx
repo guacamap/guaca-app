@@ -31,7 +31,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker } from '@guaca/ui'
+import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker } from '@guaca/ui'
 import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 import { InstallApp } from './InstallApp'
@@ -622,6 +622,36 @@ export function TouristView() {
       .filter((g) => g.countries.length > 0)
   }, [pickerGroups, showAllCountries, nearCountryCode])
 
+  /** Tappable zone pills on the map itself — the picker without the menu. */
+  const zoneMarkers = useMemo<ZoneMarker[]>(
+    () =>
+      areas.map((a) => ({
+        id: a.id,
+        label: a.name,
+        lat: (a.bbox[1]! + a.bbox[3]!) / 2,
+        lng: (a.bbox[0]! + a.bbox[2]!) / 2,
+        selected: a.id === selectedAreaId,
+      })),
+    [areas, selectedAreaId],
+  )
+
+  /** A country tap selects its best zone: most verified, else most
+   *  candidates (the most-searched zones were imported first), else first. */
+  const handleCountrySelect = (code: string) => {
+    const inCountry = areas.filter((a) => a.country === code)
+    if (inCountry.length === 0) return // no zones yet: the fly-to is all
+    const best = [...inCountry].sort(
+      (x, y) =>
+        y.verifiedCount - x.verifiedCount || y.candidateCount - x.candidateCount,
+    )[0]!
+    selectArea(best)
+  }
+
+  const handleZoneSelect = (id: string) => {
+    const area = areas.find((a) => a.id === id)
+    if (area && area.id !== selectedAreaId) selectArea(area)
+  }
+
   const selectArea = (a: ApiArea) => {
     setSelectedAreaId(a.id)
     setPickerOpen(false)
@@ -1026,6 +1056,9 @@ export function TouristView() {
           dots={dots}
           heat={heat}
           countries={countryMarkers}
+          zones={zoneMarkers}
+          onZoneSelect={handleZoneSelect}
+          onCountrySelect={handleCountrySelect}
           areaHighlight={selectedArea ? { bbox: selectedArea.bbox, label: selectedArea.name } : null}
           flyTo={selectedArea ? { lat: (selectedArea.bbox[1]! + selectedArea.bbox[3]!) / 2, lng: (selectedArea.bbox[0]! + selectedArea.bbox[2]!) / 2, zoom: 12.2, nonce: flyNonce } : undefined}
           selectedPinId={selected?.id ?? null}
