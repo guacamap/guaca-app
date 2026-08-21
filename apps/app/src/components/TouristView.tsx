@@ -139,6 +139,8 @@ interface ApiArea {
   verifiedCount: number
   candidateCount: number
   zoneCount: number
+  peopleAsking: number
+  askCount: number
 }
 
 /** A grounded follow-up from the trend engine — never model output. */
@@ -409,16 +411,17 @@ export function TouristView() {
   }, [center])
 
   // Saved places ride the session.
-  // Zone demand — the scheduler's people-per-zone snapshot; what the gap
-  // agent scores is what this card shows.
+  // Zone demand — the scheduler's snapshot, SCOPED to the selected area:
+  // the card must talk about where the person is looking, not the world.
   useEffect(() => {
-    fetch('/api/zones/demand', { credentials: 'include' })
+    const qs = selectedAreaId ? `?areaId=${encodeURIComponent(selectedAreaId)}` : ''
+    fetch(`/api/zones/demand${qs}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { zones: typeof zoneDemandList } | null) => {
         if (d) setZoneDemandList(d.zones.filter((z) => z.peopleCount > 0).slice(0, 4))
       })
       .catch(() => {})
-  }, [])
+  }, [selectedAreaId])
 
   useEffect(() => {
     fetch('/api/tourist/favorites', { credentials: 'include' })
@@ -1287,22 +1290,31 @@ export function TouristView() {
         </div>
       )}
 
-      {/* Zone demand — the honest "N people asked here" that funds missions. */}
-      {!selected && !selectedCandidate && zoneDemandList.length > 0 && (
-        <div className="absolute bottom-24 left-4 z-[600] w-[190px] rounded-[22px] bg-guaca-ocean-deep/92 p-3.5 text-white shadow-lg backdrop-blur-md">
+      {/* Zone demand, scoped to the selected area — the honest "N people
+          asked here" that funds missions, about where you are looking. */}
+      {!selected && !selectedCandidate && (selectedArea?.peopleAsking ?? 0) > 0 && (
+        <div className="absolute bottom-24 left-4 z-[600] w-[200px] rounded-[22px] bg-guaca-ocean-deep/92 p-3.5 text-white shadow-lg backdrop-blur-md">
           <p className="text-[8.5px] font-black uppercase tracking-[.12em] text-white/60">
             <UsersRound className="mr-1 inline h-3 w-3" /> {t.zoneDemandTitle}
           </p>
-          <div className="mt-1.5 space-y-1">
-            {zoneDemandList.map((z) => (
-              <div key={z.zoneId} className="flex items-baseline justify-between gap-2">
-                <span className="min-w-0 flex-1 truncate text-[11px] font-bold">{z.zoneName}</span>
-                <span className="shrink-0 text-[11px] font-black tabular-nums text-guaca-mango-light">
-                  {z.peopleCount}👤
-                </span>
-              </div>
-            ))}
-          </div>
+          <p className="mt-1 text-[13px] font-black leading-tight">
+            {selectedArea!.peopleAsking}{' '}
+            <span className="text-[10px] font-bold text-guaca-mango-light">
+              {selectedArea!.peopleAsking === 1 ? t.personAsking : t.peopleAsking} · {selectedArea!.name}
+            </span>
+          </p>
+          {zoneDemandList.length > 0 && (
+            <div className="mt-1.5 space-y-0.5 border-t border-white/15 pt-1.5">
+              {zoneDemandList.map((z) => (
+                <div key={z.zoneId} className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate text-[10px] font-bold">{z.zoneName}</span>
+                  <span className="shrink-0 text-[10px] font-black tabular-nums text-guaca-mango-light">
+                    {z.peopleCount}👤
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

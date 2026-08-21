@@ -196,6 +196,8 @@ export interface AppCopy {
     pickerSearch: string
     zoneDemandTitle: string
     zoneDemandAsks: string
+    personAsking: string
+    peopleAsking: string
     profileTitle: string
     profileGuestOf: string
     profileLanguage: string
@@ -484,6 +486,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       pickerSearch: 'Search country or zone…',
       zoneDemandTitle: 'Where people are asking',
       zoneDemandAsks: 'asks',
+      personAsking: 'person asking here',
+      peopleAsking: 'people asking here',
       profileTitle: 'Profile',
       profileGuestOf: 'Guest of',
       profileLanguage: 'Language',
@@ -777,6 +781,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       pickerSearch: 'Busca país o zona…',
       zoneDemandTitle: 'Dónde pregunta la gente',
       zoneDemandAsks: 'preguntas',
+      personAsking: 'persona preguntando aquí',
+      peopleAsking: 'personas preguntando aquí',
       profileTitle: 'Perfil',
       profileGuestOf: 'Huésped de',
       profileLanguage: 'Idioma',

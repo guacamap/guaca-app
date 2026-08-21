@@ -69,7 +69,11 @@ export async function recomputeZoneDemand(
   return res.rowCount ?? 0;
 }
 
-/** The read path for surfaces: zones ordered by people, zero-demand zones last. */
+/**
+ * The read path for surfaces: zones ordered by people, zero-demand last.
+ * Scoped to one area when given — a tourist looking at Margarita must not
+ * be shown Puerto Cabello's demand.
+ */
 export async function zoneDemand(
   pool: Pool,
   areaId: string | null,
@@ -86,7 +90,7 @@ export async function zoneDemand(
             zd.open_gaps, zd.last_asked_at
        from zone_demand zd
        join zones z on z.id = zd.zone_id
-      where ($1::uuid is null or zd.area_id = $1)
+      where ($1::uuid is null or z.area_id = $1)
       order by zd.people_count desc, zd.ask_count desc, z.name asc`,
     [areaId],
   );
@@ -110,6 +114,9 @@ export interface AreaSummaryRow {
   verifiedCount: number;
   candidateCount: number;
   zoneCount: number;
+  /** Distinct people (sessions) who asked IN this area, last 30 days. */
+  peopleAsking: number;
+  askCount: number;
 }
 
 /**
@@ -130,6 +137,8 @@ export async function areaSummaries(pool: Pool): Promise<AreaSummaryRow[]> {
     verified: number;
     candidates: number;
     zones: number;
+    people_asking: number;
+    asks: number;
   }>(
     `select a.id, a.name, a.slug, a.country,
             ST_XMin(a.geom::geometry) as lon_min, ST_YMin(a.geom::geometry) as lat_min,
@@ -138,7 +147,13 @@ export async function areaSummaries(pool: Pool): Promise<AreaSummaryRow[]> {
               where p.area_id = a.id and p.verification_status = 'verified' and p.witness_count >= 2) as verified,
             (select count(*)::int from places p
               where p.area_id = a.id and p.source = 'osm_candidate') as candidates,
-            (select count(*)::int from zones z where z.area_id = a.id) as zones
+            (select count(*)::int from zones z where z.area_id = a.id) as zones,
+            (select count(distinct q.session_id)::int from questions q
+              where q.area_id = a.id
+                and q.created_at > now() - interval '30 days') as people_asking,
+            (select count(*)::int from questions q
+              where q.area_id = a.id
+                and q.created_at > now() - interval '30 days') as asks
        from areas a
       order by a.country asc, a.name asc`,
   );
@@ -153,5 +168,7 @@ export async function areaSummaries(pool: Pool): Promise<AreaSummaryRow[]> {
     verifiedCount: r.verified,
     candidateCount: r.candidates,
     zoneCount: r.zones,
+    peopleAsking: r.people_asking,
+    askCount: r.asks,
   }));
 }

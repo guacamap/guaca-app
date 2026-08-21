@@ -175,8 +175,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // Zone demand — the persisted people-per-zone snapshot the scheduler
   // recomputes each cycle. Public like /api/places: aggregate counts of
   // anonymous sessions, never question text, never identities.
-  app.get('/api/zones/demand', async () => {
-    return { zones: await zoneDemand(options.pool, null) };
+  app.get('/api/zones/demand', async (req) => {
+    const { areaId } = req.query as { areaId?: string };
+    // Scoped to the selected area when given: demand shown must be demand
+    // for where the tourist is looking.
+    return { zones: await zoneDemand(options.pool, areaId ?? null) };
   });
 
   /*
