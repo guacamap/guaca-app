@@ -24,6 +24,9 @@ check() { # name, expected, actual
 }
 
 code() { curl -sS -o /dev/null -w '%{http_code}' -m 25 "$1" 2>/dev/null || echo 000; }
+# Same, but follows redirects: the apex 308s to www, and Play only cares that
+# the URL a reviewer clicks ends up on the page.
+code_follow() { curl -sSL -o /dev/null -w '%{http_code}' -m 25 "$1" 2>/dev/null || echo 000; }
 
 echo "== TLS and reachability =="
 check "api healthz (process + db ready)" 200 "$(code "$API/healthz")"
@@ -34,9 +37,9 @@ check "app map" 200 "$(code "$APP/map")"
 check "app service worker" 200 "$(code "$APP/sw.js")"
 
 echo "== Play requirements =="
-check "privacy policy" 200 "$(code "$WEB/privacy")"
-check "terms" 200 "$(code "$WEB/terms")"
-check "account deletion" 200 "$(code "$WEB/delete-account")"
+check "privacy policy" 200 "$(code_follow "$WEB/privacy")"
+check "terms" 200 "$(code_follow "$WEB/terms")"
+check "account deletion" 200 "$(code_follow "$WEB/delete-account")"
 
 echo "== production safety =="
 # The dev bypass must be closed. A 200 here means NODE_ENV is not production.
