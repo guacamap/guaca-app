@@ -343,8 +343,9 @@ program
   .option('--event <event>')
   .action(async (opts) => {
     const { matchesFilters, prettyPrint } = await import('./commands/tail.js');
+    const token = requireOperatorToken(process.env.OPERATOR_TOKEN);
     const base = process.env.GUACA_API_URL ?? 'http://localhost:3001';
-    const url = base.replace(/^http/, 'ws') + '/api/ops/stream';
+    const url = base.replace(/^http/, 'ws') + '/api/ops/stream?token=' + encodeURIComponent(token);
     const ws = new WebSocket(url);
     ws.onmessage = (ev) => {
       try {

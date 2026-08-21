@@ -6,9 +6,25 @@
 }
 
 {$API_DOMAIN:api.guaca.live} {
+	# Transport and browser hardening for every response the edge serves.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
 	reverse_proxy guaca-prod-api:3001
 }
 
 {$STAGING_API_DOMAIN:staging.api.guaca.live} {
+	# Transport and browser hardening for every response the edge serves.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
 	reverse_proxy guaca-staging-api:3001
 }
