@@ -31,7 +31,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
-import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker } from '@guaca/ui'
+import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
 import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 import { InstallApp } from './InstallApp'
@@ -635,6 +635,18 @@ export function TouristView() {
     [areas, selectedAreaId],
   )
 
+  /** Every zone's boundary on the map — bold-dashed for the selected one,
+   *  subtle for the rest, all tappable (fill click selects). */
+  const zoneOutlines = useMemo<ZoneOutline[]>(
+    () =>
+      areas.map((a) => ({
+        id: a.id,
+        bbox: a.bbox,
+        selected: a.id === selectedAreaId,
+      })),
+    [areas, selectedAreaId],
+  )
+
   /** A country tap selects its best zone: most verified, else most
    *  candidates (the most-searched zones were imported first), else first. */
   const handleCountrySelect = (code: string) => {
@@ -1059,7 +1071,7 @@ export function TouristView() {
           zones={zoneMarkers}
           onZoneSelect={handleZoneSelect}
           onCountrySelect={handleCountrySelect}
-          areaHighlight={selectedArea ? { bbox: selectedArea.bbox, label: selectedArea.name } : null}
+          zoneOutlines={zoneOutlines}
           flyTo={selectedArea ? { lat: (selectedArea.bbox[1]! + selectedArea.bbox[3]!) / 2, lng: (selectedArea.bbox[0]! + selectedArea.bbox[2]!) / 2, zoom: 12.2, nonce: flyNonce } : undefined}
           selectedPinId={selected?.id ?? null}
           onPinClick={(id) => { setSelectedCandidate(null); openPlace(id) }}
