@@ -44,6 +44,20 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.guaca.live'
 
 const THREAD_KEY = 'guaca:thread'
 const PLAN_KEY = 'guaca:plan'
+
+/** ISO code → flag emoji (regional indicators). 'VE' → 🇻🇪. */
+function flagOf(code: string): string {
+  return String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65))
+}
+
+/** Zoom that fits a zone's span: wider zones (Margarita, Mochima) need a
+ *  wider view than a compact old-town grid. */
+function zoomForSpan(bbox: [number, number, number, number]): number {
+  const spanLat = Math.abs(bbox[3]! - bbox[1]!)
+  const spanLon = Math.abs(bbox[2]! - bbox[0]!)
+  const span = Math.max(spanLat, spanLon)
+  return Math.min(13.5, Math.max(9.5, Math.round(Math.log2(200 / span) * 10) / 10))
+}
 const STATS_KEY = 'guaca:stats'
 const GEO_KEY = 'guaca:geo'
 
@@ -602,6 +616,7 @@ export function TouristView() {
   }, [userLatLng, center])
 
   const [showAllCountries, setShowAllCountries] = useState(false)
+  const [pickerQuery, setPickerQuery] = useState('')
   useEffect(() => {
     // A newly-derived country (geolocation arriving) re-anchors the picker
     // and collapses show-all back to near-me.
@@ -611,8 +626,30 @@ export function TouristView() {
     }
   }, [nearCountryCode])
 
-  /** The groups the picker renders: near-me only, or everything. */
+  /** The groups the picker renders: search results, near-me only, or
+   *  everything. 35 countries deserve a filter box. */
   const visiblePickerGroups = useMemo(() => {
+    const q = pickerQuery.trim().toLowerCase()
+    if (q.length > 0) {
+      return pickerGroups
+        .map((g) => ({
+          ...g,
+          countries: g.countries
+            .map((c) => ({
+              ...c,
+              areas: c.country.name.toLowerCase().includes(q) ||
+                c.country.nameEs.toLowerCase().includes(q) ||
+                c.country.code.toLowerCase() === q
+                ? c.areas
+                : c.areas.filter((a) => a.name.toLowerCase().includes(q)),
+            }))
+            .filter((c) => c.areas.length > 0 ||
+              c.country.name.toLowerCase().includes(q) ||
+              c.country.nameEs.toLowerCase().includes(q) ||
+              c.country.code.toLowerCase() === q),
+        }))
+        .filter((g) => g.countries.length > 0)
+    }
     if (showAllCountries || !nearCountryCode) return pickerGroups
     return pickerGroups
       .map((g) => ({
@@ -620,7 +657,7 @@ export function TouristView() {
         countries: g.countries.filter((c) => c.country.code === nearCountryCode),
       }))
       .filter((g) => g.countries.length > 0)
-  }, [pickerGroups, showAllCountries, nearCountryCode])
+  }, [pickerGroups, showAllCountries, nearCountryCode, pickerQuery])
 
   /** Tappable zone pills on the map itself — the picker without the menu. */
   const zoneMarkers = useMemo<ZoneMarker[]>(
@@ -1072,7 +1109,7 @@ export function TouristView() {
           onZoneSelect={handleZoneSelect}
           onCountrySelect={handleCountrySelect}
           zoneOutlines={zoneOutlines}
-          flyTo={selectedArea ? { lat: (selectedArea.bbox[1]! + selectedArea.bbox[3]!) / 2, lng: (selectedArea.bbox[0]! + selectedArea.bbox[2]!) / 2, zoom: 12.2, nonce: flyNonce } : undefined}
+          flyTo={selectedArea ? { lat: (selectedArea.bbox[1]! + selectedArea.bbox[3]!) / 2, lng: (selectedArea.bbox[0]! + selectedArea.bbox[2]!) / 2, zoom: zoomForSpan(selectedArea.bbox), nonce: flyNonce } : undefined}
           selectedPinId={selected?.id ?? null}
           onPinClick={(id) => { setSelectedCandidate(null); openPlace(id) }}
           onDotClick={(id) => {
@@ -1161,7 +1198,7 @@ export function TouristView() {
           className="mt-1.5 flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep/85 px-3 py-1.5 text-[11px] font-black text-white shadow-md backdrop-blur-md"
         >
           <MapPin className="h-3 w-3 text-guaca-mango-light" />
-          {selectedArea?.name ?? t.pickerExplore}
+          {selectedArea ? `${flagOf(selectedArea.country)} ${selectedArea.name}` : t.pickerExplore}
           <ChevronDown className="h-3 w-3" />
         </button>
       </div>
@@ -1188,6 +1225,14 @@ export function TouristView() {
               </button>
             </div>
 
+            <input
+              value={pickerQuery}
+              onChange={(e) => setPickerQuery(e.target.value)}
+              placeholder={t.pickerSearch}
+              aria-label={t.pickerSearch}
+              className="mt-2.5 h-10 w-full rounded-2xl border border-guaca-sand bg-white px-4 text-[13px] font-bold text-guaca-ink outline-none placeholder:text-guaca-ink/30 focus:border-guaca-teal/50"
+            />
+
             {visiblePickerGroups.map((group) => (
               <div key={group.status} className="mt-3">
                 <p className="px-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-ink/40">
@@ -1205,7 +1250,7 @@ export function TouristView() {
                           className="flex w-full items-center justify-between px-3.5 py-2.5 text-left"
                         >
                           <span className="text-[12px] font-black text-guaca-ink">
-                            {lang === 'es' ? country.nameEs : country.name}
+                            {flagOf(country.code)} {lang === 'es' ? country.nameEs : country.name}
                           </span>
                           <ChevronDown className={`h-3.5 w-3.5 text-guaca-ink/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                         </button>
