@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -947,6 +947,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
       [action, targetType, targetId, extra?.note ?? null, JSON.stringify(extra ?? {})],
     );
   };
+
+  app.get('/api/operator/map', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    return operatorMapData(options.pool);
+  });
+
+  app.get('/api/operator/activity', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    return { events: await recentActivity(options.pool) };
+  });
 
   app.get('/api/operator/overview', async (req, reply) => {
     if (!requireOperator(req, reply)) return reply;

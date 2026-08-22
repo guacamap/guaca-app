@@ -61,6 +61,8 @@ export type { TrendSignalsRow, TrendWriteEntry, TrendRow } from './trends.js';
 export { unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft } from './steward.js';
 export type { CandidateDraftPayload, StewardDraftRow, StewardDecision } from './steward.js';
 export { recomputeZoneDemand, zoneDemand, areaSummaries } from './zoneDemand.js';
+export { operatorMapData, recentActivity } from './operatorMap.js';
+export type { OperatorMapData, ActivityEvent } from './operatorMap.js';
 export type { AreaSummaryRow } from './zoneDemand.js';
 export type { ZoneDemandRow } from './zoneDemand.js';
 export { createTrip, listTrips, tripById, tripBySlug, deleteTrip } from './tripsDb.js';

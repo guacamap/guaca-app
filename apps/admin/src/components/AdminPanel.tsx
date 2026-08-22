@@ -16,7 +16,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { Button, GuacaLogo, Input } from '@guaca/ui';
+import { Button, GuacaMap, GuacaLogo, Input } from '@guaca/ui';
 import { StewardReview } from './StewardReview';
 
 /**
@@ -27,7 +27,47 @@ import { StewardReview } from './StewardReview';
 
 const TOKEN_KEY = 'guaca:op-token';
 
-type Tab = 'overview' | 'missions' | 'people' | 'moderation' | 'steward';
+type Tab = 'map' | 'overview' | 'missions' | 'people' | 'moderation' | 'steward';
+
+interface MapData {
+  places: Array<{ id: string; name: string; category: string; lat: number; lon: number; spotterName: string | null }>;
+  gaps: Array<{ id: string; category: string; questionCount: number; lat: number; lon: number }>;
+  candidates: Array<{ id: string; lat: number; lon: number }>;
+  heat: Array<{ lat: number; lon: number; weight: number }>;
+}
+
+interface ActivityEvent {
+  id: string;
+  kind: string;
+  agent: string;
+  loopId: string | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+const CATEGORY_GLYPH: Record<string, { emoji: string; color: string }> = {
+  eat_drink: { emoji: '🍽️', color: '#D97E00' },
+  beach_water: { emoji: '🏖️', color: '#0D7A72' },
+  nature_walk: { emoji: '🌿', color: '#2E7D32' },
+  culture_history: { emoji: '🏛️', color: '#6A4C93' },
+  market_shop: { emoji: '🧺', color: '#B07A2E' },
+  services: { emoji: '🔧', color: '#455A64' },
+  nightlife_music: { emoji: '🎶', color: '#8E24AA' },
+  practical: { emoji: '🧭', color: '#546E7A' },
+};
+
+const ACTIVITY_ICON: Record<string, string> = {
+  QUESTION_ASKED: '💬',
+  REFUSED: '🚫',
+  GAP_SCORED: '📊',
+  MISSION_APPROVED: '📝',
+  SUBMITTED: '📸',
+  CHECKS_PASSED: '✅',
+  VISION_OK: '👁️',
+  SECOND_LOCAL_CONFIRMED: '🤝',
+  VERIFIED: '📍',
+  LOOP_CLOSED: '🔄',
+};
 
 interface Overview {
   verifiedPlaces: number;
@@ -100,7 +140,7 @@ export function AdminPanel() {
   const [token, setToken] = useState('');
   const [authed, setAuthed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<Tab>('overview');
+  const [tab, setTab] = useState<Tab>('map');
 
   const [overview, setOverview] = useState<Overview | null>(null);
   const [gaps, setGaps] = useState<Gap[]>([]);
@@ -109,6 +149,8 @@ export function AdminPanel() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [posts, setPosts] = useState<ReportedPost[]>([]);
+  const [mapData, setMapData] = useState<MapData | null>(null);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [newSpotterName, setNewSpotterName] = useState('');
   const [newSpotterPhone, setNewSpotterPhone] = useState('');
   const [flash, setFlash] = useState<string | null>(null);
@@ -167,6 +209,14 @@ export function AdminPanel() {
   const loadTab = useCallback(
     async (t: Tab) => {
       if (t === 'overview') await loadAll();
+      if (t === 'map') {
+        const [m, a] = await Promise.all([
+          api<MapData>('GET', '/api/operator/map'),
+          api<{ events: ActivityEvent[] }>('GET', '/api/operator/activity'),
+        ]);
+        if (m) setMapData(m);
+        if (a) setActivity(a.events);
+      }
       if (t === 'missions') {
         const [g, m] = await Promise.all([
           api<{ gaps: Gap[] }>('GET', '/api/operator/gaps'),
@@ -231,6 +281,7 @@ export function AdminPanel() {
   }
 
   const TABS: Array<{ id: Tab; label: string; icon: typeof Globe2 }> = [
+    { id: 'map', label: 'Oversight Map', icon: Radio },
     { id: 'overview', label: 'Overview', icon: Globe2 },
     { id: 'missions', label: 'Missions & Gaps', icon: Radio },
     { id: 'people', label: 'People', icon: Users },
@@ -269,6 +320,79 @@ export function AdminPanel() {
 
       {flash && (
         <p className="mt-3 rounded-2xl bg-guaca-coral/10 px-4 py-2.5 text-[11px] font-bold text-guaca-coral-dark">{flash}</p>
+      )}
+
+      {tab === 'map' && (
+        <div className="mt-4">
+          <div className="flex flex-wrap gap-3 px-1 text-[9px] font-black uppercase tracking-[.1em] text-guaca-ink/45">
+            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-guaca-teal" /> verified ({mapData?.places.length ?? 0})</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-guaca-coral" /> demand gaps ({mapData?.gaps.length ?? 0})</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0C4A5C]/50" /> OSM candidates ({mapData?.candidates.length ?? 0} shown)</span>
+          </div>
+          <div className="mt-2 h-[55vh] overflow-hidden rounded-[26px] shadow-lg ring-1 ring-guaca-sand">
+            {mapData ? (
+              <GuacaMap
+                pins={mapData.places.map((p) => {
+                  const glyph = CATEGORY_GLYPH[p.category] ?? { emoji: '📍', color: '#0D8B8B' };
+                  return {
+                    id: p.id,
+                    lat: p.lat,
+                    lng: p.lon,
+                    emoji: glyph.emoji,
+                    label: `${p.name}${p.spotterName ? ` — ${p.spotterName}` : ''}`,
+                    spotterColor: glyph.color,
+                    spotterInitials: p.spotterName?.slice(0, 2).toUpperCase() ?? '??',
+                    verified: true,
+                  };
+                })}
+                gapPins={mapData.gaps.map((g) => ({
+                  id: g.id,
+                  lat: g.lat,
+                  lng: g.lon,
+                  label: `${g.category} · ${g.questionCount} asks`,
+                  asks: g.questionCount,
+                  category: g.category,
+                }))}
+                dots={mapData.candidates.map((c) => ({
+                  id: c.id,
+                  lat: c.lat,
+                  lng: c.lon,
+                  label: 'OSM candidate',
+                  category: 'practical',
+                }))}
+                heat={mapData.heat.map((h) => ({ lat: h.lat, lng: h.lon, weight: h.weight }))}
+                mapStyle="streets"
+                center={[-66, 14]}
+                zoom={4.5}
+              />
+            ) : (
+              <div className="grid h-full place-items-center bg-guaca-sand-light">
+                <Loader2 className="h-6 w-6 animate-spin text-guaca-teal" />
+              </div>
+            )}
+          </div>
+
+          <h2 className="mt-5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Live activity — what people and agents did</h2>
+          <div className="mt-2 space-y-1.5">
+            {activity.length === 0 && <EmptyCard text="No activity recorded yet." />}
+            {activity.map((e) => (
+              <div key={e.id} className="flex items-baseline gap-2.5 rounded-[16px] bg-white px-3.5 py-2.5 shadow-sm ring-1 ring-guaca-sand/70">
+                <span className="text-[13px]">{ACTIVITY_ICON[e.kind] ?? '•'}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-black text-guaca-ink">{e.kind.replaceAll('_', ' ').toLowerCase()}</p>
+                  <p className="truncate text-[9.5px] font-semibold text-guaca-ink/45">
+                    {e.agent}
+                    {typeof e.payload.reason === 'string' ? ` · ${e.payload.reason}` : ''}
+                    {typeof e.payload.category === 'string' ? ` · ${e.payload.category}` : ''}
+                  </p>
+                </div>
+                <span className="shrink-0 text-[9px] font-bold tabular-nums text-guaca-ink/35">
+                  {new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {tab === 'overview' && overview && (
