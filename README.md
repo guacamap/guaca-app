@@ -31,6 +31,7 @@ local's paycheck.
 │   ├── web/            Next.js 15 · marketing landing + legal pages (guaca.live)
 │   ├── app/            Next.js 15 PWA · map, trips, villa QR, Spotter (app.guaca.live)
 │   ├── mobile/         Expo WebView wrapper → Play closed testing
+│   ├── admin/          Next.js admin panel (admin.guaca.live) — token-gated
 │   └── api/            Fastify + WebSockets · port 3001
 ├── packages/
 │   ├── agents/         gap · verification · planner · trends, plus the grounding guard

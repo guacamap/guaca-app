@@ -22,6 +22,7 @@ Operator laptop ─────▶ packages/cli ─────────┘  
 |---|---|---|---|
 | web (marketing) | `next dev` :3000 | `staging.guaca.live` — Vercel project 1, branch `main` | `guaca.live` — Vercel project 1, branch `production` |
 | app (product) | `next dev` :3002 | `staging.app.guaca.live` — Vercel project 2, branch `main` | `app.guaca.live` — Vercel project 2, branch `production` |
+| admin | `next dev` :3003 | `staging.admin.guaca.live` — Vercel project 3 | `admin.guaca.live` — Vercel project 3, branch `main` |
 | api | `tsx watch` :3001 | `staging.api.guaca.live` — same VM, compose project `guaca-staging` | `api.guaca.live` — compose project `guaca-prod` |
 | data | docker compose | own DB + MinIO bucket on VM | own DB + MinIO bucket on VM |
 | inference | FakeInference (tests) or shared endpoint | shared L40S or MiniMax — never a 2nd GPU | L40S, MiniMax failover |
@@ -225,6 +226,16 @@ restored is not a backup — re-run that drill after any schema change.
 
 Copy the `backups/` directory off the VM regularly; a backup on the same disk
 does not survive the failure it exists for.
+
+## Admin panel (`admin.guaca.live`)
+
+`apps/admin` — its own origin, on purpose: the operator token lives in
+localStorage, so the panel must not share an origin with any tourist
+surface (an XSS on the app must not be able to read the token). It
+proxies `/api/*` to the API same-origin like `apps/app` does — set
+`API_PROXY_TARGET` at build time — and it is `noindex`. Vercel project 3,
+root `apps/admin`; point `admin.guaca.live` (and staging) at it. Optional
+hardening once live: Vercel Firewall / IP allowlist on the project.
 
 ## Redeploy
 
