@@ -129,6 +129,30 @@ interface Registration {
   created_at: string;
 }
 
+interface Conflict {
+  id: string;
+  kind: string;
+  severity: 'high' | 'normal' | 'low';
+  title: string;
+  detail: string | null;
+  evidence: Record<string, unknown>;
+  createdAt: string;
+  verificationRunId?: string;
+  postId?: string;
+}
+
+interface Issue {
+  id: string;
+  title: string;
+  detail: string | null;
+  kind: string;
+  priority: string;
+  status: string;
+  filedBy: string;
+  resolutionNote: string | null;
+  createdAt: string;
+}
+
 interface ReportedPost {
   id: string;
   body: string;
@@ -151,6 +175,13 @@ export function AdminPanel() {
   const [posts, setPosts] = useState<ReportedPost[]>([]);
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [expandedConflict, setExpandedConflict] = useState<string | null>(null);
+  const [issueTitle, setIssueTitle] = useState('');
+  const [issueDetail, setIssueDetail] = useState('');
+  const [issueKind, setIssueKind] = useState('task');
+  const [issuePriority, setIssuePriority] = useState('normal');
   const [newSpotterName, setNewSpotterName] = useState('');
   const [newSpotterPhone, setNewSpotterPhone] = useState('');
   const [flash, setFlash] = useState<string | null>(null);
@@ -234,10 +265,12 @@ export function AdminPanel() {
         if (r) setRegistrations(r.registrations);
       }
       if (t === 'moderation') {
-        const p = await api<{ posts: ReportedPost[] }>('GET', '/api/operator/posts/reported');
-        if (p) setPosts(p.posts);
-        const q = await api<{ queue: QueueItem[] }>('GET', '/api/operator/queue');
-        if (q) setQueue(q.queue);
+        const [c, i] = await Promise.all([
+          api<{ conflicts: Conflict[] }>('GET', '/api/operator/conflicts'),
+          api<{ issues: Issue[] }>('GET', '/api/operator/issues'),
+        ]);
+        if (c) setConflicts(c.conflicts);
+        if (i) setIssues(i.issues);
       }
     },
     [api, loadAll],
@@ -577,60 +610,141 @@ export function AdminPanel() {
       {tab === 'moderation' && (
         <div className="mt-5 space-y-5">
           <section>
-            <h2 className="px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Reported posts</h2>
+            <h2 className="flex items-center justify-between px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+              <span>Conflicts · {conflicts.length} needing attention</span>
+              <span className="text-[9px] font-bold text-guaca-ink/35">
+                {conflicts.filter((c) => c.severity === 'high').length} high · {' '}
+                {conflicts.filter((c) => c.kind === 'escalation').length} escalations · {' '}
+                {conflicts.filter((c) => c.kind === 'post_report').length} reports
+              </span>
+            </h2>
             <div className="mt-2 space-y-2">
-              {posts.length === 0 && <EmptyCard text="No reported posts awaiting review." />}
-              {posts.map((p) => (
-                <div key={p.id} className="rounded-[20px] bg-white p-3.5 shadow-sm ring-1 ring-guaca-sand/75">
-                  <p className="text-[12px] font-bold text-guaca-ink">“{p.body.slice(0, 80)}”</p>
-                  <p className="text-[10px] font-bold text-guaca-ink/45">{p.author} · {p.reports} reports</p>
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={async () => {
-                      const res = await api('POST', `/api/operator/posts/${p.id}/hide`);
-                      if (res) { setFlash('Post hidden.'); await loadTab('moderation'); }
-                    }}
-                    className="mt-2 h-8 rounded-xl bg-guaca-coral/10 px-3 text-[10px] font-black text-guaca-coral-dark hover:bg-guaca-coral/20"
-                  >
-                    <X className="mr-1 h-3 w-3" /> Hide
-                  </Button>
+              {conflicts.length === 0 && <EmptyCard text="No conflicts — the system is calm." />}
+              {conflicts.map((c) => (
+                <div key={c.id} className={`rounded-[20px] bg-white p-4 shadow-sm ring-1 ${c.severity === 'high' ? 'ring-guaca-coral/30' : 'ring-guaca-sand/75'}`}>
+                  <button type="button" className="flex w-full items-start gap-2.5 text-left" onClick={() => setExpandedConflict(expandedConflict === c.id ? null : c.id)}>
+                    <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${c.severity === 'high' ? 'bg-guaca-coral' : c.severity === 'normal' ? 'bg-guaca-mango' : 'bg-guaca-ink/20'}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-black text-guaca-ink">{c.title}</p>
+                      {c.detail && <p className="text-[10px] font-semibold text-guaca-ink/45">{c.detail}</p>}
+                      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-guaca-ink/30">
+                        {c.kind.replaceAll('_', ' ')} · {new Date(c.createdAt).toLocaleDateString()} {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-black text-guaca-ink/25">{expandedConflict === c.id ? '−' : '+'}</span>
+                  </button>
+
+                  {expandedConflict === c.id && (
+                    <div className="mt-3 border-t border-guaca-sand pt-3">
+                      <p className="text-[9px] font-black uppercase tracking-[.1em] text-guaca-ink/35">Evidence</p>
+                      <pre className="mt-1 max-h-40 overflow-auto rounded-xl bg-guaca-sand-light/70 p-3 text-[10px] leading-relaxed text-guaca-ink/70">
+{JSON.stringify(c.evidence, null, 2)}
+                      </pre>
+                      <div className="mt-2.5 flex gap-2">
+                        {c.verificationRunId && (
+                          <>
+                            <Button type="button" disabled={busy} onClick={async () => { await api('POST', `/api/operator/verify/${c.verificationRunId}`, { decision: 'approve' }); setFlash('Approved.'); await loadTab('moderation'); }} className="h-8 flex-1 rounded-xl bg-guaca-teal text-[10px] font-black text-white">
+                              ✓ Approve
+                            </Button>
+                            <Button type="button" disabled={busy} onClick={async () => { await api('POST', `/api/operator/verify/${c.verificationRunId}`, { decision: 'reject', note: 'moderation' }); setFlash('Rejected.'); await loadTab('moderation'); }} className="h-8 flex-1 rounded-xl bg-guaca-ink/6 text-[10px] font-black text-guaca-ink/60">
+                              ✕ Reject
+                            </Button>
+                          </>
+                        )}
+                        {c.postId && (
+                          <>
+                            <Button type="button" disabled={busy} onClick={async () => { await api('POST', `/api/operator/posts/${c.postId}/hide`); setFlash('Hidden.'); await loadTab('moderation'); }} className="h-8 flex-1 rounded-xl bg-guaca-coral/10 text-[10px] font-black text-guaca-coral-dark">
+                              Hide post
+                            </Button>
+                            <Button type="button" disabled={busy} onClick={async () => { await api('POST', `/api/operator/posts/${c.postId}/show`); setFlash('Restored.'); await loadTab('moderation'); }} className="h-8 flex-1 rounded-xl bg-guaca-ink/6 text-[10px] font-black text-guaca-ink/60">
+                              Keep visible
+                            </Button>
+                          </>
+                        )}
+                        <Button type="button" disabled={busy} onClick={async () => {
+                          await api('POST', '/api/operator/issues', { title: `Conflict: ${c.title}`, detail: c.detail ?? '', kind: 'data', priority: c.severity === 'high' ? 'high' : 'normal' });
+                          setFlash('Filed as issue.'); await loadTab('moderation');
+                        }} className="h-8 flex-1 rounded-xl bg-guaca-ocean/8 text-[10px] font-black text-guaca-ocean">
+                          📋 File as issue
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </section>
+
           <section>
-            <h2 className="px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Verification escalations</h2>
+            <h2 className="px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">File an issue</h2>
+            <div className="mt-2 rounded-[20px] bg-white p-4 shadow-sm ring-1 ring-guaca-sand/75">
+              <div className="flex gap-2">
+                <Input value={issueTitle} onChange={(e) => setIssueTitle(e.target.value)} placeholder="What needs fixing?" aria-label="Issue title" className="h-10 flex-1" />
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Input value={issueDetail} onChange={(e) => setIssueDetail(e.target.value)} placeholder="Detail (optional)" aria-label="Detail" className="h-10 flex-1" />
+              </div>
+              <div className="mt-2 flex gap-1.5">
+                {['bug', 'task', 'data', 'spotter', 'security'].map((k) => (
+                  <button key={k} type="button" onClick={() => setIssueKind(k)} className={`rounded-full px-2.5 py-1 text-[9px] font-black ${issueKind === k ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-ink/5 text-guaca-ink/50'}`}>
+                    {k}
+                  </button>
+                ))}
+                <span className="flex-1" />
+                {['low', 'normal', 'high', 'urgent'].map((p) => (
+                  <button key={p} type="button" onClick={() => setIssuePriority(p)} className={`rounded-full px-2.5 py-1 text-[9px] font-black ${issuePriority === p ? (p === 'urgent' ? 'bg-guaca-coral text-white' : 'bg-guaca-mango text-guaca-ocean-deep') : 'bg-guaca-ink/5 text-guaca-ink/50'}`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <Button type="button" disabled={busy || issueTitle.trim().length < 3} onClick={async () => {
+                const res = await api('POST', '/api/operator/issues', { title: issueTitle, detail: issueDetail || undefined, kind: issueKind, priority: issuePriority });
+                if (res) { setFlash('Issue filed.'); setIssueTitle(''); setIssueDetail(''); await loadTab('moderation'); }
+              }} className="mt-2.5 h-10 w-full rounded-xl bg-guaca-teal text-[11px] font-black text-white hover:bg-guaca-teal-dark">
+                File issue
+              </Button>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Issues · {issues.filter((i) => i.status === 'open').length} open</h2>
             <div className="mt-2 space-y-2">
-              {queue.length === 0 && <EmptyCard text="Queue is empty." />}
-              {queue.map((q) => (
-                <div key={q.id} className="rounded-[20px] bg-white p-3.5 shadow-sm ring-1 ring-guaca-sand/75">
-                  <p className="text-[12px] font-black text-guaca-ink">{q.placeName ?? q.id}</p>
-                  {q.reason && <p className="text-[10px] font-bold text-guaca-ink/45">{q.reason}</p>}
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      type="button"
-                      disabled={busy}
-                      onClick={async () => {
-                        const res = await api('POST', `/api/operator/verify/${q.id}`, { decision: 'approve' });
-                        if (res) { setFlash('Approved.'); await loadTab('moderation'); }
-                      }}
-                      className="h-8 flex-1 rounded-xl bg-guaca-teal text-[10px] font-black text-white hover:bg-guaca-teal-dark"
-                    >
-                      <Check className="mr-1 h-3 w-3" /> Approve
-                    </Button>
-                    <Button
-                      type="button"
-                      disabled={busy}
-                      onClick={async () => {
-                        const res = await api('POST', `/api/operator/verify/${q.id}`, { decision: 'reject', note: 'admin panel' });
-                        if (res) { setFlash('Rejected.'); await loadTab('moderation'); }
-                      }}
-                      className="h-8 flex-1 rounded-xl bg-guaca-ink/6 text-[10px] font-black text-guaca-ink/60 hover:bg-guaca-coral/12 hover:text-guaca-coral-dark"
-                    >
-                      <X className="mr-1 h-3 w-3" /> Reject
-                    </Button>
+              {issues.length === 0 && <EmptyCard text="No issues filed." />}
+              {issues.map((i) => (
+                <div key={i.id} className={`rounded-[20px] bg-white p-3.5 shadow-sm ring-1 ${i.priority === 'urgent' ? 'ring-guaca-coral/30' : 'ring-guaca-sand/75'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-black text-guaca-ink">{i.title}</p>
+                      {i.detail && <p className="text-[10px] font-semibold text-guaca-ink/45">{i.detail}</p>}
+                      <p className="mt-0.5 text-[9px] font-bold uppercase text-guaca-ink/30">
+                        {i.kind} · {i.priority} · filed by {i.filedBy} · {new Date(i.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black ${i.status === 'open' ? 'bg-guaca-mango/15 text-guaca-ocean-deep' : i.status === 'resolved' ? 'bg-guaca-teal/10 text-guaca-teal' : 'bg-guaca-ink/5 text-guaca-ink/50'}`}>
+                      {i.status.replaceAll('_', ' ')}
+                    </span>
                   </div>
+                  {i.status === 'open' && (
+                    <div className="mt-2 flex gap-2">
+                      <Button type="button" disabled={busy} onClick={async () => {
+                        const note = window.prompt('How was this resolved?') ?? '';
+                        if (!note.trim()) return;
+                        await api('POST', `/api/operator/issues/${i.id}/resolve`, { status: 'resolved', note });
+                        setFlash('Resolved.'); await loadTab('moderation');
+                      }} className="h-8 flex-1 rounded-xl bg-guaca-teal text-[10px] font-black text-white">
+                        ✓ Resolve
+                      </Button>
+                      <Button type="button" disabled={busy} onClick={async () => {
+                        await api('POST', `/api/operator/issues/${i.id}/resolve`, { status: 'wont_fix', note: 'wont fix' });
+                        setFlash("Won't fix."); await loadTab('moderation');
+                      }} className="h-8 flex-1 rounded-xl bg-guaca-ink/6 text-[10px] font-black text-guaca-ink/60">
+                        Won't fix
+                      </Button>
+                    </div>
+                  )}
+                  {i.resolutionNote && i.status !== 'open' && (
+                    <p className="mt-1.5 rounded-lg bg-guaca-sand-light/60 px-2.5 py-1.5 text-[9.5px] font-semibold text-guaca-ink/50">→ {i.resolutionNote}</p>
+                  )}
                 </div>
               ))}
             </div>

@@ -62,6 +62,8 @@ export { unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDra
 export type { CandidateDraftPayload, StewardDraftRow, StewardDecision } from './steward.js';
 export { recomputeZoneDemand, zoneDemand, areaSummaries } from './zoneDemand.js';
 export { operatorMapData, recentActivity } from './operatorMap.js';
+export { operatorConflicts, listIssues, createIssue, resolveIssue } from './conflicts.js';
+export type { ConflictRow, ConflictKind, IssueRow } from './conflicts.js';
 export type { OperatorMapData, ActivityEvent } from './operatorMap.js';
 export type { AreaSummaryRow } from './zoneDemand.js';
 export type { ZoneDemandRow } from './zoneDemand.js';

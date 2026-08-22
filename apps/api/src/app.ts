@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -956,6 +956,44 @@ export function buildApp(options: AppOptions): FastifyInstance {
   app.get('/api/operator/activity', async (req, reply) => {
     if (!requireOperator(req, reply)) return reply;
     return { events: await recentActivity(options.pool) };
+  });
+
+  app.get('/api/operator/conflicts', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    return { conflicts: await operatorConflicts(options.pool) };
+  });
+
+  app.get('/api/operator/issues', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { status } = req.query as { status?: string };
+    return { issues: await listIssues(options.pool, status) };
+  });
+
+  app.post('/api/operator/issues', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const body = (req.body ?? {}) as { title?: string; detail?: string; kind?: string; priority?: string };
+    if (!body.title || body.title.trim().length < 3) {
+      return reply.code(400).send({ error: 'title (3+ chars) required' });
+    }
+    const issue = await createIssue(options.pool, {
+      title: body.title.trim(),
+      ...(body.detail ? { detail: body.detail } : {}),
+      ...(body.kind ? { kind: body.kind } : {}),
+      ...(body.priority ? { priority: body.priority } : {}),
+    });
+    await audit('issue.create', 'issue', issue.id, { title: body.title, kind: issue.kind });
+    return issue;
+  });
+
+  app.post('/api/operator/issues/:id/resolve', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { status?: string; note?: string };
+    const status = body.status === 'wont_fix' ? 'wont_fix' : body.status === 'in_progress' ? 'in_progress' : 'resolved';
+    const issue = await resolveIssue(options.pool, id, status, body.note ?? '');
+    if (!issue) return reply.code(404).send({ error: 'not found' });
+    await audit('issue.resolve', 'issue', id, { status, note: body.note });
+    return issue;
   });
 
   app.get('/api/operator/overview', async (req, reply) => {
