@@ -84,12 +84,25 @@ key, to, sender, subject, body = sys.argv[1:6]
 req = urllib.request.Request(
     "https://api.resend.com/emails",
     data=json.dumps({"from": sender, "to": [to], "subject": subject, "text": body}).encode(),
-    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+    headers={
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        # Resend sits behind Cloudflare, which blocks the default
+        # "Python-urllib/3.x" agent with error 1010. curl works, urllib does
+        # not — so say who we are.
+        "User-Agent": "guaca-monitor/1.0",
+    },
     method="POST",
 )
 try:
     urllib.request.urlopen(req, timeout=20)
     print("  alert sent")
+except urllib.error.HTTPError as exc:
+    # Print the body: Resend puts the actual reason there ("domain is not
+    # verified", "restricted key"), and an alerting tool that hides why it
+    # could not alert is worse than useless.
+    print(f"  ALERT SEND FAILED: HTTP {exc.code} {exc.read().decode(errors='replace')[:300]}")
+    sys.exit(1)
 except Exception as exc:  # a failed alert must not mask the outage it reports
     print(f"  ALERT SEND FAILED: {exc}")
     sys.exit(1)
