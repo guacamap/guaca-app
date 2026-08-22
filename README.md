@@ -131,6 +131,8 @@ the full list of what must not be invented.
   the evidence prohibitions. Read it before changing what the product claims.
 - **`DESIGN.md`** — the visual system as built: palette, type, components, and
   the rules that govern them.
+- **`docs/PLAYBOOK_HUMAN.md`** — running it after deploy: rhythms, the
+  Spotter lifecycle, money, moderation, incidents.
 
 ## Licence
 

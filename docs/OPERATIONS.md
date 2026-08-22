@@ -43,6 +43,13 @@ authenticates with `OPERATOR_TOKEN` and supports `--json`.
 4. The operator overrides the PROCESS, never the two-witness rule: approving
    a verification run does not bypass `verified_needs_two_locals`.
 
+## The human layer
+
+After deploy, day-to-day running of the system — rhythms, the Spotter
+lifecycle, money handling, moderation practice, incident response — lives
+in **`docs/PLAYBOOK_HUMAN.md`**. Read it before onboarding anyone onto
+operator duty.
+
 ## Setup
 
 ```bash
