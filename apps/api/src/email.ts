@@ -14,8 +14,21 @@ export interface EmailSender {
 export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSender {
   const apiKey = env.RESEND_API_KEY;
   if (!apiKey) {
+    // Printing a live login code is a sign-in credential in the clear: in
+    // production anyone who can read the container log could take over any
+    // account inside the 10-minute window. Outside production that visibility
+    // is the point, so the seam refuses only where the risk is real.
     if (env.NODE_ENV === 'production') {
-      console.warn('[email] RESEND_API_KEY is not set — real tourists cannot receive login codes');
+      console.warn('[email] RESEND_API_KEY is not set — login codes will be REFUSED, not logged');
+      return {
+        mode: 'live',
+        async sendLoginCode() {
+          throw new Error('email is not configured (RESEND_API_KEY missing) — refusing to log a login code');
+        },
+        async sendPlaceVerified() {
+          throw new Error('email is not configured (RESEND_API_KEY missing)');
+        },
+      };
     }
     return {
       mode: 'dev',
