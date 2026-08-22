@@ -1,26 +1,18 @@
 'use client'
 
-import { useState } from 'react'
 import { Providers } from '../components/Providers'
-import { PhoneShell } from '../components/PhoneShell'
-import { BusinessComingSoon } from '../components/BusinessComingSoon'
-import { OperatorView } from '../components/OperatorView'
+import { AdminPanel } from '../components/AdminPanel'
 
 /**
- * Everyone sees the coming-soon wall: the publisher behind it is local-only
- * state with no API or business account, so shipping it would claim a
- * capability the product does not have. Dev builds can still open it to
- * exercise the tourist-facing updates surface.
+ * The admin panel — token-gated, audit-backed, and REAL: every button maps
+ * to an operator API route that writes an operator_actions row. Unlike the
+ * old business-publisher demo, nothing here is local-only state, so the
+ * panel can ship.
  */
 export default function OperatorScreen() {
-  const [preview, setPreview] = useState(false)
-  const devPreview = process.env.NODE_ENV !== 'production' && preview
-
   return (
     <Providers>
-      <PhoneShell>
-        {devPreview ? <OperatorView /> : <BusinessComingSoon onPreview={() => setPreview(true)} />}
-      </PhoneShell>
+      <AdminPanel />
     </Providers>
   )
 }

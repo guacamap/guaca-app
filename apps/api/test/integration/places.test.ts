@@ -106,6 +106,27 @@ describe('GET /api/places', () => {
     expect(body.name).toBe('Arepera Verificada');
     await app.close();
   });
+  it('admin panel routes: token-gated overview and spotters', async () => {
+    process.env.OPERATOR_TOKEN = 'test-operator-token';
+    const app = buildApp({ pool });
+    const auth = { authorization: 'Bearer test-operator-token' };
+
+    const anon = await app.inject({ method: 'GET', url: '/api/operator/overview' });
+    expect(anon.statusCode).toBe(401);
+
+    const ok = await app.inject({ method: 'GET', url: '/api/operator/overview', headers: auth });
+    expect(ok.statusCode).toBe(200);
+    const body = ok.json() as { verifiedPlaces: number; activeSpotters: number };
+    expect(typeof body.verifiedPlaces).toBe('number');
+    expect(typeof body.activeSpotters).toBe('number');
+
+    const roster = await app.inject({ method: 'GET', url: '/api/operator/spotters', headers: auth });
+    expect(roster.statusCode).toBe(200);
+
+    delete process.env.OPERATOR_TOKEN;
+    await app.close();
+  });
+
   it('GET /api/areas lists areas with honest stats and a bbox', async () => {
     const app = buildApp({ pool });
     const res = await app.inject({ method: 'GET', url: '/api/areas' });

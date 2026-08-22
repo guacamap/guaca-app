@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft } from '@guaca/db';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -932,6 +932,214 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const res = await rejectDraft(options.pool, id, 'operator', body.note ?? '');
     if (!res.ok) return reply.code(res.reason === 'not found' ? 404 : 409).send({ error: res.reason });
     return { draft: res.draft };
+  });
+
+  /*
+   * The admin panel's API — every operator capability the CLI has, behind
+   * the same token, with an audit row for every mutation (the CLI paths
+   * for commission/spotters/payouts never wrote operator_actions; these
+   * routes do, so the panel is the auditable surface).
+   */
+  const audit = async (action: string, targetType: string, targetId: string, extra?: Record<string, unknown>) => {
+    await options.pool.query(
+      `insert into operator_actions (operator, action, target_type, target_id, reason, before_state, after_state)
+       values ('operator', $1, $2, $3, $4, '{}'::jsonb, $5::jsonb)`,
+      [action, targetType, targetId, extra?.note ?? null, JSON.stringify(extra ?? {})],
+    );
+  };
+
+  app.get('/api/operator/overview', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const one = async (sql: string): Promise<number> => {
+      const r = await options.pool.query<{ n: number }>(sql);
+      return Number(r.rows[0]?.n ?? 0);
+    };
+    return {
+      verifiedPlaces: await one(`select count(*)::int as n from places where verification_status='verified' and witness_count>=2`),
+      candidates: await one(`select count(*)::int as n from places where source='osm_candidate'`),
+      openGaps: await one(`select count(*)::int as n from gaps where status='open'`),
+      offeredMissions: await one(`select count(*)::int as n from missions where status='offered'`),
+      verifiedMissions: await one(`select count(*)::int as n from missions where status='verified'`),
+      activeSpotters: await one(`select count(*)::int as n from spotters where active`),
+      properties: await one(`select count(*)::int as n from properties`),
+      questions30d: await one(`select count(*)::int as n from questions where created_at > now() - interval '30 days'`),
+      pendingDrafts: await one(`select count(*)::int as n from candidate_drafts where status='pending'`),
+      pendingEscalations: await one(`select count(*)::int as n from verification_runs where decision='escalated'`),
+      reportedPosts: await one(`select count(*)::int as n from place_post_reports r join place_posts p on p.id=r.post_id where p.status='visible'`),
+      pendingRegistrations: await one(`select count(*)::int as n from registrations where handled_at is null`),
+    };
+  });
+
+  app.get('/api/operator/gaps', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    return { gaps: await rankedGaps(options.pool) };
+  });
+
+  app.post('/api/operator/gaps/:id/commission', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { spotterId?: string; rewardMinor?: number; note?: string };
+    const gap = (await rankedGaps(options.pool)).find((g) => g.id === id);
+    if (!gap) return reply.code(404).send({ error: 'gap not found' });
+    // Default spotter: the first active candidate (the CLI demands a choice;
+    // the panel offers one so a tired operator isn't blocked).
+    let spotterId = body.spotterId ?? null;
+    if (!spotterId) {
+      const first = await options.pool.query<{ id: string }>(
+        `select id from spotters where active order by level desc limit 1`,
+      );
+      spotterId = first.rows[0]?.id ?? null;
+    }
+    if (!spotterId) return reply.code(409).send({ error: 'no active spotter' });
+    const res = await operatorCommission(options.pool, {
+      gapId: id,
+      spotterId,
+      brief: `Mission operador para ${gap.category}`,
+      targetCategory: gap.category,
+      targetH3: gap.h3_8,
+      rewardMinor: body.rewardMinor ?? 300,
+    });
+    await audit('gap.commission', 'gap', id, { ...res, note: body.note });
+    return res;
+  });
+
+  app.get('/api/operator/missions', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { status } = req.query as { status?: string };
+    return { missions: await listMissions(options.pool, status) };
+  });
+
+  app.post('/api/operator/missions/:id/cancel', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { reason?: string };
+    const res = await cancelMission(options.pool, id, 'operator', body.reason ?? 'admin panel');
+    if (!res.ok) return reply.code(404).send({ error: res.reason });
+    return res; // cancelMission writes its own audit row
+  });
+
+  app.post('/api/operator/missions/:id/pay', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const m = await options.pool.query<{ spotter_id: string; reward_minor: number; currency: string; status: string }>(
+      `select spotter_id, reward_minor, currency, status from missions where id = $1`,
+      [id],
+    );
+    if (m.rows.length === 0) return reply.code(404).send({ error: 'mission not found' });
+    const row = m.rows[0]!;
+    const res = await payMission(options.pool, {
+      missionId: id,
+      spotterId: row.spotter_id,
+      amountMinor: row.reward_minor,
+      currency: row.currency,
+    });
+    await audit('mission.pay', 'mission', id, { status: res.status });
+    return res;
+  });
+
+  app.get('/api/operator/spotters', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    return { spotters: await listSpotters(options.pool) };
+  });
+
+  app.post('/api/operator/spotters', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const body = (req.body ?? {}) as { name?: string; phone?: string; areaId?: string };
+    if (!body.name?.trim() || !body.phone?.trim()) {
+      return reply.code(400).send({ error: 'name and phone required' });
+    }
+    const areaId = body.areaId ?? '00000000-0000-4000-8000-00000000000a';
+    const spotter = await addSpotter(options.pool, {
+      name: body.name.trim(),
+      phone: body.phone.trim(),
+      areaId,
+    });
+    await audit('spotter.add', 'spotter', spotter.id, { name: body.name, areaId });
+    return spotter;
+  });
+
+  app.post('/api/operator/spotters/:id/code', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    // Generate here, store only the hash — the API never learns the codes
+    // it did not create, and the panel shows it once for in-person delivery.
+    const { randomInt, createHash } = await import('node:crypto');
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const codeHash = createHash('sha256').update(code).digest('hex');
+    const issued = await issueLoginCode(options.pool, id, codeHash);
+    if (!issued) return reply.code(404).send({ error: 'spotter not found or inactive' });
+    await audit('spotter.issue_code', 'spotter', id, {});
+    return { code }; // shown once — the operator delivers it in person
+  });
+
+  app.get('/api/operator/queue', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    return { queue: await pendingOperatorQueue(options.pool) };
+  });
+
+  app.post('/api/operator/verify/:id', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { decision?: string; note?: string };
+    if (body.decision !== 'approve' && body.decision !== 'reject') {
+      return reply.code(400).send({ error: 'decision must be approve or reject' });
+    }
+    const res = await operatorVerify(options.pool, id, body.decision === 'approve' ? 'APPROVE' : 'REJECT', 'operator', body.note);
+    return res; // operatorVerify writes its own audit row
+  });
+
+  app.get('/api/operator/registrations', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const res = await options.pool.query(
+      `select id, role, name, contact, details, created_at from registrations
+        where handled_at is null order by created_at asc limit 50`,
+    );
+    return { registrations: res.rows };
+  });
+
+  app.post('/api/operator/registrations/:id/handle', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    const body = (req.body ?? {}) as { note?: string };
+    const res = await options.pool.query(
+      `update registrations set handled_at = now(), operator_note = $2 where id = $1 returning id`,
+      [id, body.note ?? null],
+    );
+    if (res.rows.length === 0) return reply.code(404).send({ error: 'not found' });
+    await audit('registration.handle', 'registration', id, { note: body.note });
+    return { ok: true };
+  });
+
+  app.get('/api/operator/posts/reported', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const res = await options.pool.query(
+      `select p.id, p.body, p.status, count(r.id)::int as reports,
+              coalesce(t.email, s.name, 'spotter') as author
+         from place_post_reports r
+         join place_posts p on p.id = r.post_id
+         left join tourists t on t.id = p.tourist_id
+         left join spotters s on s.id = p.spotter_id
+        where p.status = 'visible'
+        group by p.id, p.body, p.status, t.email, s.name
+        order by reports desc limit 50`,
+    );
+    return { posts: res.rows };
+  });
+
+  app.post('/api/operator/posts/:id/hide', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    await options.pool.query(`update place_posts set status = 'hidden' where id = $1`, [id]);
+    await audit('post.hide', 'post', id, {});
+    return { ok: true };
+  });
+
+  app.post('/api/operator/posts/:id/show', async (req, reply) => {
+    if (!requireOperator(req, reply)) return reply;
+    const { id } = req.params as { id: string };
+    await options.pool.query(`update place_posts set status = 'visible' where id = $1`, [id]);
+    await audit('post.show', 'post', id, {});
+    return { ok: true };
   });
 
   // Grounded recommendations: verified places with honestly-earned trend
