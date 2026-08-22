@@ -195,6 +195,25 @@ export function AdminPanel() {
     } catch { /* private mode */ }
   }, []);
 
+  // Auto-lock after 30 minutes of no interaction — an unlocked admin
+  // panel on an unattended screen is the weakest link in the chain.
+  useEffect(() => {
+    if (!authed) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const lock = () => { setAuthed(false); setFlash('Auto-locked after 30 min idle.'); };
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(lock, 30 * 60 * 1000);
+    };
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'] as const;
+    events.forEach((e) => document.addEventListener(e, reset, { passive: true }));
+    reset();
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => document.removeEventListener(e, reset));
+    };
+  }, [authed]);
+
   const api = useCallback(
     async <T,>(method: string, path: string, body?: unknown): Promise<T | null> => {
       setBusy(true);

@@ -294,12 +294,49 @@ export function buildApp(options: AppOptions): FastifyInstance {
    * through timing. 501 when unset — a route that silently accepts because
    * the token is blank would be the worst failure mode.
    */
+  /*
+   * Operator auth, hardened in layers:
+   * 1. IP allowlist (optional, OPERATOR_ALLOWED_IPS) — blocks at the
+   *    network layer before the token is even examined
+   * 2. Brute-force lockout — 10 failures from one IP locks that IP out
+   *    of operator routes for 15 minutes (reset on success)
+   * 3. Timing-safe token comparison (hash-then-compare)
+   * 4. Failed attempts audit-logged — the trail shows who was trying
+   */
+  const operatorFailures = new Map<string, { count: number; lockedUntil: number }>();
+  const OPERATOR_MAX_FAILURES = 10;
+  const OPERATOR_LOCKOUT_MS = 15 * 60 * 1000;
+
+  const clientIp = (req: FastifyRequest): string => {
+    return req.ip ?? 'unknown';
+  };
+
   const requireOperator = (req: FastifyRequest, reply: import('fastify').FastifyReply): boolean => {
     const expected = process.env.OPERATOR_TOKEN;
     if (!expected) {
       reply.code(501).send({ error: 'OPERATOR_TOKEN is not configured' });
       return false;
     }
+
+    // Layer 1: IP allowlist (no cost when unset)
+    const allowed = process.env.OPERATOR_ALLOWED_IPS?.split(',').map((s) => s.trim()).filter(Boolean);
+    if (allowed && allowed.length > 0) {
+      const ip = clientIp(req);
+      if (!allowed.includes(ip) && !allowed.includes('*')) {
+        reply.code(403).send({ error: 'not authorized from this network' });
+        return false;
+      }
+    }
+
+    // Layer 2: lockout check
+    const ip = clientIp(req);
+    const state = operatorFailures.get(ip);
+    if (state && state.lockedUntil > Date.now()) {
+      const waitMin = Math.ceil((state.lockedUntil - Date.now()) / 60000);
+      reply.code(429).send({ error: `locked — try again in ${waitMin} min` });
+      return false;
+    }
+
     const bearer = req.headers.authorization?.startsWith('Bearer ')
       ? req.headers.authorization.slice(7)
       : '';
@@ -309,10 +346,42 @@ export function buildApp(options: AppOptions): FastifyInstance {
         createHash('sha256').update(bearer).digest(),
         createHash('sha256').update(expected).digest(),
       );
+
     if (!ok) {
+      // Layer 2: count the failure
+      const current = operatorFailures.get(ip) ?? { count: 0, lockedUntil: 0 };
+      current.count += 1;
+      if (current.count >= OPERATOR_MAX_FAILURES) {
+        current.lockedUntil = Date.now() + OPERATOR_LOCKOUT_MS;
+        current.count = 0;
+        console.log(JSON.stringify({
+          ts: new Date().toISOString(),
+          level: 'warn',
+          event: 'operator.lockout',
+          agent: 'system',
+          detail: { ip, lockedMinutes: OPERATOR_LOCKOUT_MS / 60000 },
+        }));
+      }
+      operatorFailures.set(ip, current);
+
+      // Layer 4: audit the failed attempt (every 5th to avoid log spam
+      // under sustained attack — the lockout event above catches the rest)
+      if (current.count % 5 === 0) {
+        console.log(JSON.stringify({
+          ts: new Date().toISOString(),
+          level: 'warn',
+          event: 'operator.auth_failed',
+          agent: 'system',
+          detail: { ip, consecutiveFailures: current.count },
+        }));
+      }
+
       reply.code(401).send({ error: 'operator token required' });
       return false;
     }
+
+    // Success: clear the counter
+    operatorFailures.delete(ip);
     return true;
   };
 
