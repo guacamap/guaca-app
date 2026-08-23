@@ -1094,7 +1094,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(429).send({ error: 'rate limited' });
     }
     const existing = await operatorByEmail(options.pool, email);
-    if (!existing) return { ok: true };
+    // The operators table IS the whitelist — only pre-registered emails
+    // get a code. For an internal tool, an explicit error beats the
+    // anti-enumeration silence of consumer apps (and saves a confused
+    // operator who typo'd their own email).
+    if (!existing) {
+      return reply.code(403).send({ error: 'this email is not registered as an operator' });
+    }
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     const codeHash = createHash('sha256').update(code).digest('hex');
     await setOperatorLoginCode(options.pool, email, codeHash, new Date(Date.now() + 10 * 60_000));
