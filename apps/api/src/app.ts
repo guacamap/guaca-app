@@ -1,8 +1,10 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
-import { randomUUID, createHash, timingSafeEqual } from 'node:crypto';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue } from '@guaca/db';
+import { randomUUID, createHash, timingSafeEqual, randomInt } from 'node:crypto';
+import { SignJWT, jwtVerify } from 'jose';
+import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
+  upsertOperator, setOperatorLoginCode, consumeOperatorLoginCode, operatorByEmail } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -311,7 +313,19 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return req.ip ?? 'unknown';
   };
 
-  const requireOperator = (req: FastifyRequest, reply: import('fastify').FastifyReply): boolean => {
+  interface OperatorProfile {
+    id: string; email: string; name: string; role: string;
+  }
+
+  const verifyOperatorJwt = async (bearer: string): Promise<OperatorProfile | null> => {
+    try {
+      const { payload } = await jwtVerify(bearer, sessionSecret());
+      if (payload.role !== 'operator' && payload.role !== 'admin' && payload.role !== 'moderator') return null;
+      return await operatorByEmail(options.pool, String(payload.sub));
+    } catch { return null; }
+  };
+
+  const requireOperator = async (req: FastifyRequest, reply: import('fastify').FastifyReply): Promise<boolean> => {
     const expected = process.env.OPERATOR_TOKEN;
     if (!expected) {
       reply.code(501).send({ error: 'OPERATOR_TOKEN is not configured' });
@@ -340,12 +354,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const bearer = req.headers.authorization?.startsWith('Bearer ')
       ? req.headers.authorization.slice(7)
       : '';
-    const ok =
-      bearer.length > 0 &&
-      timingSafeEqual(
+    let ok = false;
+    if (bearer.length > 0) {
+      const profile = await verifyOperatorJwt(bearer);
+      if (profile) ok = true;
+      else ok = timingSafeEqual(
         createHash('sha256').update(bearer).digest(),
         createHash('sha256').update(expected).digest(),
       );
+    }
 
     if (!ok) {
       // Layer 2: count the failure
@@ -955,7 +972,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
    * anything here — every path requires the operator token.
    */
   app.post('/api/operator/steward/enrich', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const body = (req.body ?? {}) as { limit?: number };
     const limit = Math.max(1, Math.min(Number(body.limit) || 10, 50));
     const inference = await resolveInference();
@@ -979,14 +996,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/operator/steward/drafts', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { status } = req.query as { status?: string };
     const s = status === 'approved' || status === 'rejected' ? status : 'pending';
     return { drafts: await stewardDrafts(options.pool, s) };
   });
 
   app.post('/api/operator/steward/drafts/:id/approve', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const body = (req.body ?? {}) as { note?: string };
     const res = await approveDraft(options.pool, id, 'operator', body.note);
@@ -995,7 +1012,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/operator/steward/drafts/:id/reject', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const body = (req.body ?? {}) as { note?: string };
     const res = await rejectDraft(options.pool, id, 'operator', body.note ?? '');
@@ -1018,28 +1035,28 @@ export function buildApp(options: AppOptions): FastifyInstance {
   };
 
   app.get('/api/operator/map', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     return operatorMapData(options.pool);
   });
 
   app.get('/api/operator/activity', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     return { events: await recentActivity(options.pool) };
   });
 
   app.get('/api/operator/conflicts', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     return { conflicts: await operatorConflicts(options.pool) };
   });
 
   app.get('/api/operator/issues', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { status } = req.query as { status?: string };
     return { issues: await listIssues(options.pool, status) };
   });
 
   app.post('/api/operator/issues', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const body = (req.body ?? {}) as { title?: string; detail?: string; kind?: string; priority?: string };
     if (!body.title || body.title.trim().length < 3) {
       return reply.code(400).send({ error: 'title (3+ chars) required' });
@@ -1055,7 +1072,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/operator/issues/:id/resolve', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const body = (req.body ?? {}) as { status?: string; note?: string };
     const status = body.status === 'wont_fix' ? 'wont_fix' : body.status === 'in_progress' ? 'in_progress' : 'resolved';
@@ -1065,8 +1082,82 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return issue;
   });
 
+  const operatorCodeLimiter = rateLimiter(5, 15 * 60 * 1000);
+
+  app.post('/api/operator/auth/request-code', async (req, reply) => {
+    const body = (req.body ?? {}) as { email?: string };
+    const email = body.email?.trim().toLowerCase();
+    if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+      return reply.code(400).send({ error: 'valid email required' });
+    }
+    if (!operatorCodeLimiter(email)) {
+      return reply.code(429).send({ error: 'rate limited' });
+    }
+    const existing = await operatorByEmail(options.pool, email);
+    if (!existing) return { ok: true };
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const codeHash = createHash('sha256').update(code).digest('hex');
+    await setOperatorLoginCode(options.pool, email, codeHash, new Date(Date.now() + 10 * 60_000));
+    const sender = emailSender ?? createEmailSender();
+    if (sender.mode === 'dev') {
+      console.log(`[operator-auth] login code for ${email}: ${code}`);
+    } else {
+      await sender.sendLoginCode(email, code, 'en');
+    }
+    return { ok: true };
+  });
+
+  app.post('/api/operator/auth/verify', async (req, reply) => {
+    const body = (req.body ?? {}) as { email?: string; code?: string };
+    const email = body.email?.trim().toLowerCase();
+    const code = body.code?.trim();
+    if (!email || !code) return reply.code(400).send({ error: 'email and code required' });
+    const codeHash = createHash('sha256').update(code).digest('hex');
+    const result = await consumeOperatorLoginCode(options.pool, email, codeHash);
+    if (!result.ok || !result.operator) {
+      return reply.code(401).send({ error: result.reason ?? 'invalid code' });
+    }
+    const token = await new SignJWT({
+      sub: result.operator.email,
+      name: result.operator.name,
+      role: result.operator.role,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(sessionSecret());
+    return {
+      ok: true, token,
+      operator: { email: result.operator.email, name: result.operator.name, role: result.operator.role },
+    };
+  });
+
+  app.get('/api/operator/auth/me', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const bearer = req.headers.authorization?.slice(7) ?? '';
+    const profile = await verifyOperatorJwt(bearer);
+    return {
+      operator: profile
+        ? { email: profile.email, name: profile.name, role: profile.role }
+        : { email: 'shared-token', name: 'Operator (shared token)', role: 'operator' },
+    };
+  });
+
+  app.post('/api/operator/auth/register', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const body = (req.body ?? {}) as { email?: string; name?: string; role?: string };
+    if (!body.email?.trim() || !body.name?.trim()) {
+      return reply.code(400).send({ error: 'email and name required' });
+    }
+    const op = await upsertOperator(options.pool, {
+      email: body.email, name: body.name,
+      ...(body.role ? { role: body.role } : {}),
+    });
+    return op;
+  });
+
   app.get('/api/operator/overview', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const one = async (sql: string): Promise<number> => {
       const r = await options.pool.query<{ n: number }>(sql);
       return Number(r.rows[0]?.n ?? 0);
@@ -1088,12 +1179,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/operator/gaps', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     return { gaps: await rankedGaps(options.pool) };
   });
 
   app.post('/api/operator/gaps/:id/commission', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const body = (req.body ?? {}) as { spotterId?: string; rewardMinor?: number; note?: string };
     const gap = (await rankedGaps(options.pool)).find((g) => g.id === id);
@@ -1121,13 +1212,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/operator/missions', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { status } = req.query as { status?: string };
     return { missions: await listMissions(options.pool, status) };
   });
 
   app.post('/api/operator/missions/:id/cancel', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const body = (req.body ?? {}) as { reason?: string };
     const res = await cancelMission(options.pool, id, 'operator', body.reason ?? 'admin panel');
@@ -1136,7 +1227,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/operator/missions/:id/pay', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const m = await options.pool.query<{ spotter_id: string; reward_minor: number; currency: string; status: string }>(
       `select spotter_id, reward_minor, currency, status from missions where id = $1`,
@@ -1155,12 +1246,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/operator/spotters', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     return { spotters: await listSpotters(options.pool) };
   });
 
   app.post('/api/operator/spotters', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const body = (req.body ?? {}) as { name?: string; phone?: string; areaId?: string };
     if (!body.name?.trim() || !body.phone?.trim()) {
       return reply.code(400).send({ error: 'name and phone required' });
@@ -1176,7 +1267,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/operator/spotters/:id/code', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     // Generate here, store only the hash — the API never learns the codes
     // it did not create, and the panel shows it once for in-person delivery.
@@ -1190,12 +1281,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/operator/queue', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     return { queue: await pendingOperatorQueue(options.pool) };
   });
 
   app.post('/api/operator/verify/:id', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const body = (req.body ?? {}) as { decision?: string; note?: string };
     if (body.decision !== 'approve' && body.decision !== 'reject') {
@@ -1206,7 +1297,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/operator/registrations', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const res = await options.pool.query(
       `select id, role, name, contact, details, created_at from registrations
         where handled_at is null order by created_at asc limit 50`,
@@ -1215,7 +1306,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/operator/registrations/:id/handle', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     const body = (req.body ?? {}) as { note?: string };
     const res = await options.pool.query(
@@ -1228,7 +1319,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.get('/api/operator/posts/reported', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const res = await options.pool.query(
       `select p.id, p.body, p.status, count(r.id)::int as reports,
               coalesce(t.email, s.name, 'spotter') as author
@@ -1244,7 +1335,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/operator/posts/:id/hide', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     await options.pool.query(`update place_posts set status = 'hidden' where id = $1`, [id]);
     await audit('post.hide', 'post', id, {});
@@ -1252,7 +1343,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   app.post('/api/operator/posts/:id/show', async (req, reply) => {
-    if (!requireOperator(req, reply)) return reply;
+    if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };
     await options.pool.query(`update place_posts set status = 'visible' where id = $1`, [id]);
     await audit('post.show', 'post', id, {});

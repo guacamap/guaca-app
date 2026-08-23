@@ -163,6 +163,10 @@ interface ReportedPost {
 export function AdminPanel() {
   const [token, setToken] = useState('');
   const [authed, setAuthed] = useState(false);
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [operatorName, setOperatorName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>('map');
 
@@ -247,12 +251,50 @@ export function AdminPanel() {
     [token],
   );
 
-  const loadAll = useCallback(async () => {
-    const o = await api<Overview>('GET', '/api/operator/overview');
-    if (o) {
-      setOverview(o);
+  const requestCode = async () => {
+    setBusy(true); setFlash(null);
+    try {
+      const res = await fetch('/api/operator/auth/request-code', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) { setCodeSent(true); }
+      else { const e = await res.json().catch(() => ({})); setFlash(e.error ?? 'Failed to send code.'); }
+    } catch { setFlash('Cannot reach the API.'); }
+    finally { setBusy(false); }
+  };
+
+  const verifyCode = async () => {
+    setBusy(true); setFlash(null);
+    try {
+      const res = await fetch('/api/operator/auth/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        setFlash(e.error ?? 'Invalid code.');
+        return;
+      }
+      const d = (await res.json()) as { token: string; operator: { name: string; email: string } };
+      setToken(d.token);
+      setOperatorName(d.operator.name);
       setAuthed(true);
-      try { localStorage.setItem(TOKEN_KEY, token); } catch { /* ignore */ }
+      try { localStorage.setItem(TOKEN_KEY, d.token); } catch { /* ignore */ }
+    } catch { setFlash('Cannot reach the API.'); }
+    finally { setBusy(false); }
+  };
+
+  const loadAll = useCallback(async () => {
+    // Check who we are (also validates the stored token)
+    const me = await api<{ operator: { name: string; email: string } }>('GET', '/api/operator/auth/me');
+    if (me) {
+      setOperatorName(me.operator.name);
+      const o = await api<Overview>('GET', '/api/operator/overview');
+      if (o) setOverview(o);
+      setAuthed(true);
     }
   }, [api, token]);
 
@@ -310,22 +352,59 @@ export function AdminPanel() {
           <p className="mt-2 text-center text-[11px] font-semibold leading-relaxed text-guaca-ink/55">
             Operator access only. Every action is audited.
           </p>
-          <Input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="Operator token"
-            aria-label="Operator token"
-            className="mt-4 h-11"
-          />
-          <Button
-            type="button"
-            disabled={busy || token.length === 0}
-            onClick={() => void loadAll()}
-            className="mt-3 h-11 w-full rounded-2xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Unlock'}
-          </Button>
+
+          {!codeSent ? (
+            <>
+              <p className="mt-5 text-[10px] font-black uppercase tracking-[.1em] text-guaca-ink/40">Email</p>
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@guaca.live"
+                aria-label="Email"
+                className="mt-1.5 h-11"
+                onKeyDown={(e) => { if (e.key === 'Enter' && email.includes('@')) void requestCode(); }}
+              />
+              <Button
+                type="button"
+                disabled={busy || !email.includes('@')}
+                onClick={() => void requestCode()}
+                className="mt-3 h-11 w-full rounded-2xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send code'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="mt-5 text-[10px] font-black uppercase tracking-[.1em] text-guaca-ink/40">
+                Code sent to {email}
+              </p>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="6-digit code"
+                aria-label="6-digit code"
+                className="mt-1.5 h-11 text-center text-lg tracking-[.4em]"
+                onKeyDown={(e) => { if (e.key === 'Enter' && code.length === 6) void verifyCode(); }}
+              />
+              <Button
+                type="button"
+                disabled={busy || code.length !== 6}
+                onClick={() => void verifyCode()}
+                className="mt-3 h-11 w-full rounded-2xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setCodeSent(false); setCode(''); setFlash(null); }}
+                className="mt-2 w-full py-2 text-[10px] font-bold text-guaca-ink/40 underline-offset-2 hover:underline"
+              >
+                ← use a different email
+              </button>
+            </>
+          )}
+
           {flash && <p className="mt-2 text-center text-[11px] font-bold text-guaca-coral-dark">{flash}</p>}
         </div>
       </div>
@@ -347,6 +426,7 @@ export function AdminPanel() {
       <aside className="flex w-56 shrink-0 flex-col border-r border-guaca-sand bg-white/60 px-4 py-6">
         <GuacaLogo className="h-8" />
         <p className="mt-1 text-[10px] font-bold text-guaca-ink/40">Admin console</p>
+        {operatorName && <p className="text-[9px] font-bold text-guaca-teal">{operatorName}</p>}
 
         <nav className="mt-8 space-y-1">
           {TABS.map(({ id, label, icon: Icon }) => (
@@ -380,7 +460,7 @@ export function AdminPanel() {
           )}
           <button
             type="button"
-            onClick={() => { setAuthed(false); setToken(''); try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ } }}
+            onClick={() => { setAuthed(false); setToken(''); setOperatorName(null); setCodeSent(false); setCode(''); setEmail(''); try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ } }}
             className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-guaca-ink/6 px-3 py-2 text-[10px] font-black text-guaca-ink/50 hover:bg-guaca-coral/10 hover:text-guaca-coral-dark"
           >
             <Lock className="h-3 w-3" /> Lock panel
