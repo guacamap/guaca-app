@@ -18,11 +18,12 @@ const nextConfig = {
               "default-src 'self'",
               // Next.js needs inline scripts for hydration; 'unsafe-inline'
               // for styles only (Tailwind injects at build)
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://api.mapbox.com https://*.tiles.mapbox.com",
               "font-src 'self'",
-              "connect-src 'self' https://api.mapbox.com",
+              "connect-src 'self' https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com",
+              "worker-src 'self' blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
