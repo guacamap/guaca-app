@@ -38,8 +38,19 @@ jobs:
           docker run -d --name guaca-ci-db \
             -e POSTGRES_USER=guaca -e POSTGRES_PASSWORD=guaca -e POSTGRES_DB=guaca \
             -p 5432:5432 guaca-postgres:ci
-          for i in $(seq 1 30); do
-            docker exec guaca-ci-db pg_isready -U guaca -d guaca && break
+          # -h forces a TCP check. Without it pg_isready answers over the
+          # unix socket while initdb is still running — before the guaca
+          # database exists — so the loop breaks early and the psql below
+          # exits 2 ("could not connect"). Same trap already fixed in
+          # docker-compose.prod.yml. Fail loudly if it never comes up:
+          # falling through silently is what made this opaque.
+          for i in $(seq 1 60); do
+            docker exec guaca-ci-db pg_isready -h 127.0.0.1 -U guaca -d guaca && break
+            if [ "$i" -eq 60 ]; then
+              echo "Postgres never became ready — container log follows:"
+              docker logs guaca-ci-db
+              exit 1
+            fi
             sleep 2
           done
           docker exec guaca-ci-db psql -U guaca -d guaca -c \
