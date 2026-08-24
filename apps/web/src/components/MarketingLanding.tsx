@@ -115,17 +115,17 @@ export function MarketingLanding() {
               </div>
             </div>
 
-            <div className="relative mx-auto h-[560px] w-full max-w-[590px] max-lg:mt-4">
-              <div className="landing-phone landing-phone-tourist absolute left-[3%] top-3 h-[520px] w-[260px] overflow-hidden rounded-[42px] border-[8px] border-[#111] bg-guaca-paper shadow-2xl sm:left-[10%]">
-                <div className="landing-island" />
-                {/* A real screenshot of the running app — Puerto Cabello with
-                    its candidate dots — rather than a composed mock. */}
-                <img src="/assets/landing-phone-tourist.jpg" width="640" height="1371" alt={t.phoneTourist.imgAlt} className="h-full w-full object-cover object-top" />
-              </div>
-              <div className="landing-phone landing-phone-spotter absolute right-[1%] top-16 h-[500px] w-[250px] overflow-hidden rounded-[42px] border-[8px] border-[#111] bg-guaca-paper shadow-2xl sm:right-[6%]">
-                <div className="landing-island" />
-                <img src="/assets/landing-phone-spotter.jpg" width="640" height="1371" alt={t.phoneSpotter.imgAlt} className="h-full w-full object-cover object-top" />
-              </div>
+            <div className="relative mx-auto w-full max-w-[760px] max-lg:mt-4">
+              {/* Concept render of the product: both phones, the live cards
+                  and the backdrop are one transparent PNG, so it drops onto
+                  the hero gradient without a seam. */}
+              <img
+                src="/assets/landing-hero-app.webp"
+                width="1400"
+                height="933"
+                alt={t.phoneTourist.imgAlt}
+                className="h-auto w-full"
+              />
             </div>
           </div>
         </section>
