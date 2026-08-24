@@ -83,12 +83,12 @@ export function MarketingLanding() {
       </header>
 
       <main id="top">
-        <section className="landing-hero relative isolate overflow-hidden pt-28">
+        <section className="landing-hero relative isolate overflow-hidden pt-24 sm:pt-28">
           <div className="landing-hero-glow absolute inset-0 -z-20" />
           <div className="landing-hero-contours absolute inset-0 -z-10" aria-hidden="true" />
-          <PalmFrondLeft className="landing-palm-shadow pointer-events-none absolute -left-10 -top-12 -z-10 h-[380px] w-[300px]" />
-          <div className="mx-auto grid min-h-[710px] w-[min(1180px,calc(100%_-_32px))] items-center gap-8 px-4 pb-16 sm:px-0 lg:grid-cols-[.92fr_1.08fr]">
-            <div className="max-w-xl pt-8">
+          <PalmFrondLeft className="landing-palm-shadow pointer-events-none absolute -left-10 -top-12 -z-10 hidden h-[380px] w-[300px] sm:block" />
+          <div className="mx-auto grid min-h-[560px] w-[min(1180px,calc(100%_-_32px))] items-center gap-6 px-4 pb-10 sm:min-h-[640px] sm:gap-8 sm:px-0 sm:pb-16 lg:min-h-[710px] lg:grid-cols-[.92fr_1.08fr]">
+            <div className="max-w-xl pt-2 sm:pt-8">
               <p className="inline-flex items-center gap-2 rounded-full border border-guaca-teal/12 bg-white/76 px-3 py-2 text-[10px] font-black tracking-[.08em] text-guaca-ocean shadow-sm backdrop-blur">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" />
                 {t.hero.badge}
@@ -115,7 +115,7 @@ export function MarketingLanding() {
               </div>
             </div>
 
-            <div className="relative mx-auto w-full max-w-[760px] max-lg:mt-4">
+            <div className="relative mx-auto w-full max-w-[760px] max-lg:mt-1">
               {/* Concept render of the product: both phones, the live cards
                   and the backdrop are one transparent PNG, so it drops onto
                   the hero gradient without a seam. */}
