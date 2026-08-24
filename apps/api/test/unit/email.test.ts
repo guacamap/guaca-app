@@ -49,14 +49,36 @@ describe('waitlistConfirmation template', () => {
     }
   });
 
-  it('adapts one line to the role and never leaks HTML into it', async () => {
+  it('sends a genuinely different email per role, in both languages', async () => {
     const { waitlistConfirmation } = await import('../../src/emailTemplates.js');
-    const spotter = waitlistConfirmation({ role: 'spotter', language: 'en', siteUrl: 'https://guaca.live' });
-    const owner = waitlistConfirmation({ role: 'owner', language: 'en', siteUrl: 'https://guaca.live' });
-    expect(spotter.text).toContain('local spotter');
-    expect(owner.text).toContain('business');
-    // an unknown role falls back rather than throwing
-    expect(() => waitlistConfirmation({ role: '<img>', language: 'en', siteUrl: 'https://guaca.live' })).not.toThrow();
+    for (const language of ['en', 'es']) {
+      const t = waitlistConfirmation({ role: 'traveler', language, siteUrl: 'https://guaca.live' });
+      const s = waitlistConfirmation({ role: 'spotter', language, siteUrl: 'https://guaca.live' });
+      const o = waitlistConfirmation({ role: 'owner', language, siteUrl: 'https://guaca.live' });
+      // subject, headline and props all differ
+      expect(new Set([t.subject, s.subject, o.subject]).size).toBe(3);
+      expect(new Set([t.text.split('\n')[0], s.text.split('\n')[0], o.text.split('\n')[0]]).size).toBe(3);
+      // the promise paragraph is the one thing shared by all three
+      const promise = language === 'es' ? 'Gracias por unirte a Guaca.' : 'Thanks for joining Guaca.';
+      for (const b of [t, s, o]) expect(b.text).toContain(promise);
+    }
+  });
+
+  it('tells a spotter about missions and two witnesses, and a business about claiming', async () => {
+    const { waitlistConfirmation } = await import('../../src/emailTemplates.js');
+    const s = waitlistConfirmation({ role: 'spotter', language: 'en', siteUrl: 'https://guaca.live' });
+    const o = waitlistConfirmation({ role: 'owner', language: 'en', siteUrl: 'https://guaca.live' });
+    expect(s.text).toMatch(/missions/i);
+    expect(s.text).toMatch(/two spotters confirm/i);
+    expect(o.text).toMatch(/claim your place/i);
+    expect(o.text).not.toMatch(/missions/i);
+  });
+
+  it('treats an unknown role as a traveller instead of throwing', async () => {
+    const { waitlistConfirmation } = await import('../../src/emailTemplates.js');
+    const weird = waitlistConfirmation({ role: '<img onerror=x>', language: 'en', siteUrl: 'https://guaca.live' });
+    expect(weird.text).toContain('You joined as a traveller.');
+    expect(weird.html).not.toContain('<img onerror');
   });
 
   it('keeps the plain-text part free of markup', async () => {

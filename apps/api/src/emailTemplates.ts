@@ -50,43 +50,23 @@ export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
   const site = input.siteUrl.replace(/\/$/, '');
   const assets = (input.assetUrl ?? input.siteUrl).replace(/\/$/, '') + '/api/assets/email';
 
-  const roleLine: Record<string, [string, string]> = {
-    traveler: [
-      'You joined as a traveller.',
-      'Te uniste como viajero.',
-    ],
-    spotter: [
-      'You joined as a local spotter, one of the people who keep the map true.',
-      'Te uniste como spotter local, una de las personas que mantienen el mapa fiel.',
-    ],
-    owner: [
-      'You joined as a business. We will write when businesses can join in your area.',
-      'Te uniste como negocio. Te escribiremos cuando los negocios puedan unirse en tu zona.',
-    ],
-  };
-  const [roleEn, roleEs] = roleLine[input.role] ?? roleLine.traveler!;
+  type Role = 'traveler' | 'spotter' | 'owner';
+  const role: Role = input.role === 'spotter' || input.role === 'owner' ? input.role : 'traveler';
 
-  const t = es
+  /*
+   * Three people sign up for three different reasons, so three emails.
+   * What stays shared is the promise (Rob's message paragraph), the launch
+   * card and the footer. What changes is everything that answers "what
+   * happens to ME now": subject, headline, the second paragraph, the CTA
+   * note, and the four value props.
+   */
+  const shared = es
     ? {
-        subject: 'Estás en la lista de Guaca 🌴',
-        pill: 'ESTÁS EN LA LISTA DE ESPERA',
-        title: '¡Gracias por unirte a la lista de espera de Guaca!',
         lede:
           'Gracias por unirte a Guaca. Estamos construyendo un mapa vivo del Caribe hecho por personas que realmente están allí: locales que verifican qué está abierto, qué vale la pena visitar y qué ha cambiado, antes de que te llegue a ti.',
-        lede2:
-          'A medida que abrimos cobertura comunidad por comunidad, te avisaremos cuando Guaca esté lista en tu zona. Hasta entonces, ya estás oficialmente en la lista, y un poco más cerca de explorar el Caribe con información en la que puedes confiar.',
-        role: roleEs,
-        cta: '🎉 Estás en la lista',
-        ctaNote: 'Te escribiremos en cuanto abramos en tu zona.',
         whatTitle: '¿Qué es Guaca?',
         whatLede:
           'Un mapa hecho por la comunidad que ayuda a viajeros y locales a descubrir qué está abierto, qué está pasando y qué vale la pena, ahora mismo.',
-        props: [
-          ['Actualizaciones en vivo', 'Información real de personas que están en el lugar.'],
-          ['La comunidad primero', 'Locales y viajeros trabajando juntos.'],
-          ['Gana puntos', 'Completa misiones, suma puntos y desbloquea recompensas.'],
-          ['Verificado por dos locales', 'Un lugar solo aparece cuando dos personas lo confirman en el sitio.'],
-        ] as [string, string][],
         launchTitle: 'Sé parte del lanzamiento',
         launchBody:
           'Estamos construyendo Guaca para la comunidad caribeña. Tu apoyo temprano nos ayuda a crecer algo útil, honesto y local.',
@@ -97,25 +77,11 @@ export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
         alt: 'La app de Guaca: el mapa de Puerto Cabello con lugares verificados y el perfil de un spotter',
       }
     : {
-        subject: "You're on the Guaca waitlist 🌴",
-        pill: "YOU'RE ON THE WAITLIST",
-        title: 'Thanks for joining the Guaca waitlist!',
         lede:
           "Thanks for joining Guaca. We're building a live Caribbean map powered by people who are actually there: locals verify what's open, what's worth visiting, and what's changed before it reaches you.",
-        lede2:
-          "As we open coverage community by community, we'll let you know when Guaca is ready in your area. Until then, you're officially on the list, and a little closer to exploring the Caribbean with information you can actually trust.",
-        role: roleEn,
-        cta: "🎉 You're on the list",
-        ctaNote: "We'll email you as soon as we open in your area.",
         whatTitle: 'What is Guaca?',
         whatLede:
           "A community-powered map that helps travellers and locals discover what's open, what's happening, and what's worth it, right now.",
-        props: [
-          ['Live updates', 'Real information from people on the ground.'],
-          ['Community first', 'Locals and travellers working together.'],
-          ['Earn points', 'Complete missions, earn points, unlock rewards.'],
-          ['Verified by two locals', 'A place only appears once two people confirm it in person.'],
-        ] as [string, string][],
         launchTitle: 'Be part of the launch',
         launchBody:
           "We're building Guaca for the Caribbean community. Your early support helps us grow something useful, honest and local.",
@@ -125,6 +91,116 @@ export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
         footer2: "If you didn't sign up for this, you can safely ignore this email.",
         alt: 'The Guaca app: the Puerto Cabello map with verified places, and a spotter profile',
       };
+
+  type Props = [string, string][];
+  interface RoleCopy {
+    subject: string; pill: string; title: string; lede2: string; role: string;
+    cta: string; ctaNote: string; props: Props;
+  }
+
+  const byRole: Record<Role, RoleCopy> = es
+    ? {
+        traveler: {
+          subject: 'Estás en la lista de Guaca 🌴',
+          pill: 'ESTÁS EN LA LISTA DE ESPERA',
+          title: '¡Gracias por unirte a la lista de espera de Guaca!',
+          lede2:
+            'A medida que abrimos cobertura comunidad por comunidad, te avisaremos cuando Guaca esté lista en tu zona. Hasta entonces, ya estás oficialmente en la lista, y un poco más cerca de explorar el Caribe con información en la que puedes confiar.',
+          role: 'Te uniste como viajero.',
+          cta: '🎉 Estás en la lista',
+          ctaNote: 'Te escribiremos en cuanto abramos en tu zona.',
+          props: [
+            ['Actualizaciones en vivo', 'Información real de personas que están en el lugar.'],
+            ['Pregúntale a Guaca', 'Planes con lugares que un local ya comprobó, nunca inventados.'],
+            ['Verificado por dos locales', 'Un lugar solo aparece cuando dos personas lo confirman en el sitio.'],
+            ['Guarda y comparte', 'Favoritos, reseñas de lo que visitaste y planes para compartir.'],
+          ],
+        },
+        spotter: {
+          subject: 'Bienvenido a los Spotters de Guaca 📍',
+          pill: 'SPOTTER EN LISTA DE ESPERA',
+          title: '¡Gracias por querer mantener el mapa fiel!',
+          lede2:
+            'Como spotter, tú eres la fuente. Cuando abramos tu comunidad te enviaremos un código de acceso por WhatsApp, y desde ese momento recibirás misiones: ir a un lugar, tomar unas fotos y confirmar qué encontraste. Un lugar solo aparece en el mapa cuando dos spotters lo confirman, así que tu trabajo es literalmente lo que hace que Guaca sea confiable.',
+          role: 'Te uniste como spotter local, una de las personas que mantienen el mapa fiel.',
+          cta: '📍 Estás en la lista de spotters',
+          ctaNote: 'Te escribiremos con tu código cuando abramos tu comunidad.',
+          props: [
+            ['Misiones', 'Te proponemos lugares cerca de ti que alguien preguntó y nadie ha comprobado.'],
+            ['Dos testigos', 'Tu verificación cuenta cuando otro spotter la confirma. Así nadie inventa nada.'],
+            ['Puntos y niveles', 'Cada lugar verificado suma puntos, sube tu nivel y se canjea en la tienda.'],
+            ['Tu nombre en el pin', 'Cada lugar que verifiques lleva tu nombre. La reputación es tuya.'],
+          ],
+        },
+        owner: {
+          subject: 'Tu negocio y Guaca 🏝️',
+          pill: 'NEGOCIO EN LISTA DE ESPERA',
+          title: '¡Gracias por querer poner tu negocio en el mapa!',
+          lede2:
+            'Los negocios aún no pueden unirse directamente: estamos abriendo comunidad por comunidad, y te escribiremos en cuanto puedas reclamar tu lugar en tu zona. Mientras tanto, si un spotter local ya verificó tu negocio, es posible que ya esté en el mapa, y los viajeros ya pueden estar preguntando por él.',
+          role: 'Te uniste como negocio.',
+          cta: '🏝️ Estás en la lista',
+          ctaNote: 'Te avisaremos cuando los negocios puedan unirse en tu zona.',
+          props: [
+            ['Aparece en el mapa', 'Los viajeros te encuentran cuando preguntan qué hay cerca.'],
+            ['Verificado por un local', 'Un spotter confirma tu negocio en persona. Eso es lo que genera confianza.'],
+            ['Estado en vivo', 'Abierto, cerrado, horarios: la información que cambia, actualizada.'],
+            ['Novedades a los viajeros', 'Publica cambios y llegan a quien está cerca.'],
+          ],
+        },
+      }
+    : {
+        traveler: {
+          subject: "You're on the Guaca waitlist 🌴",
+          pill: "YOU'RE ON THE WAITLIST",
+          title: 'Thanks for joining the Guaca waitlist!',
+          lede2:
+            "As we open coverage community by community, we'll let you know when Guaca is ready in your area. Until then, you're officially on the list, and a little closer to exploring the Caribbean with information you can actually trust.",
+          role: 'You joined as a traveller.',
+          cta: "🎉 You're on the list",
+          ctaNote: "We'll email you as soon as we open in your area.",
+          props: [
+            ['Live updates', 'Real information from people on the ground.'],
+            ['Ask Guaca', 'Plans built only from places a local has checked, never invented.'],
+            ['Verified by two locals', 'A place only appears once two people confirm it in person.'],
+            ['Save and share', 'Favourites, reviews of places you visited, and plans you can share.'],
+          ],
+        },
+        spotter: {
+          subject: 'Welcome to the Guaca Spotters 📍',
+          pill: 'SPOTTER ON THE WAITLIST',
+          title: 'Thanks for wanting to keep the map true!',
+          lede2:
+            "As a spotter, you are the source. When we open your community we'll send you a login code by WhatsApp, and from then on you'll receive missions: go to a place, take a few photos, and confirm what you found. A place only appears on the map once two spotters confirm it, so your work is literally what makes Guaca trustworthy.",
+          role: 'You joined as a local spotter, one of the people who keep the map true.',
+          cta: "📍 You're on the spotter list",
+          ctaNote: "We'll write with your code when we open your community.",
+          props: [
+            ['Missions', "We suggest places near you that someone asked about and nobody has checked."],
+            ['Two witnesses', 'Your verification counts once another spotter confirms it. Nobody invents anything.'],
+            ['Points and levels', 'Every verified place earns points, raises your level, and redeems in the store.'],
+            ['Your name on the pin', 'Every place you verify carries your name. The reputation is yours.'],
+          ],
+        },
+        owner: {
+          subject: 'Your business and Guaca 🏝️',
+          pill: 'BUSINESS ON THE WAITLIST',
+          title: 'Thanks for wanting to put your business on the map!',
+          lede2:
+            "Businesses can't join directly yet: we're opening community by community, and we'll write as soon as you can claim your place in your area. In the meantime, if a local spotter has already verified your business, it may already be on the map, and travellers may already be asking about it.",
+          role: 'You joined as a business.',
+          cta: "🏝️ You're on the list",
+          ctaNote: "We'll tell you when businesses can join in your area.",
+          props: [
+            ['Appear on the map', 'Travellers find you when they ask what is nearby.'],
+            ['Verified by a local', 'A spotter confirms your business in person. That is what builds trust.'],
+            ['Live status', 'Open, closed, hours: the information that changes, kept current.'],
+            ['Updates reach travellers', 'Post a change and it reaches whoever is nearby.'],
+          ],
+        },
+      };
+
+  const t = { ...shared, ...byRole[role] };
 
   const text = [
     t.title,
