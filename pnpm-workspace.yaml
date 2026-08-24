@@ -5,3 +5,24 @@ allowBuilds:
   esbuild: true
   msw: true
   sharp: true
+
+# pnpm 11 reads overrides HERE, not from the "pnpm" field in package.json
+# (which it now ignores with a warning). These pin transitive dependencies
+# past known high-severity advisories that the direct deps have not yet
+# picked up; drop each one when the parent ships a patched range.
+overrides:
+  nanoid: '>=3.3.18'
+  postcss: '>=8.5.18'
+  sharp: '>=0.35.0'
+  vite: '>=6.4.3'
+
+# Advisories with NO published fix, kept explicit so the audit gate stays
+# meaningful instead of being switched off. image-size 2.0.3 does not exist
+# yet (2.0.2 is latest) and both paths are Expo DEV tooling
+# (expo > @expo/cli > @expo/log-box), not code shipped to a device.
+# Delete these the moment a patched image-size ships.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-w3rx-r6r6-pgpr
+    - GHSA-5p2g-fcmc-qvqq
+
