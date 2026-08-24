@@ -79,8 +79,23 @@ export interface LandingCopy {
     lede: string
     steps: [string, string, string]
     cardLede: string
-    cardCta: string
-    cardNote: string
+    form: {
+      roleLabel: string
+      roleTraveler: string
+      roleSpotter: string
+      roleOwner: string
+      name: string
+      contact: string
+      where: string
+      wherePlaceholder: string
+      submit: string
+      submitting: string
+      successTitle: string
+      successBody: string
+      errorRequired: string
+      errorRateLimited: string
+      errorGeneric: string
+    }
   }
   businesses: { title: string; lede: string; comingSoon: string }
   footer: string
@@ -194,9 +209,24 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       title: 'Help decide where Guaca grows next.',
       lede: 'Tell us your role and the Caribbean community that matters to you. We’ll use the waitlist to prioritise real local demand—not pretend the whole region is already covered.',
       steps: ['Choose your role', 'Name your community', 'Hear from us when coverage is ready'],
-      cardLede: 'The waitlist runs on a short form — your role, your community, about a minute.',
-      cardCta: 'Open the waitlist form',
-      cardNote: 'Opens Google Forms',
+      cardLede: 'Your role, your community, about a minute.',
+      form: {
+        roleLabel: 'I am a',
+        roleTraveler: 'Traveller',
+        roleSpotter: 'Local spotter',
+        roleOwner: 'Villa owner',
+        name: 'Your name',
+        contact: 'Email or phone',
+        where: 'Which community?',
+        wherePlaceholder: 'e.g. Isla de Margarita',
+        submit: 'Join the waitlist',
+        submitting: 'Sending…',
+        successTitle: 'You’re on the list.',
+        successBody: 'We’ll write to you as soon as Guaca opens in your community.',
+        errorRequired: 'Please add your name and a way to reach you.',
+        errorRateLimited: 'Too many signups from this connection. Please try again later.',
+        errorGeneric: 'Something went wrong. Please try again.',
+      },
     },
     businesses: {
       title: 'Want to see how the product works?',
@@ -312,9 +342,24 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       title: 'Ayuda a decidir dónde crece Guaca.',
       lede: 'Cuéntanos tu rol y la comunidad caribeña que te importa. Usaremos la lista de espera para priorizar demanda local real, no para fingir que toda la región ya está cubierta.',
       steps: ['Elige tu rol', 'Nombra tu comunidad', 'Te avisamos cuando la cobertura esté lista'],
-      cardLede: 'La lista de espera funciona con un formulario corto: tu rol, tu comunidad, un minuto.',
-      cardCta: 'Abrir el formulario',
-      cardNote: 'Se abre en Google Forms',
+      cardLede: 'Tu rol, tu comunidad, un minuto.',
+      form: {
+        roleLabel: 'Soy',
+        roleTraveler: 'Viajero',
+        roleSpotter: 'Spotter local',
+        roleOwner: 'Anfitrión',
+        name: 'Tu nombre',
+        contact: 'Email o teléfono',
+        where: '¿Qué comunidad?',
+        wherePlaceholder: 'ej. Isla de Margarita',
+        submit: 'Unirme a la lista',
+        submitting: 'Enviando…',
+        successTitle: 'Estás en la lista.',
+        successBody: 'Te escribiremos en cuanto Guaca abra en tu comunidad.',
+        errorRequired: 'Añade tu nombre y una forma de contactarte.',
+        errorRateLimited: 'Demasiados registros desde esta conexión. Inténtalo más tarde.',
+        errorGeneric: 'Algo salió mal. Inténtalo de nuevo.',
+      },
     },
     businesses: {
       title: '¿Quieres ver cómo funciona el producto?',

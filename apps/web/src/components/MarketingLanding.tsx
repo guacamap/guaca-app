@@ -23,10 +23,9 @@ import { GuacaMap } from '@guaca/ui'
 import { PalmFrondLeft } from '@guaca/ui'
 import { formatUpdateTime, useInfoStore } from '@guaca/ui'
 import { useLanguage, type Lang } from '@guaca/ui'
+import { JoinWaitlist } from '@/components/JoinWaitlist'
 import { landingCopy } from '@/lib/landingCopy'
 
-const WAITLIST_FORM_URL =
-  'https://docs.google.com/forms/d/e/1FAIpQLSf-y0xwBbCw77P6zTjgxqG6HaGVZCDmRQU-cTvpTB6kNf0_rg/viewform'
 
 const roleMeta = [
   { id: 'tourist' as const, icon: Compass, tone: 'bg-guaca-teal/8 text-guaca-teal' },
@@ -234,18 +233,7 @@ export function MarketingLanding() {
         <section id="waitlist" className="scroll-mt-4 bg-guaca-teal py-24 text-white">
           <div className="mx-auto grid w-[min(1080px,calc(100%_-_32px))] items-center gap-12 px-4 sm:px-0 lg:grid-cols-[.85fr_1.15fr]">
             <div><p className="text-xs font-black uppercase tracking-[.12em] text-guaca-mango-light">{t.waitlist.eyebrow}</p><h2 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl">{t.waitlist.title}</h2><p className="mt-5 max-w-lg leading-7 text-white/76">{t.waitlist.lede}</p><div className="mt-8 space-y-3 text-sm font-bold text-white/80">{t.waitlist.steps.map((label, index) => <div key={label} className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-white/12 text-[10px] text-guaca-mango-light">{String(index + 1).padStart(2, '0')}</span><span>{label}</span></div>)}</div></div>
-            <div className="flex flex-col justify-center gap-6 rounded-[32px] bg-white/10 p-8 ring-1 ring-white/15 backdrop-blur-sm">
-              <p className="text-sm font-bold leading-6 text-white/80">
-                {t.waitlist.cardLede}
-              </p>
-              <a
-                href={WAITLIST_FORM_URL}
-                className="inline-flex h-14 items-center justify-center rounded-xl bg-white px-8 text-sm font-extrabold text-guaca-ocean-deep shadow-xl transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-guaca-teal"
-              >
-                {t.waitlist.cardCta} <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
-              </a>
-              <p className="text-xs font-semibold text-white/55">{t.waitlist.cardNote}</p>
-            </div>
+            <JoinWaitlist t={t.waitlist} lang={lang} />
           </div>
         </section>
 
