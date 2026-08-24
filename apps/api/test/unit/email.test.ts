@@ -34,3 +34,34 @@ describe('createEmailSender', () => {
     expect(sender.mode).toBe('live');
   });
 });
+
+describe('waitlistConfirmation template', () => {
+  it('renders both languages with the same structure', async () => {
+    const { waitlistConfirmation } = await import('../../src/emailTemplates.js');
+    const en = waitlistConfirmation({ role: 'traveler', language: 'en', siteUrl: 'https://guaca.live' });
+    const es = waitlistConfirmation({ role: 'traveler', language: 'es', siteUrl: 'https://guaca.live' });
+    expect(en.subject).toMatch(/waitlist/i);
+    expect(es.subject).toMatch(/lista/i);
+    for (const b of [en, es]) {
+      expect(b.html).toContain('https://guaca.live/assets/email-hero-app.jpg');
+      expect(b.html).toContain('https://guaca.live/brand/guaca-wordmark.png');
+      expect(b.text.length).toBeGreaterThan(200);
+    }
+  });
+
+  it('adapts one line to the role and never leaks HTML into it', async () => {
+    const { waitlistConfirmation } = await import('../../src/emailTemplates.js');
+    const spotter = waitlistConfirmation({ role: 'spotter', language: 'en', siteUrl: 'https://guaca.live' });
+    const owner = waitlistConfirmation({ role: 'owner', language: 'en', siteUrl: 'https://guaca.live' });
+    expect(spotter.text).toContain('local spotter');
+    expect(owner.text).toContain('business');
+    // an unknown role falls back rather than throwing
+    expect(() => waitlistConfirmation({ role: '<img>', language: 'en', siteUrl: 'https://guaca.live' })).not.toThrow();
+  });
+
+  it('keeps the plain-text part free of markup', async () => {
+    const { waitlistConfirmation } = await import('../../src/emailTemplates.js');
+    const b = waitlistConfirmation({ role: 'traveler', language: 'en', siteUrl: 'https://guaca.live' });
+    expect(b.text).not.toMatch(/<[a-z]/i);
+  });
+});

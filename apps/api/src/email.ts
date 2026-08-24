@@ -3,6 +3,8 @@
  * stdout); prod uses Resend when RESEND_API_KEY is set. Swapping providers
  * is a config change, never a code change elsewhere.
  */
+import { waitlistConfirmation } from './emailTemplates.js';
+
 export interface EmailSender {
   /** 'dev' = codes are logged, not delivered — enables the local bypass. */
   mode?: 'dev' | 'live';
@@ -50,11 +52,13 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
     };
   }
   const from = env.EMAIL_FROM ?? 'Guaca <login@guaca.live>';
-  const send = async (to: string, subject: string, text: string) => {
+  const send = async (to: string, subject: string, text: string, html?: string) => {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ from, to: [to], subject, text }),
+      // Always ship the text part too: it is what strict clients, watches
+      // and screen readers show, and it keeps spam scoring honest.
+      body: JSON.stringify({ from, to: [to], subject, text, ...(html ? { html } : {}) }),
     });
     if (!res.ok) throw new Error(`resend failed: ${res.status}`);
   };
@@ -81,23 +85,12 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
       );
     },
     async sendWaitlistConfirmation(email, role, language) {
-      const es = language === 'es';
-      // Deliberately makes ONE promise — that we write when Guaca opens where
-      // they are. Nothing about dates, because the roadmap is demand-driven.
-      const who: Record<string, [string, string]> = {
-        traveler: ['as a traveller', 'como viajero'],
-        spotter: ['as a local spotter', 'como spotter local'],
-        owner: ['as a villa owner', 'como anfitrión'],
-      };
-      const role_es = (who[role] ?? who.traveler!)[1];
-      const role_en = (who[role] ?? who.traveler!)[0];
-      await send(
-        email,
-        es ? 'Estás en la lista de Guaca' : "You're on the Guaca waitlist",
-        es
-          ? `Gracias por unirte ${role_es}. Te escribiremos en cuanto Guaca abra en tu zona. Mientras tanto, cada lugar en Guaca lo verifica una persona local — nunca lo inventa una IA.`
-          : `Thanks for joining ${role_en}. We'll write to you as soon as Guaca opens in your area. In the meantime: every place in Guaca is verified by a local who went there — never invented by an AI.`,
-      );
+      const body = waitlistConfirmation({
+        role,
+        language,
+        siteUrl: env.NEXT_PUBLIC_LANDING_URL ?? env.LANDING_URL ?? 'https://guaca.live',
+      });
+      await send(email, body.subject, body.text, body.html);
     },
   };
 }
