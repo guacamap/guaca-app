@@ -29,8 +29,10 @@ export interface WaitlistEmailInput {
   /** traveler, spotter or owner: shapes one sentence in the body. */
   role: string;
   language: string;
-  /** Where hosted assets live; the logo and hero are pulled from here. */
+  /** Public site, used for links in the body and footer. */
   siteUrl: string;
+  /** Origin that serves /api/assets/email/*; defaults to the site. */
+  assetUrl?: string;
 }
 
 export interface EmailBody {
@@ -46,6 +48,7 @@ function escapeHtml(s: string): string {
 export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
   const es = input.language === 'es';
   const site = input.siteUrl.replace(/\/$/, '');
+  const assets = (input.assetUrl ?? input.siteUrl).replace(/\/$/, '') + '/api/assets/email';
 
   const roleLine: Record<string, [string, string]> = {
     traveler: [
@@ -189,7 +192,7 @@ export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
 
   <!-- logo -->
   <tr><td class="pad" style="padding:36px 40px 0;">
-    <img src="${site}/brand/guaca-wordmark.png" width="150" alt="Guaca" style="display:block;height:auto;border:0;">
+    <img src="${assets}/wordmark.png" width="150" alt="Guaca" style="display:block;height:auto;border:0;">
   </td></tr>
 
   <!-- pill + title -->
@@ -217,8 +220,8 @@ export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
   </td></tr>
 
   <!-- hero image -->
-  <tr><td style="padding:32px 0 0;">
-    <img src="${site}/assets/email-hero-app.jpg" width="600" alt="${escapeHtml(t.alt)}" style="display:block;width:100%;height:auto;border:0;">
+  <tr><td align="center" style="padding:32px 0 0;text-align:center;">
+    <img src="${assets}/hero-app.jpg" width="600" alt="${escapeHtml(t.alt)}" style="display:block;margin:0 auto;width:100%;max-width:600px;height:auto;border:0;font-family:${FONT};font-size:13px;color:${p.inkLight};text-align:center;">
   </td></tr>
 
   <!-- what is guaca -->

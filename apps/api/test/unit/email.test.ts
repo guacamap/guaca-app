@@ -43,8 +43,8 @@ describe('waitlistConfirmation template', () => {
     expect(en.subject).toMatch(/waitlist/i);
     expect(es.subject).toMatch(/lista/i);
     for (const b of [en, es]) {
-      expect(b.html).toContain('https://guaca.live/assets/email-hero-app.jpg');
-      expect(b.html).toContain('https://guaca.live/brand/guaca-wordmark.png');
+      expect(b.html).toContain('https://guaca.live/api/assets/email/hero-app.jpg');
+      expect(b.html).toContain('https://guaca.live/api/assets/email/wordmark.png');
       expect(b.text.length).toBeGreaterThan(200);
     }
   });

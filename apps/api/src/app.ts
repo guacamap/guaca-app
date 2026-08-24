@@ -1703,6 +1703,29 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   /*
+   * Images the transactional emails reference. They live in the object
+   * store rather than on the marketing site so an email never depends on a
+   * web deploy having happened, and they are served from this origin, which
+   * is already public. The allowlist is the whole security model: nothing
+   * outside it can be addressed, so no traversal and no enumeration.
+   */
+  const EMAIL_ASSETS: Record<string, string> = {
+    'hero-app.jpg': 'image/jpeg',
+    'wordmark.png': 'image/png',
+  };
+  app.get('/api/assets/email/:name', async (req, reply) => {
+    const { name } = req.params as { name: string };
+    const mime = EMAIL_ASSETS[name];
+    if (!mime) return reply.code(404).send({ error: 'not found' });
+    const bytes = await objectStore.get(`email-assets/${name}`);
+    if (!bytes) return reply.code(404).send({ error: 'not found' });
+    return reply
+      .header('content-type', mime)
+      .header('cache-control', 'public, max-age=604800, immutable')
+      .send(bytes);
+  });
+
+  /*
    * Spotter map: earning opportunities with real coordinates. Mission
    * targets come from the gap's h3 cell centre (h3-pg does the inverse of
    * the clustering function); confirmables carry the place's own point.

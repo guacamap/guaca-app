@@ -89,6 +89,8 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
         role,
         language,
         siteUrl: env.NEXT_PUBLIC_LANDING_URL ?? env.LANDING_URL ?? 'https://guaca.live',
+        // The API is where the images are served from (see /api/assets/email).
+        assetUrl: env.PUBLIC_API_URL ?? 'https://api.guaca.live',
       });
       await send(email, body.subject, body.text, body.html);
     },
