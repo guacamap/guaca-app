@@ -88,6 +88,8 @@ export interface LandingCopy {
       contact: string
       where: string
       wherePlaceholder: string
+      whereCountry: string
+      whereCountryPlaceholder: string
       submit: string
       submitting: string
       successTitle: string
@@ -214,11 +216,13 @@ export const landingCopy: Record<Lang, LandingCopy> = {
         roleLabel: 'I am a',
         roleTraveler: 'Traveller',
         roleSpotter: 'Local spotter',
-        roleOwner: 'Villa owner',
+        roleOwner: 'Business',
         name: 'Your name',
         contact: 'Email or phone',
         where: 'Which community?',
         wherePlaceholder: 'e.g. Isla de Margarita',
+        whereCountry: 'Which country?',
+        whereCountryPlaceholder: 'Choose a country',
         submit: 'Join the waitlist',
         submitting: 'Sending…',
         successTitle: 'You’re on the list.',
@@ -347,11 +351,13 @@ export const landingCopy: Record<Lang, LandingCopy> = {
         roleLabel: 'Soy',
         roleTraveler: 'Viajero',
         roleSpotter: 'Spotter local',
-        roleOwner: 'Anfitrión',
+        roleOwner: 'Negocio',
         name: 'Tu nombre',
         contact: 'Email o teléfono',
         where: '¿Qué comunidad?',
         wherePlaceholder: 'ej. Isla de Margarita',
+        whereCountry: '¿Qué país?',
+        whereCountryPlaceholder: 'Elige un país',
         submit: 'Unirme a la lista',
         submitting: 'Enviando…',
         successTitle: 'Estás en la lista.',

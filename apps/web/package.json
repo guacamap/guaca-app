@@ -5,12 +5,13 @@
   "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build",
+    "build": "pnpm --filter @guaca/shared build && next build",
     "start": "next start -p 3000",
     "test": "pnpm test:unit",
     "test:unit": "echo 'no web unit tests yet' && exit 0"
   },
   "dependencies": {
+    "@guaca/shared": "workspace:*",
     "@guaca/ui": "workspace:*",
     "lucide-react": "^0.563.0",
     "next": "^15.1.0",

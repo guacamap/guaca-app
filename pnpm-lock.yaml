@@ -191,6 +191,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@guaca/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@guaca/ui':
         specifier: workspace:*
         version: link:../../packages/ui

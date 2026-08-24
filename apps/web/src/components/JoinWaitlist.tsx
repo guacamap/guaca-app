@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ArrowRight, Check } from 'lucide-react'
+import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
 import type { landingCopy } from '@/lib/landingCopy'
 
 type WaitlistCopy = (typeof landingCopy)['en']['waitlist']
@@ -19,8 +20,19 @@ export function JoinWaitlist({ t, lang }: { t: WaitlistCopy; lang: string }) {
   const [name, setName] = useState('')
   const [contact, setContact] = useState('')
   const [where, setWhere] = useState('')
+  const [country, setCountry] = useState('')
   const [state, setState] = useState<'idle' | 'sending' | 'done'>('idle')
   const [error, setError] = useState<string | null>(null)
+
+  /*
+   * A spotter verifies places on the ground and a business has premises, so
+   * both are necessarily IN the Caribbean — a free-text box there produces
+   * unusable roadmap data. A traveller can be anywhere, so theirs stays open.
+   */
+  const needsCountry = role === 'spotter' || role === 'owner'
+  const countries = [...CARIBBEAN_COUNTRIES]
+    .map((c) => ({ code: c.code, label: lang === 'es' ? c.nameEs : c.name }))
+    .sort((a, b) => a.label.localeCompare(b.label, lang === 'es' ? 'es' : 'en'))
 
   const roles: [Role, string][] = [
     ['traveler', f.roleTraveler],
@@ -30,7 +42,7 @@ export function JoinWaitlist({ t, lang }: { t: WaitlistCopy; lang: string }) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
-    if (!name.trim() || !contact.trim()) {
+    if (!name.trim() || !contact.trim() || (needsCountry && !country)) {
       setError(f.errorRequired)
       return
     }
@@ -46,7 +58,13 @@ export function JoinWaitlist({ t, lang }: { t: WaitlistCopy; lang: string }) {
           contact: contact.trim(),
           language: lang === 'es' ? 'es' : 'en',
           // The zone roadmap is demand-driven, so where they are IS the signal.
-          details: where.trim() ? { where: where.trim() } : {},
+          // Countries carry their ISO code too, so the roadmap can group by
+          // country without re-parsing free text.
+          details: needsCountry
+            ? { where: countries.find((c) => c.code === country)?.label ?? country, countryCode: country }
+            : where.trim()
+              ? { where: where.trim() }
+              : {},
         }),
       })
       if (res.status === 429) {
@@ -135,16 +153,34 @@ export function JoinWaitlist({ t, lang }: { t: WaitlistCopy; lang: string }) {
         />
       </label>
 
-      <label className="block">
-        <span className="sr-only">{f.where}</span>
-        <input
-          className={field}
-          value={where}
-          onChange={(e) => setWhere(e.target.value)}
-          placeholder={f.wherePlaceholder}
-          maxLength={120}
-        />
-      </label>
+      {needsCountry ? (
+        <label className="block">
+          <span className="sr-only">{f.whereCountry}</span>
+          <select
+            className={`${field} appearance-none`}
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+          >
+            <option value="">{f.whereCountryPlaceholder}</option>
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <label className="block">
+          <span className="sr-only">{f.where}</span>
+          <input
+            className={field}
+            value={where}
+            onChange={(e) => setWhere(e.target.value)}
+            placeholder={f.wherePlaceholder}
+            maxLength={120}
+          />
+        </label>
+      )}
 
       {error && (
         <p role="alert" className="text-sm font-bold text-guaca-mango-light">
