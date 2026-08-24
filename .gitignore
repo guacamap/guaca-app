@@ -30,6 +30,7 @@ logs/
 
 # Local agent state
 .commandcode/
+.zcode/
 
 # Local design references and generated source artwork
 /guaca-landing/
