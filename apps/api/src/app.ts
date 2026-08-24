@@ -1373,7 +1373,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
     });
   });
 
+  /*
+   * The form is public and now triggers outbound mail, so an unthrottled
+   * endpoint is a way to burn the Resend quota and to mail addresses an
+   * attacker chose. Keyed by IP, not contact: the contact is the thing
+   * being varied in a flood.
+   */
+  const registerLimiter = rateLimiter(5, 60 * 60 * 1000);
+
   app.post('/api/register', async (req, reply) => {
+    if (!registerLimiter(clientIp(req))) {
+      return reply.code(429).send({ error: 'too many signups from this connection — try again later' });
+    }
     const body = req.body as {
       role?: string;
       name?: string;
@@ -1407,6 +1418,24 @@ export function buildApp(options: AppOptions): FastifyInstance {
       language: body.language === 'es' ? 'es' : 'en',
       details,
     });
+    /*
+     * Confirmation is best-effort by design: the row is the valuable thing,
+     * and a mail outage must never turn a captured signup into a 500 that
+     * the person reads as "it didn't work". Only for an email contact —
+     * the form also accepts a phone, where there is nothing to write to.
+     */
+    if (contact.includes('@') && emailSender.sendWaitlistConfirmation) {
+      try {
+        await emailSender.sendWaitlistConfirmation(contact, role, body.language === 'es' ? 'es' : 'en');
+      } catch (err) {
+        console.log(JSON.stringify({
+          ts: new Date().toISOString(),
+          level: 'warn',
+          event: 'waitlist.confirmation.failed',
+          detail: { registrationId: recorded.id, error: String(err) },
+        }));
+      }
+    }
     return reply.code(201).send({ ok: true, id: recorded.id, role: recorded.role });
   });
 

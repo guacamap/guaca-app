@@ -9,6 +9,8 @@ export interface EmailSender {
   sendLoginCode(email: string, code: string, language: string): Promise<void>;
   /** "Tell me when it's verified" — fired when a matching place goes live. */
   sendPlaceVerified?(email: string, placeName: string, language: string): Promise<void>;
+  /** Waitlist signup on the marketing site — confirms we will be in touch. */
+  sendWaitlistConfirmation?(email: string, role: string, language: string): Promise<void>;
 }
 
 export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSender {
@@ -28,6 +30,9 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
         async sendPlaceVerified() {
           throw new Error('email is not configured (RESEND_API_KEY missing)');
         },
+        async sendWaitlistConfirmation() {
+          throw new Error('email is not configured (RESEND_API_KEY missing)');
+        },
       };
     }
     return {
@@ -38,6 +43,9 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
       },
       async sendPlaceVerified(email, placeName) {
         console.log(`[email] place verified for ${email}: ${placeName}`);
+      },
+      async sendWaitlistConfirmation(email, role) {
+        console.log(`[email] waitlist confirmation for ${email} (${role})`);
       },
     };
   }
@@ -70,6 +78,25 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
         es
           ? `Preguntaste por algo que nadie había comprobado. Un local fue a verificarlo: ${placeName} ya está en tu mapa. Ábrelo en https://app.guaca.live`
           : `You asked about something nobody had checked. A local went and verified it: ${placeName} is now on your map. Open it at https://app.guaca.live`,
+      );
+    },
+    async sendWaitlistConfirmation(email, role, language) {
+      const es = language === 'es';
+      // Deliberately makes ONE promise — that we write when Guaca opens where
+      // they are. Nothing about dates, because the roadmap is demand-driven.
+      const who: Record<string, [string, string]> = {
+        traveler: ['as a traveller', 'como viajero'],
+        spotter: ['as a local spotter', 'como spotter local'],
+        owner: ['as a villa owner', 'como anfitrión'],
+      };
+      const role_es = (who[role] ?? who.traveler!)[1];
+      const role_en = (who[role] ?? who.traveler!)[0];
+      await send(
+        email,
+        es ? 'Estás en la lista de Guaca' : "You're on the Guaca waitlist",
+        es
+          ? `Gracias por unirte ${role_es}. Te escribiremos en cuanto Guaca abra en tu zona. Mientras tanto, cada lugar en Guaca lo verifica una persona local — nunca lo inventa una IA.`
+          : `Thanks for joining ${role_en}. We'll write to you as soon as Guaca opens in your area. In the meantime: every place in Guaca is verified by a local who went there — never invented by an AI.`,
       );
     },
   };
