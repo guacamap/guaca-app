@@ -9,7 +9,7 @@ jobs:
     name: Typecheck and unit tests (zero network, zero infra)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 11.13.0
@@ -27,7 +27,7 @@ jobs:
     env:
       DATABASE_URL: postgres://guaca:guaca@localhost:5432/guaca
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A `services:` block cannot be used here: the schema needs the h3
       # extension and postgis/postgis does not ship it, so migrations fail on
@@ -75,7 +75,7 @@ jobs:
     name: Dependency audit (high+ critical only)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
         with:
           version: 11.13.0
