@@ -121,10 +121,10 @@ export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
           pill: 'SPOTTER EN LISTA DE ESPERA',
           title: '¡Gracias por querer mantener el mapa fiel!',
           lede2:
-            'Como spotter, tú eres la fuente. Cuando abramos tu comunidad te enviaremos un código de acceso por WhatsApp, y desde ese momento recibirás misiones: ir a un lugar, tomar unas fotos y confirmar qué encontraste. Un lugar solo aparece en el mapa cuando dos spotters lo confirman, así que tu trabajo es literalmente lo que hace que Guaca sea confiable.',
+            'Como spotter, tú eres la fuente. Cuando abramos tu comunidad te enviaremos un código especial para entrar, y desde ese momento recibirás misiones: ir a un lugar, tomar unas fotos y confirmar qué encontraste. Un lugar solo aparece en el mapa cuando dos spotters lo confirman, así que tu trabajo es literalmente lo que hace que Guaca sea confiable.',
           role: 'Te uniste como spotter local, una de las personas que mantienen el mapa fiel.',
           cta: '📍 Estás en la lista de spotters',
-          ctaNote: 'Te escribiremos con tu código cuando abramos tu comunidad.',
+          ctaNote: 'Te enviaremos tu código especial cuando abramos tu comunidad.',
           props: [
             ['Misiones', 'Te proponemos lugares cerca de ti que alguien preguntó y nadie ha comprobado.'],
             ['Dos testigos', 'Tu verificación cuenta cuando otro spotter la confirma. Así nadie inventa nada.'],
@@ -171,10 +171,10 @@ export function waitlistConfirmation(input: WaitlistEmailInput): EmailBody {
           pill: 'SPOTTER ON THE WAITLIST',
           title: 'Thanks for wanting to keep the map true!',
           lede2:
-            "As a spotter, you are the source. When we open your community we'll send you a login code by WhatsApp, and from then on you'll receive missions: go to a place, take a few photos, and confirm what you found. A place only appears on the map once two spotters confirm it, so your work is literally what makes Guaca trustworthy.",
+            "As a spotter, you are the source. When we open your community we'll send you a special code to log in, and from then on you'll receive missions: go to a place, take a few photos, and confirm what you found. A place only appears on the map once two spotters confirm it, so your work is literally what makes Guaca trustworthy.",
           role: 'You joined as a local spotter, one of the people who keep the map true.',
           cta: "📍 You're on the spotter list",
-          ctaNote: "We'll write with your code when we open your community.",
+          ctaNote: "We'll send your special code when we open your community.",
           props: [
             ['Missions', "We suggest places near you that someone asked about and nobody has checked."],
             ['Two witnesses', 'Your verification counts once another spotter confirms it. Nobody invents anything.'],
