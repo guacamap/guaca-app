@@ -36,6 +36,7 @@ export interface LandingCopy {
     navUpdates: string
   }
   phoneSpotter: {
+    imgAlt: string
     badge: string
     sectionLabel: string
     title: string
@@ -155,6 +156,7 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       navUpdates: 'Updates',
     },
     phoneSpotter: {
+      imgAlt: 'A Spotter’s profile in the Guaca app — level, points and verification record',
       badge: 'SPOTTER',
       sectionLabel: 'Community verification',
       title: 'Keep local information useful.',
@@ -290,6 +292,7 @@ export const landingCopy: Record<Lang, LandingCopy> = {
       navUpdates: 'Novedades',
     },
     phoneSpotter: {
+      imgAlt: 'El perfil de un Spotter en la app de Guaca: nivel, puntos y récord de verificación',
       badge: 'SPOTTER',
       sectionLabel: 'Verificación comunitaria',
       title: 'Mantén útil la información local.',

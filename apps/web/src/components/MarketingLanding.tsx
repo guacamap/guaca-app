@@ -118,37 +118,13 @@ export function MarketingLanding() {
             <div className="relative mx-auto h-[560px] w-full max-w-[590px] max-lg:mt-4">
               <div className="landing-phone landing-phone-tourist absolute left-[3%] top-3 h-[520px] w-[260px] overflow-hidden rounded-[42px] border-[8px] border-[#111] bg-guaca-paper shadow-2xl sm:left-[10%]">
                 <div className="landing-island" />
-                <div className="relative h-[48%] overflow-hidden">
-                  <img src="/assets/landing-caribbean-phone.jpg" width="1280" height="2000" alt={t.phoneTourist.imgAlt} className="h-full w-full object-cover" />
-                  {/* Lift the satellite image toward the reference's bright teal sea. */}
-                  <div className="absolute inset-0 bg-guaca-teal/28 mix-blend-screen" />
-                  <div className="absolute inset-0 bg-gradient-to-b from-guaca-ocean-deep/30 via-transparent to-guaca-ocean-deep/38" />
-                  <div className="absolute left-4 right-4 top-9 flex h-10 items-center gap-2 rounded-full bg-white/96 px-4 text-[10px] font-semibold text-guaca-ink/50 shadow-lg"><MapPinned className="h-3.5 w-3.5 text-guaca-teal" /> {t.phoneTourist.ask}</div>
-                  <div className="absolute bottom-4 left-4 rounded-full bg-guaca-ocean-deep/82 px-3 py-1.5 text-[9px] font-black text-white backdrop-blur"><MapIcon className="mr-1 inline h-3 w-3" /> {t.phoneTourist.communities}</div>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 top-[43%] rounded-t-[28px] bg-guaca-paper px-4 pb-3 pt-5">
-                  <div className="flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-[.1em] text-guaca-teal">{t.phoneTourist.viewLabel}</p><p className="mt-1 text-[15px] font-black leading-tight text-guaca-ocean-deep">{t.phoneTourist.viewTitle}</p></div><Compass className="h-6 w-6 text-guaca-teal" /></div>
-                  <div className="mt-3 flex gap-1.5"><span className="rounded-full bg-guaca-teal px-2.5 py-1.5 text-[8px] font-black text-white">{t.phoneTourist.tabUpdates}</span><span className="rounded-full bg-white px-2.5 py-1.5 text-[8px] font-black text-guaca-ink/48 ring-1 ring-guaca-sand">{t.phoneTourist.tabPlan}</span><span className="rounded-full bg-white px-2.5 py-1.5 text-[8px] font-black text-guaca-ink/48 ring-1 ring-guaca-sand">{t.phoneTourist.tabStay}</span></div>
-                  <div className="mt-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-guaca-sand/70">
-                  {latestUpdate ? (
-                    <div className="flex gap-3">
-                      <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-guaca-teal/10"><Store className="h-5 w-5 text-guaca-teal" /></div>
-                      <div className="min-w-0"><p className="truncate text-[8px] font-black text-guaca-teal">{latestUpdate.businessName}{latestUpdate.community ? ` · ${latestUpdate.community}` : ''}</p><p className="mt-1 line-clamp-2 text-[10px] font-black leading-3">{latestUpdate.title}</p><p className="mt-1 text-[7px] font-bold text-guaca-ink/45">{latestUpdate.status === 'verified' ? t.phoneTourist.verified : t.phoneTourist.businessPublished}</p></div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-guaca-teal/10"><MapPinned className="h-5 w-5 text-guaca-teal" /></div><div><p className="text-[10px] font-black">{t.phoneTourist.emptyTitle}</p><p className="mt-1 text-[8px] leading-3 text-guaca-ink/50">{t.phoneTourist.emptyBody}</p></div></div>
-                  )}
-                  </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[7px] font-black text-guaca-ink/40"><span><MapPinned className="mx-auto mb-1 h-4 w-4 text-guaca-teal" />{t.phoneTourist.navMap}</span><span><Compass className="mx-auto mb-1 h-4 w-4" />{t.phoneTourist.navPlan}</span><span><MessageCircle className="mx-auto mb-1 h-4 w-4" />{t.phoneTourist.navUpdates}</span></div>
-                </div>
+                {/* A real screenshot of the running app — Puerto Cabello with
+                    its candidate dots — rather than a composed mock. */}
+                <img src="/assets/landing-phone-tourist.jpg" width="640" height="1371" alt={t.phoneTourist.imgAlt} className="h-full w-full object-cover object-top" />
               </div>
               <div className="landing-phone landing-phone-spotter absolute right-[1%] top-16 h-[500px] w-[250px] overflow-hidden rounded-[42px] border-[8px] border-[#111] bg-guaca-paper shadow-2xl sm:right-[6%]">
                 <div className="landing-island" />
-                <div className="h-48 bg-gradient-to-br from-guaca-teal to-guaca-ocean px-4 pt-9 text-white"><div className="flex items-center"><GuacaLogo variant="reversed" className="h-8" /><span className="ml-auto rounded-full bg-white/14 px-2 py-1 text-[7px] font-black">{t.phoneSpotter.badge}</span></div><p className="mt-5 text-[9px] font-black uppercase tracking-[.1em] text-white/60">{t.phoneSpotter.sectionLabel}</p><p className="mt-1 max-w-[180px] text-lg font-black leading-tight">{t.phoneSpotter.title}</p></div>
-                <div className="-mt-3 px-3">
-                  <div className="rounded-3xl bg-white p-4 shadow-xl ring-1 ring-guaca-sand/70"><div className="flex items-center justify-between"><div className="grid h-10 w-10 place-items-center rounded-xl bg-guaca-coral/10 text-guaca-coral"><ClipboardCheck className="h-5 w-5" /></div>{pendingUpdates.length > 0 && <strong className="rounded-full bg-guaca-mango-light px-2.5 py-1 text-[8px] text-guaca-ink">{pendingUpdates.length} {t.phoneSpotter.waitingSuffix}</strong>}</div><p className="mt-4 text-[9px] font-black text-guaca-teal">{t.phoneSpotter.reviewQueue}</p><p className="mt-1 text-[12px] font-black leading-tight">{pendingUpdates.length > 0 ? t.phoneSpotter.queueBusy : t.phoneSpotter.queueClear}</p><p className="mt-2 text-[8px] leading-3 text-guaca-ink/48">{t.phoneSpotter.queueNote}</p><div className="mt-3 flex h-9 items-center justify-center rounded-xl bg-guaca-coral text-[9px] font-black text-white"><BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> {t.phoneSpotter.reviewCta}</div></div>
-                  <div className="mt-3 rounded-2xl bg-guaca-teal/7 p-3"><p className="text-[8px] font-black text-guaca-teal">{t.phoneSpotter.whyTitle}</p><p className="mt-1 text-[9px] font-bold leading-3 text-guaca-ink/55">{t.phoneSpotter.whyBody}</p></div>
-                </div>
+                <img src="/assets/landing-phone-spotter.jpg" width="640" height="1371" alt={t.phoneSpotter.imgAlt} className="h-full w-full object-cover object-top" />
               </div>
             </div>
           </div>
