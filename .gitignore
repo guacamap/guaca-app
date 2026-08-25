@@ -6,6 +6,7 @@ dist/
 build/
 *.tsbuildinfo
 .next/
+.next-build/
 out/
 
 # Environment & secrets — never commit
