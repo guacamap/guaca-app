@@ -109,6 +109,7 @@ interface Mission {
 interface Spotter {
   id: string;
   name: string;
+  email?: string | null;
   phone: string;
   active: boolean;
   level?: number;
@@ -227,6 +228,7 @@ export function AdminPanel() {
   const [issuePriority, setIssuePriority] = useState('normal');
   const [newSpotterName, setNewSpotterName] = useState('');
   const [newSpotterPhone, setNewSpotterPhone] = useState('');
+  const [newSpotterEmail, setNewSpotterEmail] = useState('');
   const [flash, setFlash] = useState<string | null>(null);
 
   const [resumeChecked, setResumeChecked] = useState(false);
@@ -755,13 +757,14 @@ export function AdminPanel() {
               <h1 className="text-[16px] font-black text-guaca-ink">Spotter roster</h1>
               <div className="mt-2 flex gap-2">
                 <Input value={newSpotterName} onChange={(e) => setNewSpotterName(e.target.value)} placeholder="Name" aria-label="Name" className="h-10 w-40" />
-                <Input value={newSpotterPhone} onChange={(e) => setNewSpotterPhone(e.target.value)} placeholder="+58 …" aria-label="Phone" className="h-10 w-36" />
+                <Input value={newSpotterEmail} onChange={(e) => setNewSpotterEmail(e.target.value)} placeholder="email (their login)" aria-label="Email" type="email" className="h-10 w-52" />
+                <Input value={newSpotterPhone} onChange={(e) => setNewSpotterPhone(e.target.value)} placeholder="+58 … (contact)" aria-label="Phone" className="h-10 w-36" />
                 <Button
                   type="button"
-                  disabled={busy || newSpotterName.length < 2 || newSpotterPhone.length < 6}
+                  disabled={busy || newSpotterName.length < 2 || newSpotterPhone.length < 6 || !newSpotterEmail.includes('@')}
                   onClick={async () => {
-                    const res = await api('POST', '/api/operator/spotters', { name: newSpotterName, phone: newSpotterPhone });
-                    if (res) { setFlash('Spotter added.'); setNewSpotterName(''); setNewSpotterPhone(''); await loadTab('people'); }
+                    const res = await api('POST', '/api/operator/spotters', { name: newSpotterName, email: newSpotterEmail, phone: newSpotterPhone });
+                    if (res) { setFlash('Spotter added.'); setNewSpotterName(''); setNewSpotterPhone(''); setNewSpotterEmail(''); await loadTab('people'); }
                   }}
                   className="h-10 rounded-xl bg-guaca-teal px-4 text-[10px] font-black text-white hover:bg-guaca-teal-dark"
                 >
@@ -773,7 +776,7 @@ export function AdminPanel() {
                   <div key={s.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-guaca-sand/75">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-black text-guaca-ink">{s.name}</p>
-                      <p className="text-[10px] font-bold text-guaca-ink/45">{s.phone}</p>
+                      <p className="text-[10px] font-bold text-guaca-ink/45">{s.email ?? s.phone}</p>
                     </div>
                     <Button
                       type="button"
