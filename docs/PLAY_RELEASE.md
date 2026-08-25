@@ -65,7 +65,7 @@ offline screen.
 | 3 | Run `./infra/deploy.sh edge && ./infra/deploy.sh prod` on the VM (see DEPLOY.md) | API |
 | 4 | Vercel: project 1 root `apps/web` → guaca.live; project 2 root `apps/app` → app.guaca.live, with the env vars below | web apps |
 | 5 | Resend account + verify `guaca.live` domain (SPF/DKIM) → set `RESEND_API_KEY`, `EMAIL_FROM` in `infra/env/prod.env` | real users can log in |
-| 6 | Set `REVIEW_EMAIL`, `REVIEW_CODE`, `REVIEW_SPOTTER_PHONE` in `infra/env/prod.env` | Play review sign-in |
+| 6 | Set `REVIEW_EMAIL`, `REVIEW_CODE`, `REVIEW_SPOTTER_EMAIL` in `infra/env/prod.env`, and add a roster spotter with that email | Play review sign-in |
 | 7 | `eas login` then `eas build -p android --profile production` | the AAB |
 | 8 | Recruit **12 testers** and keep the closed test running **14 days** before production is possible (personal accounts only; a closed test link works for judges immediately) | production track |
 
@@ -175,8 +175,8 @@ Code:  <REVIEW_CODE>   (enter this when asked for the 6-digit code)
 Steps: open the app → choose "Tourist" → enter the email above → the app
 asks for a 6-digit code → enter the code above → the map opens.
 
-To see the Spotter side: open the app → "Spotter" → phone
-<REVIEW_SPOTTER_PHONE> → same code.
+To see the Spotter side: open the app → "Spotter" → email
+<REVIEW_SPOTTER_EMAIL> → same code.
 
 Spotter accounts are issued by our operators; there is no public signup,
 which is why we supply the credentials above.
