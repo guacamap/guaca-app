@@ -181,6 +181,17 @@ describe('assertGrounded', () => {
     expect(code).toBe('NOT_VERIFIED_AT_RENDER');
   });
 
+  it('G7b: the same place on two different days passes the re-read (step 6 counts distinct ids)', async () => {
+    // Step 4 allows a favourite on day 0 and day 1. The re-read used to
+    // compare rows returned (distinct) against stops (not), and refused.
+    const artifact = await assertGrounded(
+      draft([stop(1), { ...stop(1), dayIndex: 1 }]),
+      CATALOG,
+      ctx(),
+    );
+    expect(artifact.placeIds).toEqual([P1, P1]);
+  });
+
   it('G8: a catalog built from an unverified row has no ref for it', async () => {
     const bad = Catalog.build([row(P1, 'A'), { ...row(P2, 'B'), verificationStatus: 'pending', witnessCount: 0 }]);
     expect(bad.size).toBe(1);

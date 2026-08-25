@@ -157,9 +157,12 @@ export async function assertGrounded(
   // 5. PROJECT — every other byte of model output is discarded here.
   const placeIds = refs.map((ref) => catalog.byRef(ref).placeId);
 
-  // 6. RE-READ — TOCTOU guard.
-  const fresh = await ctx.reReadVerified(placeIds);
-  if (fresh.length !== placeIds.length) fail('NOT_VERIFIED_AT_RENDER');
+  // 6. RE-READ — TOCTOU guard. Step 4 lets one place anchor two DAYS, so
+  // the re-read is over distinct ids: comparing against the stop count
+  // refused every multi-day trip that returned to a favourite.
+  const distinctIds = [...new Set(placeIds)];
+  const fresh = await ctx.reReadVerified(distinctIds);
+  if (new Set(fresh.map((r) => r.id)).size !== distinctIds.length) fail('NOT_VERIFIED_AT_RENDER');
 
   // 7. COHERENCE — per day: sorted, non-overlapping, travel-feasible. Days
   // are independent: two stops at 10:00 on different days is a valid trip,
