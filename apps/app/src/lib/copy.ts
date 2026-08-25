@@ -31,9 +31,13 @@ export interface AppCopy {
     gateLede: string
     devCodeHint: string
     devBypassCta: string
-    phoneLabel: string
+    emailLabel: string
+    sendCodeCta: string
+    codeSentTo: string
     codeLabel: string
     loginCta: string
+    changeEmail: string
+    notRegistered: string
     loginFailed: string
     tabMissions: string
     tabMap: string
@@ -299,13 +303,17 @@ export const appCopy: Record<Lang, AppCopy> = {
     },
     spotter: {
       gateTitle: 'Spotter sign in',
-      gateLede: 'Phone + the one-time code your operator gave you. No self-signup — every Spotter is invited.',
-      devCodeHint: 'Dev build — any roster phone signs in with code 000000.',
-      devBypassCta: '⚡ Dev bypass — enter as Carlos Test [DEV]',
-      phoneLabel: 'Phone',
-      codeLabel: 'Code',
+      gateLede: 'Enter the email your operator registered. We send a one-time code each time. No self-signup: every Spotter is invited.',
+      devCodeHint: 'Dev build: any roster email signs in with code 000000.',
+      devBypassCta: '⚡ Dev bypass: enter as Yorman Salazar [DEV]',
+      emailLabel: 'Your email',
+      sendCodeCta: 'Send me a code',
+      codeSentTo: 'We sent a 6-digit code to',
+      codeLabel: '6-digit code',
       loginCta: 'Enter',
-      loginFailed: 'Phone or code not recognised — codes are single-use; ask your operator for a new one.',
+      changeEmail: 'Use another email',
+      notRegistered: 'This email is not on the Spotter roster. Ask your operator to add you.',
+      loginFailed: 'Code not recognised. Codes last 10 minutes and work once; request a new one.',
       tabMissions: 'Missions',
       tabMap: 'Map',
       tabConfirm: 'Confirm',
@@ -594,13 +602,17 @@ export const appCopy: Record<Lang, AppCopy> = {
     },
     spotter: {
       gateTitle: 'Entrada de Spotter',
-      gateLede: 'Teléfono + el código de un solo uso que te dio tu operador. No hay registro abierto — cada Spotter es invitado.',
-      devCodeHint: 'Versión de desarrollo — cualquier teléfono del roster entra con el código 000000.',
-      devBypassCta: '⚡ Bypass dev — entrar como Carlos Test [DEV]',
-      phoneLabel: 'Teléfono',
-      codeLabel: 'Código',
+      gateLede: 'Escribe el correo que registró tu operador. Te enviamos un código de un solo uso cada vez. No hay registro abierto: cada Spotter es invitado.',
+      devCodeHint: 'Versión de desarrollo: cualquier correo del roster entra con el código 000000.',
+      devBypassCta: '⚡ Bypass dev: entrar como Yorman Salazar [DEV]',
+      emailLabel: 'Tu correo',
+      sendCodeCta: 'Enviarme un código',
+      codeSentTo: 'Enviamos un código de 6 dígitos a',
+      codeLabel: 'Código de 6 dígitos',
       loginCta: 'Entrar',
-      loginFailed: 'Teléfono o código no reconocido — los códigos son de un solo uso; pide otro a tu operador.',
+      changeEmail: 'Usar otro correo',
+      notRegistered: 'Este correo no está en el roster de Spotters. Pide a tu operador que te añada.',
+      loginFailed: 'Código no reconocido. Los códigos duran 10 minutos y sirven una vez; pide uno nuevo.',
       tabMissions: 'Misiones',
       tabMap: 'Mapa',
       mapLede: 'Tus oportunidades de ganar, donde estás.',
