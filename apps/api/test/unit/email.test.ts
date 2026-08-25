@@ -87,3 +87,49 @@ describe('waitlistConfirmation template', () => {
     expect(b.text).not.toMatch(/<[a-z]/i);
   });
 });
+
+describe('sender addresses per purpose', () => {
+  const env = {
+    NODE_ENV: 'production',
+    RESEND_API_KEY: 're_test',
+    EMAIL_FROM_LOGIN: 'Guaca <login@guaca.live>',
+    EMAIL_FROM_HELLO: 'Guaca <hola@guaca.live>',
+    EMAIL_REPLY_TO: 'hola@guaca.live',
+  } as NodeJS.ProcessEnv;
+
+  function captureFetch() {
+    const calls: Array<Record<string, unknown>> = [];
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      calls.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response('{"id":"x"}', { status: 200 });
+    }) as typeof fetch;
+    return { calls, restore: () => { globalThis.fetch = original; } };
+  }
+
+  it('sends login codes from login@ and human-facing mail from hola@', async () => {
+    const { calls, restore } = captureFetch();
+    try {
+      const sender = createEmailSender(env);
+      await sender.sendLoginCode('t@example.com', '123456', 'en');
+      await sender.sendWaitlistConfirmation!('t@example.com', 'traveler', 'en');
+      await sender.sendPlaceVerified!('t@example.com', 'Arepera', 'es');
+    } finally { restore(); }
+    expect(calls.map((c) => c.from)).toEqual([
+      'Guaca <login@guaca.live>',
+      'Guaca <hola@guaca.live>',
+      'Guaca <hola@guaca.live>',
+    ]);
+    for (const c of calls) expect(c.reply_to).toBe('hola@guaca.live');
+  });
+
+  it('falls back to the legacy single EMAIL_FROM for both when the split vars are unset', async () => {
+    const { calls, restore } = captureFetch();
+    try {
+      const sender = createEmailSender({ NODE_ENV: 'production', RESEND_API_KEY: 're_test', EMAIL_FROM: 'Guaca <one@guaca.live>' } as NodeJS.ProcessEnv);
+      await sender.sendLoginCode('t@example.com', '123456', 'en');
+      await sender.sendWaitlistConfirmation!('t@example.com', 'spotter', 'es');
+    } finally { restore(); }
+    expect(calls.map((c) => c.from)).toEqual(['Guaca <one@guaca.live>', 'Guaca <one@guaca.live>']);
+  });
+});
