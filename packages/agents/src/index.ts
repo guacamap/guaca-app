@@ -57,3 +57,7 @@ export { analyzeMapHealth } from './health/analyze.js';
 export type { MapHealthStats, MapHealthAnalysis, HealthFinding, HealthFindingKind, MissionCandidate } from './health/analyze.js';
 export { narrateMapHealth } from './health/narrate.js';
 export type { HealthNarrative } from './health/narrate.js';
+export { runPlannerEval } from './eval/plannerEval.js';
+export type { EvalSummary, EvalCaseResult } from './eval/plannerEval.js';
+export { EVAL_CASES, EVAL_SET, FIXTURE_ROWS } from './eval/plannerSet.js';
+export type { EvalCase, EvalExpect } from './eval/plannerSet.js';
