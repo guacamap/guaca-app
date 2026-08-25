@@ -21,8 +21,10 @@ APP="${APP_URL:-https://app.guaca.live}"
 val() { grep "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-; }
 RESEND_API_KEY="$(val RESEND_API_KEY)"
 ALERT_EMAIL="$(val ALERT_EMAIL)"
-EMAIL_FROM="$(val EMAIL_FROM)"
-: "${EMAIL_FROM:=Guaca <login@guaca.live>}"
+# Alerts come from their own address, so a team inbox can route them apart
+# from anything a customer would ever receive.
+EMAIL_FROM="$(val ALERT_FROM)"
+: "${EMAIL_FROM:=Guaca Alerts <alerts@guaca.live>}"
 
 FAILURES=""
 
