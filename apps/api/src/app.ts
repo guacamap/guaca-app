@@ -1373,7 +1373,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
       header.join(','),
       ...res.rows.map((r) => header.map((h) => cell((r as Record<string, unknown>)[h])).join(',')),
     ];
-    await audit('waitlist.export', 'registration', 'all', { rows: res.rows.length });
+    // operator_actions.target_id is a uuid; the nil uuid is the documented
+    // target for an action on the whole table rather than one row.
+    await audit('waitlist.export', 'waitlist', '00000000-0000-0000-0000-000000000000', { rows: res.rows.length });
     return reply
       .header('content-type', 'text/csv; charset=utf-8')
       .header('content-disposition', 'attachment; filename="guaca-waitlist.csv"')
