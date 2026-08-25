@@ -214,14 +214,15 @@ export function AdminPanel() {
   const [newSpotterPhone, setNewSpotterPhone] = useState('');
   const [flash, setFlash] = useState<string | null>(null);
 
+  const [resumeChecked, setResumeChecked] = useState(false);
   useEffect(() => {
     try {
       const saved = localStorage.getItem(TOKEN_KEY);
-      if (saved) {
-        setToken(saved);
-      }
-    } catch { /* private mode */ }
+      if (saved) setToken(saved);
+      else setResumeChecked(true);
+    } catch { setResumeChecked(true); /* private mode */ }
   }, []);
+
 
   // Auto-lock after 30 minutes of no interaction — an unlocked admin
   // panel on an unattended screen is the weakest link in the chain.
@@ -274,6 +275,25 @@ export function AdminPanel() {
     },
     [token],
   );
+
+  // Resume a saved session. A stored token proves nothing by itself, so ask
+  // the API who we are: 200 signs us in, anything else clears the token and
+  // shows the sign-in screen. Without this, every reload demanded a new
+  // email code, which is not what the 30 minute auto-lock was meant to be.
+  useEffect(() => {
+    if (authed || resumeChecked || !token) return;
+    setResumeChecked(true);
+    void (async () => {
+      const me = await api<{ operator: { name: string; email: string } }>('GET', '/api/operator/auth/me');
+      if (me) {
+        setOperatorName(me.operator.name);
+        setAuthed(true);
+      } else {
+        try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+        setFlash('Session expired. Sign in again.');
+      }
+    })();
+  }, [token, authed, resumeChecked, api]);
 
   const requestCode = async () => {
     setBusy(true); setFlash(null);
