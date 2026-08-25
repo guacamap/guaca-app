@@ -83,10 +83,15 @@ export async function runGroundedPlanner(
     languageCode: z.enum(['es', 'en', 'pt', 'fr', 'de', 'it', 'nl']),
   });
 
+  // The guard refuses overlapping or back-to-back stops (step 7). A model
+  // that is never told the rule fails it about a third of the time; told,
+  // it almost never does. The rule is stated here in the model's own units.
+  const timing =
+    'startMin is minutes after midnight and durationMin is how long the stop lasts. Within a day, order stops by startMin, never overlap them, and leave at least 15 minutes between one stop ending and the next starting. Keep every stop between 07:00 (420) and 22:00 (1320).';
   const instruction =
     days === 1
-      ? 'You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. Never invent places.'
-      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day; do not repeat a place within the same day. Never invent places.`;
+      ? `You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. ${timing} Never invent places.`
+      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day; do not repeat a place within the same day. ${timing} Never invent places.`;
 
   try {
     const res = await options.inference.json<z.infer<typeof requestSchema>>({
