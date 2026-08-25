@@ -54,6 +54,27 @@ if [[ -n "$EXPIRY" ]]; then
     FAILURES+="- TLS certificate expires in $(( SECS_LEFT / 86400 )) days ($EXPIRY)"$'\n'
 fi
 
+# Guaca AI: a model regression should reach a person the way an outage
+# does. Five or more calls in the last hour with more than half failing, or
+# a run of schema failures, is a page. Fewer calls than that is silence,
+# not health, so it is not alerted on.
+OPERATOR_TOKEN="$(val OPERATOR_TOKEN)"
+if [[ -n "$OPERATOR_TOKEN" ]]; then
+  AI="$(curl -fsS -m 20 -H "Authorization: Bearer $OPERATOR_TOKEN" "$API/api/operator/ai/health" 2>/dev/null)" || AI=""
+  if [[ -n "$AI" ]]; then
+    AI_VERDICT="$(python3 -c '
+import json, sys
+d = json.loads(sys.argv[1])
+calls, failed, schema = d.get("calls", 0), d.get("failed", 0), d.get("schemaErrors", 0)
+if calls >= 5 and failed / calls > 0.5:
+    print(f"- Guaca AI: {failed}/{calls} inference calls failed in the last hour")
+elif schema >= 3:
+    print(f"- Guaca AI: {schema} schema failures in the last hour (model not honouring json_schema?)")
+' "$AI")"
+    [[ -n "$AI_VERDICT" ]] && FAILURES+="$AI_VERDICT"$'\n'
+  fi
+fi
+
 NOW_STATE="up"; [[ -n "$FAILURES" ]] && NOW_STATE="down"
 mkdir -p "$(dirname "$STATE_FILE")"
 PREV_STATE="$(cat "$STATE_FILE" 2>/dev/null || echo unknown)"

@@ -337,6 +337,54 @@ spotter
     });
   });
 
+const ai = program.command('ai').description('Guaca AI: benchmark the planner against the standing eval set');
+ai
+  .command('bench')
+  .option('--model <id>', 'model id on the inference provider (default: INFERENCE_MODEL)')
+  .option('--fixture', 'use the fixture rows even if an area has enough verified places')
+  .action(async (opts: { model?: string; fixture?: boolean }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const agents = await import('@guaca/agents');
+    const model = opts.model ?? process.env.INFERENCE_MODEL ?? '';
+    if (!model) throw new Error('set INFERENCE_MODEL or pass --model');
+    await withPool(async (pool) => {
+      let rows: Array<{ id: string; name: string; category: string; verificationStatus: string; witnessCount: number }> = [...agents.FIXTURE_ROWS];
+      let rowsSource = 'fixture';
+      if (!opts.fixture) {
+        const area = await pool.query(
+          `select a.id, a.slug, count(p.id)::int as n from areas a
+             join places p on p.area_id = a.id and p.verification_status = 'verified' and p.witness_count >= 2
+            group by a.id, a.slug order by n desc limit 1`,
+        );
+        const best = area.rows[0] as { id: string; slug: string; n: number } | undefined;
+        if (best && best.n >= 12) {
+          const pr = await pool.query(
+            `select id, name, category, verification_status, witness_count from places
+              where area_id = $1 and verification_status = 'verified' and witness_count >= 2 order by name`, [best.id]);
+          rows = pr.rows.map((r) => ({ id: r.id, name: r.name, category: r.category, verificationStatus: r.verification_status, witnessCount: r.witness_count }));
+          rowsSource = `verified:${best.slug}`;
+        }
+      }
+      const inference = agents.createProvider({
+        INFERENCE_BASE_URL: process.env.INFERENCE_BASE_URL ?? 'http://localhost:8000/v1',
+        INFERENCE_API_KEY: process.env.INFERENCE_API_KEY ?? 'changeme',
+        INFERENCE_MODEL: model, INFERENCE_TIMEOUT_MS: '90000', INFERENCE_MAX_RETRIES: '1',
+      });
+      process.stderr.write(`bench ${model} on ${rowsSource} (${rows.length} rows)\n`);
+      const summary = await agents.runPlannerEval({
+        rows, inference, model,
+        onCase: (r) => { if (!json) process.stderr.write(`  ${r.pass ? 'ok  ' : 'FAIL'} ${r.id.padEnd(20)} ${r.outcome.padEnd(12)} ${String(r.ms).padStart(6)}ms ${r.reason}\n`); },
+      });
+      await pool.query(
+        `insert into ai_benchmarks (model, eval_set, rows_source, prompts, passes, plans, refusals, schema_errors, errors, avg_ms, p95_ms, tokens_in, tokens_out, triggered_by, results)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'cli',$14::jsonb)`,
+        [summary.model, summary.evalSet, rowsSource, summary.prompts, summary.passes, summary.plans, summary.refusals, summary.schemaErrors, summary.errors, summary.avgMs, summary.p95Ms, summary.tokensIn, summary.tokensOut, JSON.stringify(summary.results)],
+      );
+      const { results: _detail, ...head } = summary;
+      process.stdout.write(render({ ...head, rowsSource }, { json }) + '\n');
+    });
+  });
+
 program
   .command('tail')
   .description('live ops stream (Ctrl-C to stop)')

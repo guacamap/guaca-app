@@ -17,6 +17,7 @@ import { opsStreamPlugin } from './opsStream.js';
 import { requestSpotterCode, spotterLogin, verifySpotterToken } from './spotterAuth.js';
 import { requestTouristCode, verifyTouristLogin, verifyTouristToken } from './touristAuth.js';
 import { createEmailSender, type EmailSender } from './email.js';
+import { recordingInference } from './aiRecorder.js';
 
 export interface AppOptions {
   pool: Pool;
@@ -405,8 +406,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   const emailSender = options.emailSender ?? createEmailSender();
   const objectStore = options.objectStore ?? createObjectStore();
-  const resolveInference = async () =>
-    options.inference ??
+  // One provider for the process, wrapped once so every call lands in
+  // ai_calls. Tests inject their own inference and bypass the recorder.
+  let recorded: Inference | null = null;
+  const resolveInference = async (): Promise<Inference> => {
+    if (options.inference) return options.inference;
+    if (recorded) return recorded;
+    recorded = recordingInference(options.pool, await rawInference(), process.env.INFERENCE_MODEL ?? 'unknown');
+    return recorded;
+  };
+  const rawInference = async () =>
     (await import('@guaca/agents')).createProvider({
       INFERENCE_BASE_URL: process.env.INFERENCE_BASE_URL ?? 'http://localhost:8000/v1',
       INFERENCE_API_KEY: process.env.INFERENCE_API_KEY ?? 'changeme',
@@ -1226,6 +1235,158 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return res.rows[0];
   });
 
+  /*
+   * Guaca AI observability. questions and verification_runs hold the
+   * outcomes; ai_calls holds what sat under them. These routes turn both
+   * into rates a person can watch, and run the standing eval set on demand.
+   */
+  const aiWindow = (req: FastifyRequest) => {
+    const h = Number((req.query as { hours?: string }).hours ?? 24);
+    return Number.isFinite(h) && h > 0 && h <= 24 * 30 ? h : 24;
+  };
+
+  app.get('/api/operator/ai/overview', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const hours = aiWindow(req);
+    const calls = await options.pool.query(
+      `select purpose, kind, model,
+              count(*)::int as calls,
+              count(*) filter (where ok)::int as ok,
+              count(*) filter (where error_kind = 'schema')::int as schema_errors,
+              count(*) filter (where error_kind = 'timeout')::int as timeouts,
+              count(*) filter (where not ok and error_kind not in ('schema','timeout'))::int as other_errors,
+              round(avg(latency_ms))::int as avg_ms,
+              coalesce(percentile_cont(0.95) within group (order by latency_ms), 0)::int as p95_ms,
+              coalesce(sum(tokens_in), 0)::int as tokens_in,
+              coalesce(sum(tokens_out), 0)::int as tokens_out
+         from ai_calls where ts > now() - make_interval(hours => $1)
+        group by 1, 2, 3 order by calls desc`,
+      [hours],
+    );
+    const questions = await options.pool.query(
+      `select count(*)::int as total,
+              count(*) filter (where answered)::int as answered,
+              count(*) filter (where not answered)::int as refused
+         from questions where created_at > now() - make_interval(hours => $1)`,
+      [hours],
+    );
+    const refusals = await options.pool.query(
+      `select coalesce(refusal_reason, 'UNKNOWN') as reason, count(*)::int as n
+         from questions where not answered and created_at > now() - make_interval(hours => $1)
+        group by 1 order by n desc limit 10`,
+      [hours],
+    );
+    const verification = await options.pool.query(
+      `select decision, decided_by, count(*)::int as n
+         from verification_runs where created_at > now() - make_interval(hours => $1)
+        group by 1, 2 order by n desc`,
+      [hours],
+    );
+    return {
+      hours,
+      models: { text: process.env.INFERENCE_MODEL ?? null, vision: process.env.INFERENCE_VISION_MODEL ?? null, baseUrl: process.env.INFERENCE_BASE_URL ?? null },
+      calls: calls.rows,
+      questions: questions.rows[0],
+      refusals: refusals.rows,
+      verification: verification.rows,
+    };
+  });
+
+  app.get('/api/operator/ai/failures', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const failedCalls = await options.pool.query(
+      `select id, ts, purpose, kind, model, error_kind, error_message, latency_ms
+         from ai_calls where not ok order by ts desc limit 50`,
+    );
+    const refused = await options.pool.query(
+      `select q.id, q.created_at as ts, q.raw_text, q.language, q.refusal_reason, a.name as area
+         from questions q left join areas a on a.id = q.area_id
+        where not q.answered order by q.created_at desc limit 50`,
+    );
+    return { failedCalls: failedCalls.rows, refusedQuestions: refused.rows };
+  });
+
+  app.get('/api/operator/ai/benchmarks', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const rows = await options.pool.query(
+      `select id, ts, model, eval_set, rows_source, prompts, passes, plans, refusals, schema_errors, errors,
+              avg_ms, p95_ms, tokens_in, tokens_out, triggered_by,
+              case when row_number() over (order by ts desc) = 1 then results else null end as results
+         from ai_benchmarks order by ts desc limit 30`,
+    );
+    return { benchmarks: rows.rows, running: benchRunning };
+  });
+
+  // A short health signal for infra/monitor.sh: enough calls to judge, and
+  // the failure rate among them.
+  app.get('/api/operator/ai/health', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const r = await options.pool.query(
+      `select count(*)::int as calls,
+              count(*) filter (where not ok)::int as failed,
+              count(*) filter (where error_kind = 'schema')::int as schema_errors
+         from ai_calls where ts > now() - interval '1 hour'`,
+    );
+    const row = r.rows[0] as { calls: number; failed: number; schema_errors: number };
+    return { calls: row.calls, failed: row.failed, schemaErrors: row.schema_errors, errorRate: row.calls ? row.failed / row.calls : 0 };
+  });
+
+  let benchRunning: { model: string; startedAt: string } | null = null;
+  app.post('/api/operator/ai/bench', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    if (benchRunning) return reply.code(409).send({ error: `a benchmark is already running (${benchRunning.model})`, running: benchRunning });
+    const body = (req.body ?? {}) as { model?: string };
+    const model = body.model?.trim() || (process.env.INFERENCE_MODEL ?? '');
+    if (!/^[\w./-]{3,120}$/.test(model)) return reply.code(400).send({ error: 'model id required' });
+    const me = await callerProfile(req);
+    const triggeredBy = me?.email ?? 'shared-token';
+    benchRunning = { model, startedAt: new Date().toISOString() };
+    void (async () => {
+      try {
+        const agents = await import('@guaca/agents');
+        // Real verified rows from the best-covered area, or the fixture when
+        // coverage is still thin. The row says which, so runs stay comparable.
+        const area = await options.pool.query<{ id: string; slug: string; n: number }>(
+          `select a.id, a.slug, count(p.id)::int as n from areas a
+             join places p on p.area_id = a.id and p.verification_status = 'verified' and p.witness_count >= 2
+            group by a.id, a.slug order by n desc limit 1`,
+        );
+        let rows: Array<{ id: string; name: string; category: string; verificationStatus: string; witnessCount: number }> = [];
+        let rowsSource = 'fixture';
+        if (area.rows[0] && area.rows[0].n >= 12) {
+          const pr = await options.pool.query(
+            `select id, name, category, verification_status, witness_count from places
+              where area_id = $1 and verification_status = 'verified' and witness_count >= 2 order by name`,
+            [area.rows[0].id],
+          );
+          rows = pr.rows.map((r) => ({ id: r.id as string, name: r.name as string, category: r.category as string, verificationStatus: r.verification_status as string, witnessCount: r.witness_count as number }));
+          rowsSource = `verified:${area.rows[0].slug}`;
+        } else {
+          rows = [...agents.FIXTURE_ROWS];
+        }
+        const inference = agents.createProvider({
+          INFERENCE_BASE_URL: process.env.INFERENCE_BASE_URL ?? 'http://localhost:8000/v1',
+          INFERENCE_API_KEY: process.env.INFERENCE_API_KEY ?? 'changeme',
+          INFERENCE_MODEL: model,
+          INFERENCE_TIMEOUT_MS: '90000',
+          INFERENCE_MAX_RETRIES: '1',
+        });
+        const summary = await agents.runPlannerEval({ rows, inference, model });
+        await options.pool.query(
+          `insert into ai_benchmarks (model, eval_set, rows_source, prompts, passes, plans, refusals, schema_errors, errors, avg_ms, p95_ms, tokens_in, tokens_out, triggered_by, results)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)`,
+          [summary.model, summary.evalSet, rowsSource, summary.prompts, summary.passes, summary.plans, summary.refusals, summary.schemaErrors, summary.errors, summary.avgMs, summary.p95Ms, summary.tokensIn, summary.tokensOut, triggeredBy, JSON.stringify(summary.results)],
+        );
+        await audit('ai.benchmark', 'ai', '00000000-0000-0000-0000-000000000000', { model, passes: summary.passes, prompts: summary.prompts, by: triggeredBy });
+      } catch (err) {
+        console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'warn', event: 'ai.benchmark.failed', detail: { model, error: String(err) } }));
+      } finally {
+        benchRunning = null;
+      }
+    })();
+    return reply.code(202).send({ started: true, model, triggeredBy });
+  });
+
   app.post('/api/operator/auth/register', async (req, reply) => {
     if (!(await requireOperator(req, reply))) return reply;
     const body = (req.body ?? {}) as { email?: string; name?: string; role?: string };
@@ -1258,6 +1419,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
       pendingEscalations: await one(`select count(*)::int as n from verification_runs where decision='escalated'`),
       reportedPosts: await one(`select count(*)::int as n from place_post_reports r join place_posts p on p.id=r.post_id where p.status='visible'`),
       pendingRegistrations: await one(`select count(*)::int as n from registrations where handled_at is null`),
+      // Movement, not just totals: the panel shows these next to the counts.
+      deltas: {
+        verifiedWeek: await one(`select count(*)::int as n from places where verification_status='verified' and verified_at > now() - interval '7 days'`),
+        gapsWeek: await one(`select count(*)::int as n from gaps where created_at > now() - interval '7 days'`),
+        missionsWeek: await one(`select count(*)::int as n from missions where offered_at > now() - interval '7 days'`),
+        waitlistToday: await one(`select count(*)::int as n from registrations where created_at >= date_trunc('day', now())`),
+        conflictsResolvedWeek: await one(`select count(*)::int as n from operator_actions where created_at > now() - interval '7 days' and (action like 'escalation.%' or action like 'post.%' or action like 'override%')`),
+        actionsWeek: await one(`select count(*)::int as n from operator_actions where created_at > now() - interval '7 days'`),
+      },
     };
   });
 
