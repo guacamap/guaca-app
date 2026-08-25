@@ -1309,7 +1309,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   app.get('/api/operator/ai/benchmarks', async (req, reply) => {
     if (!(await requireOperator(req, reply))) return reply;
     const rows = await options.pool.query(
-      `select id, ts, model, eval_set, rows_source, prompts, passes, plans, refusals, schema_errors, errors,
+      `select id, ts, model, eval_set, rows_source, prompts, passes, plans, fast_path, refusals, schema_errors, errors,
               avg_ms, p95_ms, tokens_in, tokens_out, triggered_by,
               case when row_number() over (order by ts desc) = 1 then results else null end as results
          from ai_benchmarks order by ts desc limit 30`,
