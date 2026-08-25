@@ -97,9 +97,12 @@ export async function runGroundedPlanner(
     const res = await options.inference.json<z.infer<typeof requestSchema>>({
       schema: requestSchema,
       purpose: 'plan',
-      // Pretty-printed JSON burns ~50 tokens per stop — a thin budget
-      // truncates real plans into unparseable ones.
-      maxOutputTokens: Math.min(700, 260 + (days - 1) * 90),
+      // Pretty-printed JSON burns ~50 tokens per stop, and a trip may carry
+      // eight stops a day up to the 24-stop cap. The old budget (700 at
+      // most) cut every real two-day plan mid-object; the benchmark scored
+      // both multi-day prompts as unparseable JSON. Decoding is schema
+      // constrained, so a wide budget costs nothing on short answers.
+      maxOutputTokens: Math.min(1500, 220 + 60 * Math.min(24, 8 * days)),
       system: instruction,
       user: options.text,
       untrusted: options.text,
