@@ -11,6 +11,7 @@ import {
   Download,
   Globe2,
   Loader2,
+  KeyRound,
   ListChecks,
   Lock,
   Megaphone,
@@ -29,7 +30,7 @@ import { StewardReview } from './StewardReview';
 
 const TOKEN_KEY = 'guaca:op-token';
 
-type Tab = 'map' | 'overview' | 'missions' | 'people' | 'waitlist' | 'moderation' | 'steward';
+type Tab = 'map' | 'overview' | 'missions' | 'people' | 'waitlist' | 'moderation' | 'steward' | 'access';
 
 interface MapData {
   places: Array<{ id: string; name: string; category: string; lat: number; lon: number; spotterName: string | null }>;
@@ -149,6 +150,15 @@ interface WaitlistData {
   byCountry: Array<{ country: string; n: number }>;
 }
 
+interface OperatorAccount {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'operator' | 'moderator';
+  active: boolean;
+  lastLoginAt: string | null;
+}
+
 interface Conflict {
   id: string;
   kind: string;
@@ -187,6 +197,11 @@ export function AdminPanel() {
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [operatorName, setOperatorName] = useState<string | null>(null);
+  const [operatorRole, setOperatorRole] = useState<string | null>(null);
+  const [operators, setOperators] = useState<OperatorAccount[]>([]);
+  const [newOpEmail, setNewOpEmail] = useState('');
+  const [newOpName, setNewOpName] = useState('');
+  const [newOpRole, setNewOpRole] = useState<'admin' | 'operator' | 'moderator'>('operator');
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<Tab>('map');
 
@@ -284,9 +299,10 @@ export function AdminPanel() {
     if (authed || resumeChecked || !token) return;
     setResumeChecked(true);
     void (async () => {
-      const me = await api<{ operator: { name: string; email: string } }>('GET', '/api/operator/auth/me');
+      const me = await api<{ operator: { name: string; email: string; role: string } }>('GET', '/api/operator/auth/me');
       if (me) {
         setOperatorName(me.operator.name);
+        setOperatorRole(me.operator.role);
         setAuthed(true);
       } else {
         try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
@@ -322,9 +338,10 @@ export function AdminPanel() {
         setFlash(e.error ?? 'Invalid code.');
         return;
       }
-      const d = (await res.json()) as { token: string; operator: { name: string; email: string } };
+      const d = (await res.json()) as { token: string; operator: { name: string; email: string; role?: string } };
       setToken(d.token);
       setOperatorName(d.operator.name);
+      setOperatorRole(d.operator.role ?? null);
       setAuthed(true);
       try { localStorage.setItem(TOKEN_KEY, d.token); } catch { /* ignore */ }
     } catch { setFlash('Cannot reach the API.'); }
@@ -333,9 +350,10 @@ export function AdminPanel() {
 
   const loadAll = useCallback(async () => {
     // Check who we are (also validates the stored token)
-    const me = await api<{ operator: { name: string; email: string } }>('GET', '/api/operator/auth/me');
+    const me = await api<{ operator: { name: string; email: string; role: string } }>('GET', '/api/operator/auth/me');
     if (me) {
       setOperatorName(me.operator.name);
+      setOperatorRole(me.operator.role);
       const o = await api<Overview>('GET', '/api/operator/overview');
       if (o) setOverview(o);
       setAuthed(true);
@@ -375,6 +393,10 @@ export function AdminPanel() {
         if (wlQuery.trim()) params.set('q', wlQuery.trim());
         const w = await api<WaitlistData>('GET', `/api/operator/waitlist?${params.toString()}`);
         if (w) setWaitlist(w);
+      }
+      if (t === 'access') {
+        const o = await api<{ operators: OperatorAccount[] }>('GET', '/api/operator/operators');
+        if (o) setOperators(o.operators);
       }
       if (t === 'moderation') {
         const [c, i] = await Promise.all([
@@ -470,6 +492,7 @@ export function AdminPanel() {
     { id: 'waitlist', label: 'Waitlist', icon: ListChecks },
     { id: 'moderation', label: 'Moderation', icon: Megaphone },
     { id: 'steward', label: 'AI Steward', icon: Bot },
+    ...(operatorRole === 'admin' ? [{ id: 'access' as Tab, label: 'Access', icon: KeyRound }] : []),
   ];
 
   return (
@@ -940,6 +963,106 @@ export function AdminPanel() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {tab === 'access' && (
+          <div>
+            <h1 className="text-[18px] font-black text-guaca-ink">Access</h1>
+            <p className="mt-1 text-[12px] font-bold text-guaca-ink/45">
+              Who can sign in to this panel. An email not on this list cannot request a code. Every change here is audited.
+            </p>
+
+            <form
+              className="mt-4 flex flex-wrap items-end gap-2 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-guaca-sand/70"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const res = await api('POST', '/api/operator/operators', { email: newOpEmail, name: newOpName, role: newOpRole });
+                if (res) {
+                  setFlash(`${newOpEmail.trim().toLowerCase()} can now sign in as ${newOpRole}.`);
+                  setNewOpEmail(''); setNewOpName('');
+                  await loadTab('access');
+                }
+              }}
+            >
+              <label className="flex flex-col gap-1 text-[9.5px] font-black uppercase tracking-[.08em] text-guaca-ink/40">
+                Email
+                <Input value={newOpEmail} onChange={(e) => setNewOpEmail(e.target.value)} placeholder="person@guaca.live" className="h-9 w-60 text-[12px] normal-case tracking-normal" />
+              </label>
+              <label className="flex flex-col gap-1 text-[9.5px] font-black uppercase tracking-[.08em] text-guaca-ink/40">
+                Name
+                <Input value={newOpName} onChange={(e) => setNewOpName(e.target.value)} placeholder="Full name" className="h-9 w-48 text-[12px] normal-case tracking-normal" />
+              </label>
+              <label className="flex flex-col gap-1 text-[9.5px] font-black uppercase tracking-[.08em] text-guaca-ink/40">
+                Role
+                <select
+                  value={newOpRole}
+                  onChange={(e) => setNewOpRole(e.target.value as 'admin' | 'operator' | 'moderator')}
+                  className="h-9 rounded-xl border border-guaca-sand bg-white px-2 text-[12px] font-bold normal-case tracking-normal text-guaca-ink"
+                >
+                  <option value="operator">operator</option>
+                  <option value="moderator">moderator</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <Button type="submit" disabled={busy || !newOpEmail.trim() || !newOpName.trim()} className="h-9 rounded-xl bg-guaca-ocean-deep px-4 text-[10px] font-black text-white">
+                Add to allowlist
+              </Button>
+            </form>
+
+            <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-guaca-sand/70">
+              <table className="w-full text-left text-[12px]">
+                <thead>
+                  <tr className="text-[9.5px] font-black uppercase tracking-[.08em] text-guaca-ink/40">
+                    <th className="px-3 py-2.5">Name</th>
+                    <th className="px-3 py-2.5">Email</th>
+                    <th className="px-3 py-2.5">Role</th>
+                    <th className="px-3 py-2.5">Last sign in</th>
+                    <th className="px-3 py-2.5">Status</th>
+                    <th className="px-3 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {operators.length === 0 && (
+                    <tr><td colSpan={6} className="px-3 py-6 text-center text-[12px] font-bold text-guaca-ink/40">No operators yet.</td></tr>
+                  )}
+                  {operators.map((o) => (
+                    <tr key={o.id} className={`border-t border-guaca-sand/60 ${o.active ? '' : 'opacity-50'}`}>
+                      <td className="px-3 py-2 font-black text-guaca-ink">{o.name}</td>
+                      <td className="px-3 py-2 font-bold text-guaca-ink/60">{o.email}</td>
+                      <td className="px-3 py-2">
+                        <span className={`rounded-full px-2 py-0.5 text-[9.5px] font-black uppercase ${
+                          o.role === 'admin' ? 'bg-guaca-coral/12 text-guaca-coral-dark'
+                          : o.role === 'moderator' ? 'bg-guaca-mango/20 text-guaca-mango-dark'
+                          : 'bg-guaca-teal/10 text-guaca-teal-dark'}`}>{o.role}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 font-bold text-guaca-ink/55">
+                        {o.lastLoginAt ? new Date(o.lastLoginAt).toLocaleString() : <span className="text-guaca-ink/30">never</span>}
+                      </td>
+                      <td className="px-3 py-2">
+                        {o.active
+                          ? <span className="text-[10px] font-black text-guaca-teal">active</span>
+                          : <span className="text-[10px] font-black text-guaca-ink/40">deactivated</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          type="button"
+                          disabled={busy}
+                          onClick={async () => {
+                            if (o.active && !window.confirm(`Deactivate ${o.email}? They will not be able to sign in until reactivated.`)) return;
+                            const res = await api('POST', `/api/operator/operators/${o.id}/active`, { active: !o.active });
+                            if (res) { setFlash(o.active ? `${o.email} deactivated.` : `${o.email} reactivated.`); await loadTab('access'); }
+                          }}
+                          className={`h-7 rounded-xl px-2.5 text-[10px] font-black ${o.active ? 'bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-coral/15 hover:text-guaca-coral-dark' : 'bg-guaca-teal/10 text-guaca-teal-dark hover:bg-guaca-teal/20'}`}
+                        >
+                          {o.active ? <><Ban className="mr-1 h-3 w-3" /> Deactivate</> : <><Check className="mr-1 h-3 w-3" /> Reactivate</>}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

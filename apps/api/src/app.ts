@@ -4,7 +4,7 @@ import type { Pool } from 'pg';
 import { randomUUID, createHash, timingSafeEqual, randomInt } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
-  upsertOperator, setOperatorLoginCode, consumeOperatorLoginCode, operatorByEmail } from '@guaca/db';
+  upsertOperator, setOperatorLoginCode, consumeOperatorLoginCode, operatorByEmail, listOperators } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -1145,8 +1145,84 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return {
       operator: profile
         ? { email: profile.email, name: profile.name, role: profile.role }
-        : { email: 'shared-token', name: 'Operator (shared token)', role: 'operator' },
+        : { email: 'shared-token', name: 'Operator (shared token)', role: 'admin' },
     };
+  });
+
+  /*
+   * The allowlist for the panel IS the operators table, managed here.
+   * Only an admin may change it. The shared OPERATOR_TOKEN carries no
+   * identity and counts as admin: it is the break-glass path that
+   * bootstrapped the first account and it stays that way on purpose.
+   */
+  const callerProfile = async (req: FastifyRequest): Promise<OperatorProfile | null> => {
+    const bearer = req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7) : '';
+    return bearer ? verifyOperatorJwt(bearer) : null;
+  };
+  const requireAdmin = async (req: FastifyRequest, reply: import('fastify').FastifyReply): Promise<OperatorProfile | 'shared' | null> => {
+    if (!(await requireOperator(req, reply))) return null;
+    const me = await callerProfile(req);
+    if (me === null) return 'shared';
+    if (me.role !== 'admin') {
+      reply.code(403).send({ error: 'admin role required' });
+      return null;
+    }
+    return me;
+  };
+
+  app.get('/api/operator/operators', async (req, reply) => {
+    if (!(await requireAdmin(req, reply))) return reply;
+    return { operators: await listOperators(options.pool) };
+  });
+
+  app.post('/api/operator/operators', async (req, reply) => {
+    const me = await requireAdmin(req, reply);
+    if (!me) return reply;
+    const body = (req.body ?? {}) as { email?: string; name?: string; role?: string };
+    const email = body.email?.trim().toLowerCase() ?? '';
+    const name = body.name?.trim() ?? '';
+    const role = body.role ?? 'operator';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name) {
+      return reply.code(400).send({ error: 'a valid email and a name are required' });
+    }
+    if (role !== 'admin' && role !== 'operator' && role !== 'moderator') {
+      return reply.code(400).send({ error: 'role must be admin, operator or moderator' });
+    }
+    const op = await upsertOperator(options.pool, { email, name, role });
+    await audit('operator.upsert', 'operator', op.id, { email, role, by: me === 'shared' ? 'shared-token' : me.email });
+    return op;
+  });
+
+  app.post('/api/operator/operators/:id/active', async (req, reply) => {
+    const me = await requireAdmin(req, reply);
+    if (!me) return reply;
+    const { id } = req.params as { id: string };
+    const { active } = (req.body ?? {}) as { active?: boolean };
+    if (typeof active !== 'boolean') return reply.code(400).send({ error: 'active must be true or false' });
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return reply.code(400).send({ error: 'bad id' });
+    if (!active) {
+      // Two guards so nobody can lock the panel: you cannot deactivate
+      // yourself, and the last active admin stays.
+      if (me !== 'shared' && me.id === id) {
+        return reply.code(409).send({ error: 'you cannot deactivate your own account' });
+      }
+      const admins = await options.pool.query<{ n: number }>(
+        `select count(*)::int as n from operators where active and role = 'admin' and id <> $1`, [id],
+      );
+      const target = await options.pool.query<{ role: string }>(`select role from operators where id = $1`, [id]);
+      if (target.rows[0]?.role === 'admin' && (admins.rows[0]?.n ?? 0) === 0) {
+        return reply.code(409).send({ error: 'this is the last active admin' });
+      }
+    }
+    const res = await options.pool.query(
+      `update operators set active = $2 where id = $1 returning id, email, name, role, active, last_login_at as "lastLoginAt"`,
+      [id, active],
+    );
+    if (res.rows.length === 0) return reply.code(404).send({ error: 'not found' });
+    await audit(active ? 'operator.reactivate' : 'operator.deactivate', 'operator', id,
+      { by: me === 'shared' ? 'shared-token' : me.email });
+    return res.rows[0];
   });
 
   app.post('/api/operator/auth/register', async (req, reply) => {
