@@ -145,6 +145,11 @@ export class OpenAICompatibleProvider implements Inference {
         { role: 'user', content: req.user },
       ] as Array<{ role: string; content: string }>,
       max_tokens: req.maxOutputTokens,
+      // Greedy decoding. The same question must classify the same way twice
+      // ("sushi in Tokyo" refused on one run and planned on the next at the
+      // provider default), and a benchmark is only comparable if the model
+      // is the only thing that changed between runs.
+      temperature: 0,
     };
 
     if (this.probeResult === 'json_schema') {
@@ -178,6 +183,7 @@ export class OpenAICompatibleProvider implements Inference {
     const system = `${fenced}\n\nRespond ONLY with a JSON object matching this JSON Schema:\n${schemaJson}`;
     const body: Record<string, unknown> = {
       model: this.options.visionModel ?? this.options.model,
+      temperature: 0,
       messages: [
         { role: 'system', content: system },
         {
