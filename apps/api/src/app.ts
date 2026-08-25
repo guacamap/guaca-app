@@ -1351,18 +1351,23 @@ export function buildApp(options: AppOptions): FastifyInstance {
              join places p on p.area_id = a.id and p.verification_status = 'verified' and p.witness_count >= 2
             group by a.id, a.slug order by n desc limit 1`,
         );
-        let rows: Array<{ id: string; name: string; category: string; verificationStatus: string; witnessCount: number }> = [];
+        let places: import('@guaca/agents').CatalogPlace[] = [];
         let rowsSource = 'fixture';
+        let origin: { lat: number; lon: number } | undefined;
         if (area.rows[0] && area.rows[0].n >= 12) {
           const pr = await options.pool.query(
-            `select id, name, category, verification_status, witness_count from places
+            `select id, name, category, landmark_description, st_y(geom::geometry) as lat, st_x(geom::geometry) as lon, verification_status, witness_count from places
               where area_id = $1 and verification_status = 'verified' and witness_count >= 2 order by name`,
             [area.rows[0].id],
           );
-          rows = pr.rows.map((r) => ({ id: r.id as string, name: r.name as string, category: r.category as string, verificationStatus: r.verification_status as string, witnessCount: r.witness_count as number }));
+          places = pr.rows.map((r) => ({
+            id: r.id as string, name: r.name as string, category: r.category as string, landmarkDescription: r.landmark_description as string | null,
+            lat: Number(r.lat), lon: Number(r.lon), verificationStatus: r.verification_status as string, witnessCount: r.witness_count as number,
+          }));
+          origin = { lat: places.reduce((a, p) => a + p.lat, 0) / places.length, lon: places.reduce((a, p) => a + p.lon, 0) / places.length };
           rowsSource = `verified:${area.rows[0].slug}`;
         } else {
-          rows = [...agents.FIXTURE_ROWS];
+          places = [...agents.FIXTURE_ROWS];
         }
         const inference = agents.createProvider({
           INFERENCE_BASE_URL: process.env.INFERENCE_BASE_URL ?? 'http://localhost:8000/v1',
@@ -1371,11 +1376,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
           INFERENCE_TIMEOUT_MS: '90000',
           INFERENCE_MAX_RETRIES: '1',
         });
-        const summary = await agents.runPlannerEval({ rows, inference, model });
+        const summary = await agents.runPlannerEval({
+          places, inference, model, ...(origin ? { origin } : {}),
+          minCandidates: options.minCandidates ?? Number(process.env.PLANNER_MIN_CANDIDATES ?? 3),
+        });
         await options.pool.query(
-          `insert into ai_benchmarks (model, eval_set, rows_source, prompts, passes, plans, refusals, schema_errors, errors, avg_ms, p95_ms, tokens_in, tokens_out, triggered_by, results)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)`,
-          [summary.model, summary.evalSet, rowsSource, summary.prompts, summary.passes, summary.plans, summary.refusals, summary.schemaErrors, summary.errors, summary.avgMs, summary.p95Ms, summary.tokensIn, summary.tokensOut, triggeredBy, JSON.stringify(summary.results)],
+          `insert into ai_benchmarks (model, eval_set, rows_source, prompts, passes, plans, fast_path, refusals, schema_errors, errors, avg_ms, p95_ms, tokens_in, tokens_out, triggered_by, results)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)`,
+          [summary.model, summary.evalSet, rowsSource, summary.prompts, summary.passes, summary.plans, summary.fastPath, summary.refusals, summary.schemaErrors, summary.errors, summary.avgMs, summary.p95Ms, summary.tokensIn, summary.tokensOut, triggeredBy, JSON.stringify(summary.results)],
         );
         await audit('ai.benchmark', 'ai', '00000000-0000-0000-0000-000000000000', { model, passes: summary.passes, prompts: summary.prompts, by: triggeredBy });
       } catch (err) {

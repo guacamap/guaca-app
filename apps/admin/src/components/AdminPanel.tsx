@@ -93,9 +93,9 @@ interface AiFailures {
   refusedQuestions: Array<{ id: string; ts: string; raw_text: string; language: string; refusal_reason: string | null; area: string | null }>;
 }
 interface AiBenchmark {
-  id: string; ts: string; model: string; eval_set: string; rows_source: string; prompts: number; passes: number; plans: number;
+  id: string; ts: string; model: string; eval_set: string; rows_source: string; prompts: number; passes: number; plans: number; fast_path: number;
   refusals: number; schema_errors: number; errors: number; avg_ms: number; p95_ms: number; tokens_in: number; tokens_out: number;
-  triggered_by: string; results: Array<{ id: string; expect: string; outcome: string; pass: boolean; reason: string; ms: number }> | null;
+  triggered_by: string; results: Array<{ id: string; expect: string; outcome: string; path?: string; pass: boolean; reason: string; ms: number }> | null;
 }
 
 interface Overview {
@@ -1169,7 +1169,7 @@ export function AdminPanel() {
                         <td className="max-w-[200px] truncate py-1.5 pr-2 font-black text-guaca-ink">{b.model}</td>
                         <td className="py-1.5 pr-2">{b.rows_source}</td>
                         <td className={`py-1.5 pr-2 text-right font-black tabular-nums ${b.passes / b.prompts >= 0.8 ? 'text-guaca-teal' : b.passes / b.prompts >= 0.5 ? 'text-guaca-mango-dark' : 'text-guaca-coral-dark'}`}>{b.passes}/{b.prompts}</td>
-                        <td className="py-1.5 pr-2 text-right tabular-nums">{b.plans}</td>
+                        <td className="py-1.5 pr-2 text-right tabular-nums">{b.plans} <span className="text-guaca-ink/40">({b.fast_path} fast)</span></td>
                         <td className="py-1.5 pr-2 text-right tabular-nums">{b.refusals}</td>
                         <td className={`py-1.5 pr-2 text-right tabular-nums ${b.schema_errors ? 'text-guaca-coral-dark' : ''}`}>{b.schema_errors}</td>
                         <td className="py-1.5 pr-2 text-right tabular-nums">{b.avg_ms} ms</td>
@@ -1187,7 +1187,7 @@ export function AdminPanel() {
                   <div className="mt-2 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
                     {aiBenchmarks[0].results.map((r) => (
                       <div key={r.id} className={`rounded-xl px-3 py-2 text-[10.5px] font-bold ring-1 ${r.pass ? 'bg-guaca-teal/8 ring-guaca-teal/20 text-guaca-ink/70' : 'bg-guaca-coral/8 ring-guaca-coral/25 text-guaca-ink/70'}`}>
-                        <span className="font-black text-guaca-ink">{r.id}</span> · {r.outcome} · {r.ms} ms{r.reason ? ` · ${r.reason}` : ''}
+                        <span className="font-black text-guaca-ink">{r.id}</span> · {r.outcome}{r.path ? ` via ${r.path}` : ''} · {r.ms} ms{r.reason ? ` · ${r.reason}` : ''}
                       </div>
                     ))}
                   </div>
@@ -1561,7 +1561,19 @@ function describeEvent(e: ActivityEvent): { title: string; subtitle: string; Ico
     GAP_OPENED: ['Gap created', Radio, 'coral'],
     REGISTRATION: ['Waitlist signup', ListChecks, 'mango'],
   };
-  const [title, Icon, tone] = byKind[e.kind] ?? [e.kind.toLowerCase().replace(/[._]/g, ' '), Activity, 'ocean'];
+  // Operator actions arrive as OPERATOR_<ACTION> with the action code in
+  // payload.reason; the code stays in the subtitle because it is what the
+  // audit log says, and the title says it in words.
+  const byAction: Record<string, string> = {
+    'operator.upsert': 'Operator added or updated', 'operator.deactivate': 'Operator deactivated',
+    'spotter.add': 'Spotter added', 'waitlist.export': 'Waitlist exported', 'ai.benchmark': 'Benchmark run',
+    'issue.create': 'Issue opened', 'issue.resolve': 'Issue resolved', 'spotter.commission': 'Mission commissioned',
+  };
+  const action = e.kind.startsWith('OPERATOR_') ? pick('reason') : '';
+  const fallback = e.kind.startsWith('OPERATOR_')
+    ? `Operator: ${e.kind.slice(9).toLowerCase().replace(/_/g, ' ')}`
+    : e.kind.toLowerCase().replace(/[._]/g, ' ');
+  const [title, Icon, tone] = byKind[e.kind] ?? [byAction[action] ?? fallback, action ? KeyRound : Activity, 'ocean'];
   const t = TONE[tone];
   return { title, subtitle: pick('name', 'title', 'brief', 'text', 'raw_text', 'email', 'reason') || `${e.agent}`, Icon, bg: t.ring, fg: t.icon, dot: tone === 'coral' ? 'bg-guaca-coral' : tone === 'mango' ? 'bg-guaca-mango' : 'bg-guaca-teal' };
 }

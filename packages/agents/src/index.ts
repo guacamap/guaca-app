@@ -34,6 +34,8 @@ export type { FastPathPlace, FastPathPlan, FastPathStop, FastPathResult } from '
 export { runPlanner } from './planner/planner.js';
 export type { PlannerInput, PlannerDb, PlannerOutcome } from './planner/planner.js';
 export { runGroundedPlanner } from './planner/groundedPlanner.js';
+export { answerFromCatalog } from './planner/pipeline.js';
+export type { CatalogPlace, PipelineOptions, PipelineOutcome, AnswerPath, RefusalStage } from './planner/pipeline.js';
 export type { GroundedPlannerOptions, GroundedOutcome } from './planner/groundedPlanner.js';
 export { selectSpotter, type SpotterCandidate } from './gap/spotterSelection.js';
 export { composeBrief, type BriefInput } from './gap/brief.js';
@@ -59,5 +61,5 @@ export { narrateMapHealth } from './health/narrate.js';
 export type { HealthNarrative } from './health/narrate.js';
 export { runPlannerEval } from './eval/plannerEval.js';
 export type { EvalSummary, EvalCaseResult } from './eval/plannerEval.js';
-export { EVAL_CASES, EVAL_SET, FIXTURE_ROWS } from './eval/plannerSet.js';
+export { EVAL_CASES, EVAL_SET, FIXTURE_ROWS, FIXTURE_ORIGIN } from './eval/plannerSet.js';
 export type { EvalCase, EvalExpect } from './eval/plannerSet.js';

@@ -1,12 +1,13 @@
 import type { Inference } from '../inference/types.js';
-import type { PlaceRowForGuard } from '../guard/assertGrounded.js';
-import { runGroundedPlanner } from '../planner/groundedPlanner.js';
-import { EVAL_CASES, EVAL_SET, type EvalCase } from './plannerSet.js';
+import { answerFromCatalog, type CatalogPlace } from '../planner/pipeline.js';
+import { EVAL_CASES, EVAL_SET, FIXTURE_ORIGIN, type EvalCase } from './plannerSet.js';
 
 export interface EvalCaseResult {
   id: string;
   expect: EvalCase['expect'];
   outcome: 'plan' | 'refusal' | 'schema_error' | 'error';
+  /** Which stage produced the outcome: the fast path costs no inference. */
+  path: 'fast' | 'model' | 'intent' | 'coverage';
   pass: boolean;
   reason: string;
   ms: number;
@@ -22,6 +23,8 @@ export interface EvalSummary {
   prompts: number;
   passes: number;
   plans: number;
+  /** Plans the deterministic fast path answered without the model. */
+  fastPath: number;
   refusals: number;
   schemaErrors: number;
   errors: number;
@@ -33,7 +36,7 @@ export interface EvalSummary {
 }
 
 function classifyError(message: string): 'schema_error' | 'error' {
-  return /invalid JSON|schema|Required|invalid_type/i.test(message) ? 'schema_error' : 'error';
+  return /invalid JSON|schema|Required|invalid_type|unparseable/i.test(message) ? 'schema_error' : 'error';
 }
 
 /** Wraps an Inference so the eval can count tokens per call. */
@@ -46,53 +49,66 @@ function metered(inner: Inference) {
   return { wrapped, usage };
 }
 
+/** Eleven in the morning: the fast path plans from "now", and a benchmark
+ *  must not change its answer with the time of day it happens to run. */
+const EVAL_NOW_MIN = 11 * 60;
+
 /**
- * Runs the standing eval set against a set of verified rows and a model.
- * A case passes when the outcome matches its expectation, and for a plan,
- * when every stop sits in an allowed category. Same rows, same prompts,
- * so two runs are comparable; that is the whole point of a benchmark.
+ * Runs the standing eval set through the SAME pipeline the API serves
+ * (answerFromCatalog), on a fixed catalog and a fixed clock. A case passes
+ * when the outcome matches its expectation and, for a plan, every stop sits
+ * in an allowed category. Same rows, same prompts, same code as production:
+ * that is what makes two runs comparable, and the score honest.
  */
 export async function runPlannerEval(options: {
-  rows: readonly PlaceRowForGuard[];
+  places: readonly CatalogPlace[];
   inference: Inference;
   model: string;
+  minCandidates?: number;
+  /** Where the traveller stands. Defaults to the fixture's Puerto Cabello centre. */
+  origin?: { lat: number; lon: number };
   cases?: readonly EvalCase[];
   onCase?: (result: EvalCaseResult) => void;
 }): Promise<EvalSummary> {
   const cases = options.cases ?? EVAL_CASES;
   const { wrapped, usage } = metered(options.inference);
-  const byId = new Map(options.rows.map((r) => [r.id, r]));
+  const byId = new Map(options.places.map((r) => [r.id, r]));
   const results: EvalCaseResult[] = [];
+  const empty = { stops: 0, distinctPlaces: 0, days: 0, offCategory: 0 };
 
   for (const c of cases) {
     const t0 = Date.now();
     let res: EvalCaseResult;
     try {
-      const outcome = await runGroundedPlanner({
-        text: c.text, language: c.language, days: c.days, rows: options.rows, inference: wrapped, onGap: () => {},
+      const outcome = await answerFromCatalog({
+        text: c.text, language: c.language, days: c.days,
+        lat: (options.origin ?? FIXTURE_ORIGIN).lat, lon: (options.origin ?? FIXTURE_ORIGIN).lon,
+        places: options.places, inference: wrapped,
+        minCandidates: options.minCandidates ?? 3, nowMin: EVAL_NOW_MIN,
       });
       const ms = Date.now() - t0;
-      if (outcome.kind === 'PlanArtifact') {
+      if (outcome.kind === 'answer') {
         const stops = outcome.artifact.stops;
-        const ids = [...outcome.placeIds];
+        const ids = outcome.placeIds;
         const off = c.categories.length
           ? ids.filter((id) => !c.categories.includes(byId.get(id)?.category ?? '')).length
           : 0;
         res = {
-          id: c.id, expect: c.expect, outcome: 'plan', pass: c.expect === 'plan' && off === 0,
-          reason: off ? `${off} stop(s) outside ${c.categories.join('/')}` : '',
+          id: c.id, expect: c.expect, outcome: 'plan', path: outcome.path,
+          pass: c.expect === 'plan' && off === 0,
+          reason: off ? `${off} stop(s) outside ${c.categories.join('/')}` : c.expect === 'refuse' ? 'should have refused' : '',
           ms, stops: stops.length, distinctPlaces: new Set(ids).size,
           days: new Set(stops.map((s) => s.dayIndex ?? 0)).size, offCategory: off,
         };
-      } else if (outcome.kind === 'RefusalArtifact') {
-        res = { id: c.id, expect: c.expect, outcome: 'refusal', pass: c.expect === 'refuse', reason: outcome.reason, ms, stops: 0, distinctPlaces: 0, days: 0, offCategory: 0 };
+      } else if (outcome.reason === 'PLANNER_ERROR') {
+        const message = outcome.detail ?? outcome.reason;
+        res = { id: c.id, expect: c.expect, outcome: classifyError(message), path: outcome.stage, pass: false, reason: message.slice(0, 160), ms, ...empty };
       } else {
-        const kind = classifyError(outcome.message);
-        res = { id: c.id, expect: c.expect, outcome: kind, pass: false, reason: outcome.message.slice(0, 160), ms, stops: 0, distinctPlaces: 0, days: 0, offCategory: 0 };
+        res = { id: c.id, expect: c.expect, outcome: 'refusal', path: outcome.stage, pass: c.expect === 'refuse', reason: outcome.reason, ms, ...empty };
       }
     } catch (err) {
       const message = String(err);
-      res = { id: c.id, expect: c.expect, outcome: classifyError(message), pass: false, reason: message.slice(0, 160), ms: Date.now() - t0, stops: 0, distinctPlaces: 0, days: 0, offCategory: 0 };
+      res = { id: c.id, expect: c.expect, outcome: classifyError(message), path: 'model', pass: false, reason: message.slice(0, 160), ms: Date.now() - t0, ...empty };
     }
     results.push(res);
     options.onCase?.(res);
@@ -106,6 +122,7 @@ export async function runPlannerEval(options: {
     prompts: results.length,
     passes: results.filter((r) => r.pass).length,
     plans: results.filter((r) => r.outcome === 'plan').length,
+    fastPath: results.filter((r) => r.outcome === 'plan' && r.path === 'fast').length,
     refusals: results.filter((r) => r.outcome === 'refusal').length,
     schemaErrors: results.filter((r) => r.outcome === 'schema_error').length,
     errors: results.filter((r) => r.outcome === 'error').length,

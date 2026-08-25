@@ -1,14 +1,12 @@
 import type { Pool } from 'pg';
 import {
-  answerDeterministic,
-  categoryHits,
+  answerFromCatalog,
   classifiesIntent,
   classifyWithModel,
   extractIntent,
   groundFromVerifiedRows,
   renderItinerary,
   runGroundedPlanner,
-  type FastPathPlace,
   type Inference,
 } from '@guaca/agents';
 import {
@@ -66,12 +64,9 @@ export async function ask(
   },
   opts: { minCandidates: number; inference: import('@guaca/agents').Inference },
 ): Promise<AskResult> {
-  const intent = extractIntent(input.text);
-  /** Set when the lexicon missed and the model placed the question. */
-  let resolvedCategory: string | null = null;
-
   const record = async (
     answered: boolean,
+    category: string,
     placeIds: string[],
     refusalReason: string | null,
   ): Promise<string | undefined> => {
@@ -79,7 +74,7 @@ export async function ask(
       const rec = await recordQuestion(pool, {
         rawText: input.text,
         language: input.language,
-        category: intent.category,
+        category: category as ReturnType<typeof extractIntent>['category'],
         lat: input.lat,
         lon: input.lon,
         answered,
@@ -94,16 +89,6 @@ export async function ask(
       // signal is valuable, the answer is what they came for.
       return undefined;
     }
-  };
-
-  const refuse = async (reason: string): Promise<AskResult> => {
-    const questionId = await record(false, [], reason);
-    return {
-      kind: 'refusal',
-      text: REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!,
-      placeIds: [],
-      ...(questionId ? { questionId } : {}),
-    };
   };
 
   /** Grounded follow-ups near the ask, excluding what the answer just cited. */
@@ -123,22 +108,7 @@ export async function ask(
     }
   };
 
-  /*
-   * An unrecognised question must not inherit the broad default category —
-   * "best sushi in Tokyo" used to come back as a confident, verified-looking
-   * arepa plan. But refusing everything the lexicon misses refused real
-   * questions too ("fresh seafood by the water"). So: lexicon first, then one
-   * cheap classification that returns a CATEGORY or nothing. It never names a
-   * place, so grounding is untouched — an unplaceable question still refuses.
-   */
-  if (!classifiesIntent(input.text)) {
-    resolvedCategory = await classifyWithModel(opts.inference, input.text);
-    if (!resolvedCategory) return refuse('UNCLEAR_QUESTION');
-    intent.category = resolvedCategory as typeof intent.category;
-  }
-
   const rows = await q.places.findVerifiedNear(pool, input.lat, input.lon, 5000, undefined);
-  const verifiedIds = new Set(rows.map((r) => r.id));
   const places = new Map(
     rows.map((r) => [
       r.id,
@@ -151,118 +121,51 @@ export async function ask(
     ]),
   );
 
-  // T4.3 — coverage before any LLM call. Zero tokens spent to say "I don't know".
-  if (rows.length < opts.minCandidates) {
-    return refuse('INSUFFICIENT_COVERAGE');
-  }
-
-  const fastPathPlaces: FastPathPlace[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    category: r.category,
-    landmarkDescription: r.landmark_description,
-    lat: r.lat,
-    lon: r.lon,
-    openAt: 0,
-    closeAt: 1440,
-  }));
-
-  // T4.4 — deterministic fast path, zero inference.
-  const fast = await answerDeterministic({
+  // Intent, coverage, fast path, single-topic filter, guarded model path and
+  // the render-boundary re-mint all live in answerFromCatalog, which the
+  // benchmark runs on a fixed catalog. Same code, so the score means this.
+  const outcome = await answerFromCatalog({
     text: input.text,
     language: input.language,
     lat: input.lat,
     lon: input.lon,
-    places: fastPathPlaces,
-    inference: opts.inference,
-    ...(resolvedCategory ? { categoryOverride: resolvedCategory } : {}),
-  });
-  if (fast) {
-    const artifact = groundFromVerifiedRows(fast.stops, verifiedIds);
-    const ids = [...artifact.placeIds];
-    // An answer citing zero verified places is not an answer (§7.3) — it is
-    // unmet demand wearing an answer's clothes. Refuse so the gap agent sees it.
-    if (ids.length === 0) return refuse('NO_GROUNDED_STOPS');
-    const questionId = await record(true, ids, null);
-    const sugg = await followUps(ids);
-    return {
-      kind: 'answer',
-      text: renderItinerary(artifact, places, input.language),
-      placeIds: ids,
-      ...(questionId ? { questionId } : {}),
-      ...(sugg ? { suggestions: sugg } : {}),
-    };
-  }
-
-  // Single-topic honesty: a question the lexicon places in exactly ONE
-  // category is answered from that category only — "where can I hear live
-  // music?" must refuse (and fund a mission) rather than cite arepa places.
-  // Cross-category questions keep the whole catalog; a day plan is the
-  // point of those. Grounding is untouched: a subset of a grounded set is
-  // grounded.
-  const hits = categoryHits(input.text);
-  const singleCategory: string | null = resolvedCategory
-    ? resolvedCategory // lexicon missed; the model placed it in ONE category
-    : hits.length === 1
-      ? hits[0]!
-      : null;
-  const catalogRows = singleCategory
-    ? rows.filter((r) => r.category === singleCategory)
-    : rows;
-  if (catalogRows.length < opts.minCandidates) {
-    return refuse('INSUFFICIENT_COVERAGE');
-  }
-
-  // T4.5 — the guarded model path, wired. The catalog IS the retrieved rows;
-  // the model's only vocabulary is their integer refs; assertGrounded (10
-  // steps, in-memory re-read) mints the artifact; the re-mint below is the
-  // second, render-boundary check against the verified set we actually hold.
-  const outcome = await runGroundedPlanner({
-    text: input.text,
-    language: input.language,
-    rows: catalogRows.map((r) => ({
+    places: rows.map((r) => ({
       id: r.id,
       name: r.name,
       category: r.category,
+      landmarkDescription: r.landmark_description,
+      lat: r.lat,
+      lon: r.lon,
       verificationStatus: r.verification_status,
       witnessCount: r.witness_count,
     })),
     inference: opts.inference,
-    // The refusal itself is the demand record: refuse() below writes the
-    // question row the gap agent clusters on — no separate gap log needed.
-    onGap: () => undefined,
+    minCandidates: opts.minCandidates,
   });
 
-  if (outcome.kind === 'PlanArtifact') {
-    // Re-check the planner's ids against the verified rows we actually hold —
-    // defence in depth at the render boundary, and the only legal mint.
-    const artifact = groundFromVerifiedRows(
-      outcome.artifact.stops.map((s) => ({
-        placeId: s.placeId,
-        dayIndex: s.dayIndex,
-        startMin: s.startMin,
-        durationMin: s.durationMin,
-        reasonCode: s.reasonCode,
-      })),
-      verifiedIds,
-    );
-    const ids = [...artifact.placeIds];
-    if (ids.length === 0) return refuse('NO_GROUNDED_STOPS');
-    const questionId = await record(true, ids, null);
-    const sugg = await followUps(ids);
+  const category = outcome.category ?? extractIntent(input.text).category;
+  if (outcome.kind === 'refusal') {
+    // The refusal itself is the demand record: the question row written here
+    // is what the gap agent clusters on. Unrecorded means never commissioned.
+    const questionId = await record(false, category, [], outcome.reason);
     return {
-      kind: 'answer',
-      text: renderItinerary(artifact, places, input.language),
-      placeIds: ids,
+      kind: 'refusal',
+      text: REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!,
+      placeIds: [],
       ...(questionId ? { questionId } : {}),
-      ...(sugg ? { suggestions: sugg } : {}),
     };
   }
 
-  if (outcome.kind === 'RefusalArtifact') {
-    return refuse(outcome.reason);
-  }
-  return refuse('PLANNER_ERROR');
+  const ids = outcome.placeIds;
+  const questionId = await record(true, category, ids, null);
+  const sugg = await followUps(ids);
+  return {
+    kind: 'answer',
+    text: renderItinerary(outcome.artifact, places, input.language),
+    placeIds: ids,
+    ...(questionId ? { questionId } : {}),
+    ...(sugg ? { suggestions: sugg } : {}),
+  };
 }
 
 export interface TripResult {
