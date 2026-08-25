@@ -4,7 +4,8 @@ import type { Pool } from 'pg';
 import { randomUUID, createHash, timingSafeEqual, randomInt } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
-  upsertOperator, setOperatorLoginCode, consumeOperatorLoginCode, operatorByEmail, listOperators } from '@guaca/db';
+  upsertOperator, setOperatorLoginCode, consumeOperatorLoginCode, operatorByEmail, listOperators,
+  findSpotterByEmail, setSpotterLoginCode, clearSpotterLoginCode } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
 import type { Inference } from '@guaca/agents';
@@ -13,7 +14,7 @@ import { draftCandidate } from '@guaca/agents';
 import { suggestionsNear } from './suggestionsService.js';
 import { TripRequestSchema, type TripPace } from '@guaca/shared';
 import { opsStreamPlugin } from './opsStream.js';
-import { spotterLogin, verifySpotterToken } from './spotterAuth.js';
+import { requestSpotterCode, spotterLogin, verifySpotterToken } from './spotterAuth.js';
 import { requestTouristCode, verifyTouristLogin, verifyTouristToken } from './touristAuth.js';
 import { createEmailSender, type EmailSender } from './email.js';
 
@@ -1334,17 +1335,30 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   app.post('/api/operator/spotters', async (req, reply) => {
     if (!(await requireOperator(req, reply))) return reply;
-    const body = (req.body ?? {}) as { name?: string; phone?: string; areaId?: string };
-    if (!body.name?.trim() || !body.phone?.trim()) {
-      return reply.code(400).send({ error: 'name and phone required' });
+    const body = (req.body ?? {}) as { name?: string; email?: string; phone?: string; areaId?: string; language?: string };
+    const email = body.email?.trim().toLowerCase() ?? '';
+    if (!body.name?.trim() || !body.phone?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return reply.code(400).send({ error: 'name, a valid email and a phone are required' });
+    }
+    if (await findSpotterByEmail(options.pool, email)) {
+      return reply.code(409).send({ error: 'a spotter with this email already exists' });
     }
     const areaId = body.areaId ?? '00000000-0000-4000-8000-00000000000a';
+    const language = body.language === 'en' ? 'en' : 'es';
     const spotter = await addSpotter(options.pool, {
       name: body.name.trim(),
+      email,
       phone: body.phone.trim(),
       areaId,
+      language,
     });
-    await audit('spotter.add', 'spotter', spotter.id, { name: body.name, areaId });
+    await audit('spotter.add', 'spotter', spotter.id, { name: body.name, email, areaId });
+    // Tell them they are on the roster and how to get in. Best effort: the
+    // roster row is the thing that matters, and mail can fail.
+    if (emailSender.sendSpotterWelcome) {
+      try { await emailSender.sendSpotterWelcome(email, body.name.trim(), language); }
+      catch (err) { console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'warn', event: 'spotter.welcome.failed', detail: { spotterId: spotter.id, error: String(err) } })); }
+    }
     return spotter;
   });
 
@@ -1593,43 +1607,42 @@ export function buildApp(options: AppOptions): FastifyInstance {
     15 * 60 * 1000,
   );
 
-  app.post('/api/spotter/login', async (req, reply) => {
-    const body = req.body as { phone?: string; code?: string };
-    if (!body.phone || !body.code) {
-      return reply.code(400).send({ error: 'phone and code required' });
+  /*
+   * The spotter door: email, then a one-time code, exactly like tourists
+   * and operators. The roster is the allowlist. An email that is not on it
+   * gets an explicit 403 rather than a silent 200: this is an invited
+   * group, and a spotter who typo'd their email should not wait for a
+   * code that will never come.
+   */
+  const spotterDb = {
+    findSpotterByEmail: (email: string) => findSpotterByEmail(options.pool, email),
+    setLoginCode: (email: string, hash: string, expiresAt: Date) => setSpotterLoginCode(options.pool, email, hash, expiresAt),
+  };
+
+  app.post('/api/spotter/auth/request-code', async (req, reply) => {
+    const body = (req.body ?? {}) as { email?: string };
+    const email = body.email?.trim().toLowerCase() ?? '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return reply.code(400).send({ error: 'valid email required' });
+    if (!codeLimiter(email)) {
+      return reply.code(429).send({ error: 'too many codes requested — wait a few minutes' });
     }
-    if (!spotterLoginLimiter(body.phone.trim())) {
+    const result = await requestSpotterCode(spotterDb, emailSender, { email });
+    if (!result.ok) return reply.code(403).send({ error: 'this email is not registered as a spotter' });
+    return { ok: true };
+  });
+
+  const spotterVerify = async (req: FastifyRequest, reply: import('fastify').FastifyReply) => {
+    const body = (req.body ?? {}) as { email?: string; code?: string };
+    if (!body.email || !body.code) {
+      return reply.code(400).send({ error: 'email and code required' });
+    }
+    if (!spotterLoginLimiter(body.email.trim().toLowerCase())) {
       return reply.code(429).send({ error: 'too many attempts — wait a few minutes' });
     }
-    const secret = new TextEncoder().encode(
-      process.env.SESSION_SECRET ?? 'changeme-32-bytes-min!',
-    );
-    const result = await spotterLogin(
-      {
-        findSpotterByPhone: async (phone) => {
-          const res = await options.pool.query(
-            `select id, phone, name, login_code_hash from spotters where phone = $1 and active`,
-            [phone],
-          );
-          const r = res.rows[0];
-          return r
-            ? { id: r.id as string, phone: r.phone as string, name: r.name as string, loginCodeHash: (r.login_code_hash as string) ?? null }
-            : null;
-        },
-      },
-      { phone: body.phone, code: body.code },
-      secret,
-    );
-    if (!result.ok) {
-      return reply.code(401).send({ error: result.reason });
-    }
-    // The gate promises single-use codes; the code was never cleared, so an
-    // operator-issued code stayed valid forever. (The dev/review bypasses
-    // do not mint a code, so there is nothing to clear for them.)
-    await options.pool.query(
-      `update spotters set login_code_hash = null where id = $1`,
-      [result.spotter.id],
-    );
+    const result = await spotterLogin(spotterDb, { email: body.email, code: body.code }, sessionSecret());
+    if (!result.ok) return reply.code(401).send({ error: result.reason });
+    // Single use: a code that signed someone in must never work again.
+    await clearSpotterLoginCode(options.pool, result.spotter.id);
     return reply
       .setCookie('guaca_spotter', result.token, {
         ...sessionCookie(),
@@ -1637,7 +1650,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
         maxAge: 7 * 24 * 60 * 60,
       })
       .send({ ok: true, name: result.spotter.name });
-  });
+  };
+  app.post('/api/spotter/auth/verify', spotterVerify);
+  // The old path, kept so an installed wrapper built before this change
+  // still reaches the same door.
+  app.post('/api/spotter/login', spotterVerify);
 
   app.get('/api/spotter/missions', async (req, reply) => {
     const token = tokenFrom(req, 'guaca_spotter');

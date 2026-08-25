@@ -1,48 +1,96 @@
 import { SignJWT, jwtVerify } from 'jose';
-import { createHash } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 
 export interface SpotterLookup {
   id: string;
-  phone: string;
+  email: string;
   name: string;
+  language: string;
   loginCodeHash: string | null;
+  loginCodeExpiresAt: Date | null;
 }
 
 export interface SpotterAuthDb {
-  findSpotterByPhone(phone: string): Promise<SpotterLookup | null>;
+  findSpotterByEmail(email: string): Promise<SpotterLookup | null>;
+  setLoginCode(email: string, codeHash: string, expiresAt: Date): Promise<void>;
 }
+
+export interface SpotterCodeSender {
+  mode?: 'dev' | 'live';
+  sendLoginCode(email: string, code: string, language: string): Promise<void>;
+}
+
+export type RequestResult = { ok: true } | { ok: false; reason: 'NOT_FOUND' };
 
 export type LoginResult =
   | { ok: true; token: string; spotter: { id: string; name: string } }
-  | { ok: false; reason: 'NOT_FOUND' | 'BAD_CODE' | 'NO_CODE' };
+  | { ok: false; reason: 'NOT_FOUND' | 'BAD_CODE' | 'NO_CODE' | 'EXPIRED' };
+
+const CODE_TTL_MS = 10 * 60_000;
+
+function hashCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
+function normalise(email: string): string {
+  return email.trim().toLowerCase();
+}
 
 /**
- * T7.1 — spotter login with phone + operator-issued one-time code. The code
- * is compared by hash only; a successful login issues a JWT meant for an
- * httpOnly cookie (SESSION_SECRET).
+ * Spotter sign-in is the same door tourists and operators use: email, then a
+ * six digit code that lives ten minutes and is used once. What differs is the
+ * allowlist behind it. A tourist email creates an account; a spotter email
+ * must already be on the roster, put there by an operator. Nobody becomes a
+ * witness by signing in.
  */
-export async function spotterLogin(
+export async function requestSpotterCode(
   db: SpotterAuthDb,
-  input: { phone: string; code: string },
-  secret: Uint8Array,
-): Promise<LoginResult> {
-  const spotter = await db.findSpotterByPhone(input.phone);
+  sender: SpotterCodeSender,
+  input: { email: string },
+): Promise<RequestResult> {
+  const email = normalise(input.email);
+  const spotter = await db.findSpotterByEmail(email);
   if (!spotter) return { ok: false, reason: 'NOT_FOUND' };
 
-  // Dev bypass, mirroring the tourist gate: 000000 signs in any active
-  // spotter outside production, so teammates can test the mission flow
-  // without minting CLI codes. Production always requires a real code.
-  const devBypass = process.env.NODE_ENV !== 'production' && input.code === '000000';
-  // Store-review spotter account — inert unless both env vars are set.
-  const reviewPhone = process.env.REVIEW_SPOTTER_PHONE?.trim();
+  const devBypass = sender.mode === 'dev' && process.env.NODE_ENV !== 'production';
+  const reviewEmail = process.env.REVIEW_SPOTTER_EMAIL?.trim().toLowerCase();
   const reviewCode = process.env.REVIEW_CODE?.trim();
-  const isReview = Boolean(
-    reviewPhone && reviewCode && input.phone.trim() === reviewPhone && input.code === reviewCode,
-  );
+  const isReview = Boolean(reviewEmail && reviewCode && email === reviewEmail);
+
+  const code = isReview
+    ? reviewCode!
+    : devBypass
+      ? '000000'
+      : String(randomInt(0, 1_000_000)).padStart(6, '0');
+  await db.setLoginCode(email, hashCode(code), new Date(Date.now() + CODE_TTL_MS));
+  // The store reviewer's code is fixed and known to them; mailing it to a
+  // mailbox nobody reads would only bounce.
+  if (!isReview) await sender.sendLoginCode(email, code, spotter.language);
+  return { ok: true };
+}
+
+export async function spotterLogin(
+  db: Pick<SpotterAuthDb, 'findSpotterByEmail'>,
+  input: { email: string; code: string },
+  secret: Uint8Array,
+): Promise<LoginResult> {
+  const email = normalise(input.email);
+  const spotter = await db.findSpotterByEmail(email);
+  if (!spotter) return { ok: false, reason: 'NOT_FOUND' };
+
+  // Dev bypass, mirroring the tourist gate: 000000 signs in any roster
+  // spotter outside production. Production always requires a real code.
+  const devBypass = process.env.NODE_ENV !== 'production' && input.code === '000000';
+  const reviewEmail = process.env.REVIEW_SPOTTER_EMAIL?.trim().toLowerCase();
+  const reviewCode = process.env.REVIEW_CODE?.trim();
+  const isReview = Boolean(reviewEmail && reviewCode && email === reviewEmail && input.code === reviewCode);
+
   if (!devBypass && !isReview) {
     if (!spotter.loginCodeHash) return { ok: false, reason: 'NO_CODE' };
-    const hash = createHash('sha256').update(input.code).digest('hex');
-    if (hash !== spotter.loginCodeHash) return { ok: false, reason: 'BAD_CODE' };
+    if (spotter.loginCodeExpiresAt && spotter.loginCodeExpiresAt < new Date()) {
+      return { ok: false, reason: 'EXPIRED' };
+    }
+    if (hashCode(input.code.trim()) !== spotter.loginCodeHash) return { ok: false, reason: 'BAD_CODE' };
   }
 
   const token = await new SignJWT({ sub: spotter.id, name: spotter.name, role: 'spotter' })

@@ -13,6 +13,8 @@ export interface EmailSender {
   sendPlaceVerified?(email: string, placeName: string, language: string): Promise<void>;
   /** Waitlist signup on the marketing site — confirms we will be in touch. */
   sendWaitlistConfirmation?(email: string, role: string, language: string): Promise<void>;
+  /** An operator put this person on the spotter roster. */
+  sendSpotterWelcome?(email: string, name: string, language: string): Promise<void>;
 }
 
 export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSender {
@@ -35,6 +37,9 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
         async sendWaitlistConfirmation() {
           throw new Error('email is not configured (RESEND_API_KEY missing)');
         },
+        async sendSpotterWelcome() {
+          throw new Error('email is not configured (RESEND_API_KEY missing)');
+        },
       };
     }
     return {
@@ -48,6 +53,9 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
       },
       async sendWaitlistConfirmation(email, role) {
         console.log(`[email] waitlist confirmation for ${email} (${role})`);
+      },
+      async sendSpotterWelcome(email, name) {
+        console.log(`[email] spotter welcome for ${email} (${name})`);
       },
     };
   }
@@ -111,6 +119,18 @@ export function createEmailSender(env: NodeJS.ProcessEnv = process.env): EmailSe
         assetUrl: env.PUBLIC_API_URL ?? 'https://api.guaca.live',
       });
       await send('hello', email, body.subject, body.text, body.html);
+    },
+    async sendSpotterWelcome(email, name, language) {
+      const es = language === 'es';
+      const app = env.NEXT_PUBLIC_APP_URL ?? env.APP_URL ?? 'https://app.guaca.live';
+      await send(
+        'hello',
+        email,
+        es ? `${name}, ya eres Spotter de Guaca 📍` : `${name}, you're a Guaca Spotter 📍`,
+        es
+          ? `Un operador te añadió al roster de Spotters. Para entrar, abre ${app}, elige Spotter y escribe este correo: te enviaremos un código de un solo uso cada vez que entres. Tus misiones te esperan.`
+          : `An operator added you to the Spotter roster. To get in, open ${app}, choose Spotter and enter this email: we'll send you a one-time code every time you sign in. Your missions are waiting.`,
+      );
     },
   };
 }
