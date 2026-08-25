@@ -51,7 +51,7 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
       <PalmFrondLeft className="pointer-events-none absolute left-[-10px] top-[-10px] h-44 w-32 opacity-80" />
       <PalmFrondRight className="pointer-events-none absolute right-[-10px] top-[-10px] h-44 w-32 opacity-80" />
 
-      <div className="relative z-10 flex flex-1 flex-col px-7 pb-7 pt-16 sm:pt-20">
+      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-7 pb-7 pt-16 sm:pt-20">
         {/* Brand hero */}
         <div className="flex flex-1 flex-col items-center pt-4">
           <GuacaLogo variant="reversed" className="h-24 drop-shadow-[0_7px_18px_rgba(0,0,0,0.4)]" />
