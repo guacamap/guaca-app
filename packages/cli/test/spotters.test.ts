@@ -9,6 +9,7 @@ describe('T6.5 — guaca spotter add|list|code', () => {
   it('add creates a spotter and returns the id', async () => {
     const result = await spotterAddCommand({
       name: 'Yorman',
+      email: 'Yorman@Example.com',
       phone: '+58 412 000 0001',
       areaId: 'a1',
       db: {
@@ -26,7 +27,7 @@ describe('T6.5 — guaca spotter add|list|code', () => {
       db: {
         addSpotter: async () => ({ id: 's1' }),
         listSpotters: async () => [
-          { id: 's1', name: 'Yorman', phone: '+58 412 000 0001', level: 2, active: true },
+          { id: 's1', name: 'Yorman', email: 'yorman@example.com', phone: '+58 412 000 0001', level: 2, active: true },
         ],
         issueLoginCode: async () => 'CODE123',
       },
@@ -51,7 +52,7 @@ describe('T6.5 — guaca spotter add|list|code', () => {
       pool: {} as never,
     });
     // The command returns the freshly minted code it generated.
-    expect(result.code).toMatch(/^[0-9A-F]{8}$/);
+    expect(result.code).toMatch(/^[0-9]{6}$/);
     // The stored value must be a hash of it, never the plaintext.
     expect(storedHash).not.toBe(result.code);
     expect(storedHash.length).toBe(64);

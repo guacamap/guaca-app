@@ -293,6 +293,7 @@ spotter
   .command('add')
   .argument('<name>')
   .argument('<phone>')
+  .requiredOption('--email <email>', 'the login; a one-time code is emailed each sign-in')
   .requiredOption('--area <areaId>')
   .option('--photo-url <url>', 'territory identity — the face on their pins')
   .option('--zone <h3>', 'home zone (h3 cell) they own')
@@ -303,7 +304,7 @@ spotter
     const { addSpotter, listSpotters, issueLoginCode } = await import('@guaca/db');
     await withPool(async (pool) => {
       const result = await spotterAddCommand({
-        name, phone, areaId: opts.area,
+        name, email: opts.email, phone, areaId: opts.area,
         language: opts.language, photoUrl: opts.photoUrl, homeH3: opts.zone,
         db: { addSpotter, listSpotters, issueLoginCode }, pool,
       });
