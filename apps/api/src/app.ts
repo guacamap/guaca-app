@@ -1311,6 +1311,75 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return { registrations: res.rows };
   });
 
+  /*
+   * The waitlist as demand data: every registration, handled or not, with
+   * counts by role and country and the filters the panel needs. The inbox
+   * endpoint above is for "what needs a hand"; this one is for "who wants
+   * us where", which is what decides the next community to open.
+   */
+  app.get('/api/operator/waitlist', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const q = req.query as { status?: string; role?: string; q?: string };
+    const status = q.status === 'pending' || q.status === 'handled' ? q.status : 'all';
+    const role = q.role === 'traveler' || q.role === 'spotter' || q.role === 'owner' ? q.role : null;
+    const search = q.q?.trim() ? `%${q.q.trim().slice(0, 80)}%` : null;
+    const rows = await options.pool.query(
+      `select id, role, name, contact, language,
+              coalesce(details->>'where', '') as country,
+              coalesce(details->>'countryCode', '') as country_code,
+              created_at, handled_at, operator_note
+         from registrations
+        where ($1 = 'all'
+               or ($1 = 'pending' and handled_at is null)
+               or ($1 = 'handled' and handled_at is not null))
+          and ($2::text is null or role = $2)
+          and ($3::text is null or name ilike $3 or contact ilike $3 or details->>'where' ilike $3)
+        order by created_at desc
+        limit 500`,
+      [status, role, search],
+    );
+    const counts = await options.pool.query(
+      `select count(*)::int as total,
+              count(*) filter (where handled_at is null)::int as pending,
+              count(*) filter (where role = 'traveler')::int as traveler,
+              count(*) filter (where role = 'spotter')::int as spotter,
+              count(*) filter (where role = 'owner')::int as owner
+         from registrations`,
+    );
+    const byCountry = await options.pool.query(
+      `select coalesce(nullif(details->>'where', ''), 'Unknown') as country, count(*)::int as n
+         from registrations group by 1 order by n desc, 1 limit 12`,
+    );
+    return { rows: rows.rows, counts: counts.rows[0], byCountry: byCountry.rows };
+  });
+
+  // Whole waitlist as CSV, for the CRM. Exports are audited: they are the
+  // one action here that moves personal data out of our database.
+  app.get('/api/operator/waitlist.csv', async (req, reply) => {
+    if (!(await requireOperator(req, reply))) return reply;
+    const res = await options.pool.query(
+      `select role, name, contact, language,
+              coalesce(details->>'where', '') as country,
+              coalesce(details->>'countryCode', '') as country_code,
+              created_at, handled_at, coalesce(operator_note, '') as note
+         from registrations order by created_at desc`,
+    );
+    const header = ['role', 'name', 'contact', 'language', 'country', 'country_code', 'created_at', 'handled_at', 'note'];
+    const cell = (v: unknown) => {
+      const str = v == null ? '' : v instanceof Date ? v.toISOString() : String(v);
+      return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const lines = [
+      header.join(','),
+      ...res.rows.map((r) => header.map((h) => cell((r as Record<string, unknown>)[h])).join(',')),
+    ];
+    await audit('waitlist.export', 'registration', 'all', { rows: res.rows.length });
+    return reply
+      .header('content-type', 'text/csv; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="guaca-waitlist.csv"')
+      .send(lines.join('\r\n'));
+  });
+
   app.post('/api/operator/registrations/:id/handle', async (req, reply) => {
     if (!(await requireOperator(req, reply))) return reply;
     const { id } = req.params as { id: string };

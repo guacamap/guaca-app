@@ -8,8 +8,10 @@ import {
   Check,
   ClipboardList,
   Coins,
+  Download,
   Globe2,
   Loader2,
+  ListChecks,
   Lock,
   Megaphone,
   Radio,
@@ -27,7 +29,7 @@ import { StewardReview } from './StewardReview';
 
 const TOKEN_KEY = 'guaca:op-token';
 
-type Tab = 'map' | 'overview' | 'missions' | 'people' | 'moderation' | 'steward';
+type Tab = 'map' | 'overview' | 'missions' | 'people' | 'waitlist' | 'moderation' | 'steward';
 
 interface MapData {
   places: Array<{ id: string; name: string; category: string; lat: number; lon: number; spotterName: string | null }>;
@@ -129,6 +131,24 @@ interface Registration {
   created_at: string;
 }
 
+interface WaitlistRow {
+  id: string;
+  role: string;
+  name: string;
+  contact: string;
+  language: string;
+  country: string;
+  country_code: string;
+  created_at: string;
+  handled_at: string | null;
+  operator_note: string | null;
+}
+interface WaitlistData {
+  rows: WaitlistRow[];
+  counts: { total: number; pending: number; traveler: number; spotter: number; owner: number };
+  byCountry: Array<{ country: string; n: number }>;
+}
+
 interface Conflict {
   id: string;
   kind: string;
@@ -176,6 +196,10 @@ export function AdminPanel() {
   const [spotters, setSpotters] = useState<Spotter[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [waitlist, setWaitlist] = useState<WaitlistData | null>(null);
+  const [wlStatus, setWlStatus] = useState<'all' | 'pending' | 'handled'>('all');
+  const [wlRole, setWlRole] = useState<'' | 'traveler' | 'spotter' | 'owner'>('');
+  const [wlQuery, setWlQuery] = useState('');
   const [posts, setPosts] = useState<ReportedPost[]>([]);
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
@@ -325,6 +349,13 @@ export function AdminPanel() {
         if (s) setSpotters(s.spotters);
         if (r) setRegistrations(r.registrations);
       }
+      if (t === 'waitlist') {
+        const params = new URLSearchParams({ status: wlStatus });
+        if (wlRole) params.set('role', wlRole);
+        if (wlQuery.trim()) params.set('q', wlQuery.trim());
+        const w = await api<WaitlistData>('GET', `/api/operator/waitlist?${params.toString()}`);
+        if (w) setWaitlist(w);
+      }
       if (t === 'moderation') {
         const [c, i] = await Promise.all([
           api<{ conflicts: Conflict[] }>('GET', '/api/operator/conflicts'),
@@ -334,7 +365,7 @@ export function AdminPanel() {
         if (i) setIssues(i.issues);
       }
     },
-    [api, loadAll],
+    [api, loadAll, wlStatus, wlRole, wlQuery],
   );
 
   useEffect(() => {
@@ -416,6 +447,7 @@ export function AdminPanel() {
     { id: 'overview', label: 'Overview', icon: Globe2 },
     { id: 'missions', label: 'Missions & Gaps', icon: Radio },
     { id: 'people', label: 'People', icon: Users },
+    { id: 'waitlist', label: 'Waitlist', icon: ListChecks },
     { id: 'moderation', label: 'Moderation', icon: Megaphone },
     { id: 'steward', label: 'AI Steward', icon: Bot },
   ];
@@ -730,6 +762,164 @@ export function AdminPanel() {
                 ))}
               </div>
             </section>
+          </div>
+        )}
+
+        {tab === 'waitlist' && (
+          <div>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h1 className="text-[18px] font-black text-guaca-ink">Waitlist</h1>
+                <p className="mt-1 text-[12px] font-bold text-guaca-ink/45">
+                  Everyone who signed up on guaca.live, by role and country. The People tab is the inbox; this is the demand map.
+                </p>
+              </div>
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const res = await fetch('/api/operator/waitlist.csv', { headers: { authorization: `Bearer ${token}` } });
+                    if (!res.ok) { setFlash(`Export failed (${res.status}).`); return; }
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = 'guaca-waitlist.csv'; a.click();
+                    URL.revokeObjectURL(url);
+                    setFlash('CSV downloaded.');
+                  } finally { setBusy(false); }
+                }}
+                className="h-9 rounded-xl bg-guaca-ocean-deep px-3 text-[10px] font-black text-white"
+              >
+                <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
+              </Button>
+            </div>
+
+            {waitlist && (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  {(
+                    [
+                      ['Total', waitlist.counts.total],
+                      ['Pending', waitlist.counts.pending],
+                      ['Travellers', waitlist.counts.traveler],
+                      ['Spotters', waitlist.counts.spotter],
+                      ['Businesses', waitlist.counts.owner],
+                    ] as Array<[string, number]>
+                  ).map(([label, value]) => (
+                    <div key={label} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-guaca-sand/70">
+                      <p className="text-[9.5px] font-black uppercase tracking-[.08em] text-guaca-ink/40">{label}</p>
+                      <p className="mt-1.5 text-[26px] font-black leading-none text-guaca-ink">{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {waitlist.byCountry.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {waitlist.byCountry.map((c) => (
+                      <button
+                        key={c.country}
+                        type="button"
+                        onClick={() => setWlQuery(c.country === 'Unknown' ? '' : c.country)}
+                        className="rounded-full bg-guaca-teal/10 px-2.5 py-1 text-[10px] font-black text-guaca-teal-dark hover:bg-guaca-teal/20"
+                      >
+                        {c.country} · {c.n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {(['all', 'pending', 'handled'] as const).map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setWlStatus(st)}
+                      className={`h-8 rounded-full px-3 text-[10px] font-black ${wlStatus === st ? 'bg-guaca-ink text-white' : 'bg-white text-guaca-ink/55 ring-1 ring-guaca-sand'}`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                  <span className="mx-1 h-5 w-px bg-guaca-sand" />
+                  {([['', 'all roles'], ['traveler', 'traveller'], ['spotter', 'spotter'], ['owner', 'business']] as const).map(([r, label]) => (
+                    <button
+                      key={r || 'any'}
+                      type="button"
+                      onClick={() => setWlRole(r)}
+                      className={`h-8 rounded-full px-3 text-[10px] font-black ${wlRole === r ? 'bg-guaca-teal text-white' : 'bg-white text-guaca-ink/55 ring-1 ring-guaca-sand'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <Input
+                    value={wlQuery}
+                    onChange={(e) => setWlQuery(e.target.value)}
+                    placeholder="Search name, contact, country"
+                    className="h-8 w-56 rounded-full text-[11px]"
+                  />
+                </div>
+
+                <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-guaca-sand/70">
+                  <table className="w-full text-left text-[12px]">
+                    <thead>
+                      <tr className="text-[9.5px] font-black uppercase tracking-[.08em] text-guaca-ink/40">
+                        <th className="px-3 py-2.5">Date</th>
+                        <th className="px-3 py-2.5">Role</th>
+                        <th className="px-3 py-2.5">Name</th>
+                        <th className="px-3 py-2.5">Contact</th>
+                        <th className="px-3 py-2.5">Country</th>
+                        <th className="px-3 py-2.5">Lang</th>
+                        <th className="px-3 py-2.5">Status</th>
+                        <th className="px-3 py-2.5" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {waitlist.rows.length === 0 && (
+                        <tr><td colSpan={8} className="px-3 py-6 text-center text-[12px] font-bold text-guaca-ink/40">Nobody matches these filters.</td></tr>
+                      )}
+                      {waitlist.rows.map((r) => (
+                        <tr key={r.id} className="border-t border-guaca-sand/60">
+                          <td className="whitespace-nowrap px-3 py-2 font-bold text-guaca-ink/55">{new Date(r.created_at).toLocaleDateString()}</td>
+                          <td className="px-3 py-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[9.5px] font-black uppercase ${
+                              r.role === 'spotter' ? 'bg-guaca-coral/12 text-guaca-coral-dark'
+                              : r.role === 'owner' ? 'bg-guaca-mango/20 text-guaca-mango-dark'
+                              : 'bg-guaca-teal/10 text-guaca-teal-dark'}`}>
+                              {r.role === 'owner' ? 'business' : r.role === 'traveler' ? 'traveller' : r.role}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 font-black text-guaca-ink">{r.name}</td>
+                          <td className="px-3 py-2 font-bold text-guaca-ink/60">{r.contact}</td>
+                          <td className="px-3 py-2 font-bold text-guaca-ink/60">{r.country || <span className="text-guaca-ink/30">unknown</span>}</td>
+                          <td className="px-3 py-2 font-bold uppercase text-guaca-ink/45">{r.language}</td>
+                          <td className="px-3 py-2">
+                            {r.handled_at
+                              ? <span className="text-[10px] font-black text-guaca-ink/40">handled</span>
+                              : <span className="text-[10px] font-black text-guaca-teal">pending</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {!r.handled_at && (
+                              <Button
+                                type="button"
+                                disabled={busy}
+                                onClick={async () => {
+                                  const res = await api('POST', `/api/operator/registrations/${r.id}/handle`, { note: 'handled via waitlist' });
+                                  if (res) { setFlash('Marked handled.'); await loadTab('waitlist'); }
+                                }}
+                                className="h-7 rounded-xl bg-guaca-ink/6 px-2.5 text-[10px] font-black text-guaca-ink/60 hover:bg-guaca-ink/10"
+                              >
+                                <Check className="mr-1 h-3 w-3" /> Handled
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         )}
 
