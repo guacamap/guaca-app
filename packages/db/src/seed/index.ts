@@ -103,10 +103,12 @@ export async function seed(pool: Pool, options: SeedOptions = {}): Promise<void>
 
   for (const s of SPOTTERS) {
     await pool.query(
-      `insert into spotters (name, phone, area_id, home_h3, language) values
-         ($1, $2, $3, $4, 'es')
-       on conflict (phone) do nothing`,
-      [s.name, s.phone, AREA_ID, s.zone],
+      `insert into spotters (name, email, phone, area_id, home_h3, language) values
+         ($1, $2, $3, $4, $5, 'es')
+       on conflict (phone) do update set email = coalesce(spotters.email, excluded.email)`,
+      // Dev logins: "yorman.salazar@spotters.guaca.dev" and so on. Any of
+      // them signs in with 000000 outside production.
+      [s.name, s.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '.') + '@spotters.guaca.dev', s.phone, AREA_ID, s.zone],
     );
   }
 
