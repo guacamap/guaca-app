@@ -1148,7 +1148,7 @@ export function TouristView() {
         </div>
       )}
 
-      <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/55 via-guaca-ocean/12 to-transparent px-4 pb-12 pt-8">
+      <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/55 via-guaca-ocean/12 to-transparent px-4 pb-12 pt-8 lg:inset-x-auto lg:left-0 lg:w-[560px] lg:rounded-br-[28px]">
         <form
           onSubmit={(e) => { e.preventDefault(); void ask() }}
           className="flex items-center gap-2 rounded-full border border-white/65 bg-guaca-sand-light/95 px-3 py-2 shadow-xl shadow-guaca-ocean-deep/14 backdrop-blur-md"
@@ -1320,7 +1320,7 @@ export function TouristView() {
 
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
       {selected && (
-        <div className="absolute bottom-4 left-4 right-4 z-[650]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-6 lg:w-[440px]">
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-black leading-tight text-guaca-ink">{selected.name}</h3>
@@ -1506,7 +1506,7 @@ export function TouristView() {
 
       {/* Candidate card — an OSM dot: known to open data, unknown to us. */}
       {!selected && selectedCandidate && (
-        <div className="absolute bottom-4 left-4 right-4 z-[650]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-6 lg:w-[440px]">
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1539,7 +1539,7 @@ export function TouristView() {
 
       {/* Ask result / teaser card. */}
       {!selected && !selectedCandidate && (
-        <div className="absolute bottom-4 left-4 right-4 z-[650]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-6 lg:w-[440px]">
           {askState.kind === 'asking' && (
             <div className="guaca-card rounded-[30px] p-4">
               <p className="text-[12px] font-black text-guaca-ink/55">{t.asking}</p>
@@ -1616,8 +1616,8 @@ export function TouristView() {
   )
 
   const renderGuaca = () => (
-    <div className="flex h-full flex-col bg-guaca-sand-light">
-      <div className="shrink-0 bg-gradient-to-br from-guaca-teal to-guaca-ocean px-5 pb-4 pt-12 text-white">
+    <div className="flex h-full flex-col bg-guaca-sand-light lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
+      <div className="shrink-0 bg-gradient-to-br from-guaca-teal to-guaca-ocean px-5 pb-4 pt-12 text-white lg:rounded-b-[28px]">
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-white/80">
           <Sparkles className="h-3.5 w-3.5" /> {t.guacaTitle}
         </p>
@@ -1779,7 +1779,7 @@ export function TouristView() {
   )
 
   const renderPlan = () => (
-    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12">
+    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-ocean to-guaca-ocean-deep p-6 text-white shadow-xl">
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-white/75">
           <Route className="h-3.5 w-3.5" /> {t.planTitle}
@@ -2005,7 +2005,7 @@ export function TouristView() {
   )
 
   const renderProfile = () => (
-    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12">
+    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
       <div className="rounded-[32px] bg-white p-6 text-center shadow-sm ring-1 ring-guaca-sand/75">
         <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-guaca-teal text-2xl font-black text-white">
           {(me?.email?.[0] ?? '·').toUpperCase()}
@@ -2251,12 +2251,12 @@ export function TouristView() {
   }
 
   return (
-    <div className="relative flex h-screen flex-col overflow-hidden bg-guaca-paper sm:h-full">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-guaca-paper lg:flex-row">
       {/* min-h-0 lets this region scroll instead of growing the page and
           pushing the tab bar past the fold. */}
-      <div className="relative min-h-0 flex-1">{tabScreens[activeTab]()}</div>
-      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-4 pb-5 pt-2 backdrop-blur-md">
-        <div className="flex items-center justify-around">
+      <div className="relative min-h-0 flex-1 lg:order-2">{tabScreens[activeTab]()}</div>
+      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-4 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:w-24 lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
+        <div className="flex items-center justify-around lg:flex-col lg:justify-start lg:gap-5">
           {[
             { id: 'map' as const, label: t.tabMap, icon: MapPin },
             { id: 'guaca' as const, label: t.tabGuaca, icon: Sparkles },

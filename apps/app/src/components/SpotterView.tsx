@@ -403,8 +403,8 @@ export function SpotterView() {
   }
 
   return (
-    <div className="relative flex h-screen flex-col overflow-hidden bg-guaca-sand-light sm:h-full">
-      <div className="relative min-h-0 flex-1">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-guaca-sand-light lg:flex-row">
+      <div className="relative min-h-0 flex-1 lg:order-2">
       {tab === 'map' && (
         <>
           <div className="absolute inset-0 z-0">
@@ -439,7 +439,7 @@ export function SpotterView() {
               zoom={13.8}
             />
           </div>
-          <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/60 via-guaca-ocean/15 to-transparent px-5 pb-12 pt-10">
+          <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/60 via-guaca-ocean/15 to-transparent px-5 pb-12 pt-10 lg:inset-x-auto lg:left-0 lg:w-[560px] lg:rounded-br-[28px]">
             <p className="text-[13px] font-black text-white drop-shadow">{t.mapLede}</p>
             <div className="mt-2 flex gap-1.5">
               <span className="flex items-center gap-1.5 rounded-full bg-guaca-sand-light/92 px-3 py-1.5 text-[10px] font-black text-guaca-coral-dark shadow-md">
@@ -450,7 +450,7 @@ export function SpotterView() {
               </span>
             </div>
           </div>
-          <div className="absolute inset-x-4 bottom-4 z-[600]">
+          <div className="absolute inset-x-4 bottom-4 z-[600] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[440px]">
             <Button
               type="button"
               onClick={() => setCapture('free')}
@@ -461,7 +461,7 @@ export function SpotterView() {
           </div>
 
           {opportunities.length === 0 && pending.length === 0 && (
-            <div className="absolute bottom-[76px] left-4 right-4 z-[450]">
+            <div className="absolute bottom-[76px] left-4 right-4 z-[450] lg:bottom-[120px] lg:left-auto lg:right-6 lg:w-[440px]">
               <p className="guaca-card rounded-[24px] p-4 text-center text-[11px] font-semibold text-guaca-ink/55">{t.mapEmpty}</p>
             </div>
           )}
@@ -811,8 +811,8 @@ export function SpotterView() {
       )}
       </div>
 
-      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md">
-        <div className="flex items-center justify-around">
+      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:w-24 lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
+        <div className="flex items-center justify-around lg:flex-col lg:justify-start lg:gap-5">
           {(
             [
               { id: 'missions', label: t.tabMissions, icon: Trophy },
@@ -962,7 +962,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission | null; onDone: () 
   }
 
   return (
-    <div className="h-full min-h-screen overflow-y-auto bg-guaca-sand-light px-5 pb-16 pt-12 sm:min-h-full">
+    <div className="h-full min-h-dvh overflow-y-auto bg-guaca-sand-light px-5 pb-16 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-teal to-guaca-ocean p-6 text-white shadow-xl">
         <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">{mission ? categoryLabel(mission.targetCategory, lang) : t.freeTitle}</p>
         <h1 className="mt-2 text-2xl font-black tracking-[-.03em]">{t.captureTitle}</h1>
