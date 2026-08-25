@@ -299,17 +299,27 @@ export function AdminPanel() {
     if (authed || resumeChecked || !token) return;
     setResumeChecked(true);
     void (async () => {
-      const me = await api<{ operator: { name: string; email: string; role: string } }>('GET', '/api/operator/auth/me');
-      if (me) {
-        setOperatorName(me.operator.name);
-        setOperatorRole(me.operator.role);
-        setAuthed(true);
-      } else {
-        try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
-        setFlash('Session expired. Sign in again.');
+      // Deliberately not through api(): only a 401 means the session is
+      // gone. A 5xx or a network error must not throw away a valid token,
+      // or a blip in the API would sign every operator out.
+      try {
+        const res = await fetch('/api/operator/auth/me', { headers: { authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const me = (await res.json()) as { operator: { name: string; email: string; role: string } };
+          setOperatorName(me.operator.name);
+          setOperatorRole(me.operator.role);
+          setAuthed(true);
+        } else if (res.status === 401) {
+          try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+          setFlash('Session expired. Sign in again.');
+        } else {
+          setFlash(`API unavailable (${res.status}). Your session is kept; reload to retry.`);
+        }
+      } catch {
+        setFlash('Cannot reach the API. Your session is kept; reload to retry.');
       }
     })();
-  }, [token, authed, resumeChecked, api]);
+  }, [token, authed, resumeChecked]);
 
   const requestCode = async () => {
     setBusy(true); setFlash(null);
