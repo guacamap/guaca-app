@@ -22,15 +22,15 @@
   "dependencies": {
     "@guaca/agents": "workspace:*",
     "@guaca/shared": "workspace:*",
-    "fast-xml-parser": "^4.5.0",
-    "pg": "^8.13.1",
-    "zod": "^3.25.32"
+    "fast-xml-parser": "^5.11.0",
+    "pg": "^8.23.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "@types/pg": "^8.11.10",
-    "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "vitest": "^3.2.6"
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }
