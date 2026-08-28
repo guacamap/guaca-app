@@ -753,12 +753,40 @@ export function AdminPanel() {
                     </div>
                   );
                 })()}
-                <h2 className="shrink-0 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Live activity</h2>
-                {activity.length === 0 && <EmptyCard text="No activity yet." />}
+                {mapData && (() => {
+                  // What needs a person: missions in flight, places one witness short, posts with reports.
+                  const items: Array<{ key: string; sel: MapSelection; title: string; sub: string; color: string; emoji: string }> = [
+                    ...mapData.missions.map((m) => ({ key: `m:${m.id}`, sel: { kind: 'mission' as const, id: m.id }, title: `${m.category} · ${m.status}`, sub: `${m.spotterName} · expires ${new Date(m.expiresAt).toLocaleDateString()}`, color: '#E9A23B', emoji: MISSION_EMOJI[m.status] ?? '📨' })),
+                    ...mapData.pending.map((p) => ({ key: `p:${p.id}`, sel: { kind: 'pending' as const, id: p.id }, title: p.name, sub: `${p.witnessCount} of 2 witnesses · ${p.spotterName ?? 'unknown'}`, color: '#0D8B8B', emoji: CATEGORY_GLYPH[p.category]?.emoji ?? '📍' })),
+                    ...mapData.reports.map((r) => ({ key: `r:${r.postId}`, sel: { kind: 'report' as const, id: r.postId }, title: `${r.reports} report(s) · ${r.reason}`, sub: `${r.placeName}: ${r.excerpt}`, color: '#C0392B', emoji: '🚩' })),
+                  ];
+                  return (
+                    <>
+                      <h2 className="shrink-0 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Needs attention ({items.length})</h2>
+                      {items.length === 0 && <EmptyCard text="Nothing waiting on a person. Missions, unconfirmed places and reported posts appear here." />}
+                      {items.map((it) => {
+                        const active = mapSel?.kind === it.sel.kind && mapSel.id === it.sel.id;
+                        return (
+                          <button key={it.key} type="button" onClick={() => setMapSel(it.sel)}
+                            className={`flex shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-left shadow-sm ring-1 transition hover:bg-guaca-sand-light ${active ? 'ring-2' : 'ring-guaca-sand/60'}`}
+                            style={active ? { boxShadow: `0 0 0 2px ${it.color}66` } : undefined}>
+                            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[13px]" style={{ background: `${it.color}22` }}>{it.emoji}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[10.5px] font-black text-guaca-ink">{it.title}</span>
+                              <span className="block truncate text-[9px] font-semibold text-guaca-ink/45">{it.sub}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
+                <h2 className="shrink-0 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50 xl:hidden">Live activity</h2>
+                {activity.length === 0 && <div className="xl:hidden"><EmptyCard text="No activity yet." /></div>}
                 {activity.map((e) => {
                   const v = describeEvent(e);
                   return (
-                  <div key={e.id} className="flex shrink-0 items-baseline gap-2 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-guaca-sand/60">
+                  <div key={e.id} className="flex shrink-0 items-baseline gap-2 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-guaca-sand/60 xl:hidden">
                     <span className={`grid h-6 w-6 shrink-0 place-items-center self-center rounded-full ${v.bg}`}><v.Icon className={`h-3.5 w-3.5 ${v.fg}`} /></span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[10px] font-black text-guaca-ink">{v.title}</p>

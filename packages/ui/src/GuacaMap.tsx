@@ -383,7 +383,10 @@ function createOverlayMarkerHTML(m: OverlayMarker, isSelected: boolean) {
   const badge = m.badge
     ? `<div style="position:absolute;top:-7px;right:-10px;background:${m.color};color:white;font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.2);max-width:72px;overflow:hidden;text-overflow:ellipsis">${m.badge}</div>`
     : ''
-  return `<div class="guaca-map-marker" style="position:relative;display:flex;flex-direction:column;align-items:center;width:${size}px;cursor:pointer"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${fill};display:flex;align-items:center;justify-content:center;border:2.5px solid ${m.hollow ? m.color : '#fff'};box-sizing:border-box;box-shadow:${ring};font-size:${Math.round(size * 0.48)}px;line-height:1">${m.emoji}</div>${badge}<div style="width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid ${m.hollow ? m.color : fill};margin-top:-1px"></div></div>`
+  // No position on the root: mapbox positions marker elements absolutely
+  // through its class, and an inline position would win and stack them in
+  // document flow instead. The badge anchors to the marker element itself.
+  return `<div class="guaca-map-marker" style="display:flex;flex-direction:column;align-items:center;width:${size}px;cursor:pointer"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${fill};display:flex;align-items:center;justify-content:center;border:2.5px solid ${m.hollow ? m.color : '#fff'};box-sizing:border-box;box-shadow:${ring};font-size:${Math.round(size * 0.48)}px;line-height:1">${m.emoji}</div>${badge}<div style="width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid ${m.hollow ? m.color : fill};margin-top:-1px"></div></div>`
 }
 
 /**
