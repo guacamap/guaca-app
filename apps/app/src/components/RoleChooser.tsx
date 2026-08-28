@@ -20,16 +20,16 @@ const BUSINESS_URL = `${LANDING_URL}/#businesses`
 const TONE = {
   teal: {
     text: 'text-guaca-teal',
-    border: 'border-guaca-teal/70',
+    border: 'border-guaca-teal/80',
     borderHover: 'hover:border-guaca-teal',
-    glow: 'shadow-[0_0_0_1px_rgba(13,139,139,0.25),0_18px_40px_-16px_rgba(0,0,0,0.6)]',
+    glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_0_24px_-6px_rgba(13,139,139,0.35)]',
     ringHover: 'group-hover:bg-guaca-teal/15',
   },
   coral: {
     text: 'text-guaca-coral',
-    border: 'border-guaca-coral/75',
+    border: 'border-guaca-coral/85',
     borderHover: 'hover:border-guaca-coral',
-    glow: 'shadow-[0_0_0_1px_rgba(232,115,90,0.25),0_18px_40px_-16px_rgba(0,0,0,0.6)]',
+    glow: 'shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_0_24px_-6px_rgba(232,115,90,0.35)]',
     ringHover: 'group-hover:bg-guaca-coral/15',
   },
 } as const
@@ -81,10 +81,10 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
       <PalmFrondLeft className="pointer-events-none absolute left-[-10px] top-[-10px] h-44 w-32 opacity-80" />
       <PalmFrondRight className="pointer-events-none absolute right-[-10px] top-[-10px] h-44 w-32 opacity-80" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-6 pb-7 pt-16 sm:pt-20 md:max-w-3xl">
+      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-6 pb-7 pt-16 sm:pt-20 md:max-w-[52rem] md:pt-8">
         {/* Brand hero */}
         <div className="flex flex-col items-center">
-          <GuacaLogo variant="reversed" className="h-24 drop-shadow-[0_7px_18px_rgba(0,0,0,0.4)] md:h-28" />
+          <GuacaLogo variant="reversed" className="h-24 drop-shadow-[0_7px_18px_rgba(0,0,0,0.4)] md:h-24" />
           <p className="mt-2 text-[13px] font-semibold text-white/92 drop-shadow md:text-[14px]">
             Live map. Real info. Local rewards.
           </p>
@@ -94,8 +94,8 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
         {/* Choice: stacked glass cards on a phone; on a wider screen the two
             roles sit square, side by side, inside one glass panel with the
             business row beneath. */}
-        <div className="mt-6 md:rounded-[28px] md:border md:border-white/14 md:bg-guaca-ocean-deep/35 md:p-6 md:shadow-2xl md:shadow-black/40 md:backdrop-blur-xl">
-          <h1 className="mb-4 flex items-center justify-center gap-3 text-center text-[17px] font-extrabold tracking-[-.01em] text-white drop-shadow md:mb-5 md:text-[20px]">
+        <div className="mt-6 md:rounded-[30px] md:border md:border-white/20 md:bg-[rgba(16,64,82,0.42)] md:p-6 md:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_30px_60px_-30px_rgba(0,0,0,0.7)] md:backdrop-blur-2xl">
+          <h1 className="mb-4 flex items-center justify-center gap-3 text-center text-[17px] font-extrabold tracking-[-.01em] text-white drop-shadow md:mb-5 md:text-[22px]">
             <Wave /> How do you want to join? <Wave />
           </h1>
 
@@ -112,17 +112,17 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
                   onMouseLeave={() => setHoveredRole(null)}
                   onFocus={() => setHoveredRole(role.id)}
                   onBlur={() => setHoveredRole(null)}
-                  className={`group flex w-full items-center gap-4 rounded-2xl border-2 bg-guaca-ocean-deep/55 p-4 text-left backdrop-blur-md transition-[transform,border-color,background-color] duration-150 ease-out hover:bg-guaca-ocean-deep/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:flex-col md:items-center md:gap-3 md:px-5 md:py-7 md:text-center ${role.tone.border} ${role.tone.borderHover} ${role.tone.glow} ${active ? '-translate-y-0.5' : ''}`}
+                  className={`group flex w-full items-center gap-4 rounded-[22px] border-[1.5px] bg-[rgba(14,58,76,0.48)] p-4 text-left backdrop-blur-xl transition-[transform,border-color,background-color] duration-150 ease-out hover:bg-[rgba(14,58,76,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:flex-col md:items-center md:gap-3 md:px-6 md:py-6 md:text-center ${role.tone.border} ${role.tone.borderHover} ${role.tone.glow} ${active ? '-translate-y-0.5' : ''}`}
                 >
-                  <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_5px_rgba(255,255,255,0.14)] md:h-24 md:w-24 md:shadow-[0_0_0_7px_rgba(255,255,255,0.14)]">
-                    <Icon aria-hidden="true" className={`h-8 w-8 md:h-11 md:w-11 ${role.tone.text}`} strokeWidth={1.9} />
+                  <span className="grid h-[68px] w-[68px] shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.18),0_0_0_7px_rgba(255,255,255,0.06)] md:h-[92px] md:w-[92px] md:shadow-[0_0_0_5px_rgba(255,255,255,0.18),0_0_0_9px_rgba(255,255,255,0.06)]">
+                    <Icon aria-hidden="true" className={`h-8 w-8 md:h-12 md:w-12 ${role.tone.text}`} strokeWidth={1.9} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className={`block text-[20px] font-extrabold leading-tight md:text-[22px] ${role.tone.text}`}>{role.title}</span>
-                    <span className="mt-1 block text-[14px] font-semibold leading-snug text-white/92">{role.description}</span>
-                    <span className={`mt-1.5 block text-[12px] font-semibold ${role.tone.text}`}>{role.helper}</span>
+                    <span className={`block text-[21px] font-extrabold leading-tight md:text-[24px] ${role.tone.text}`}>{role.title}</span>
+                    <span className="mt-1 block text-[14px] font-semibold leading-snug text-white/95 md:mx-auto md:mt-1 md:max-w-[20ch] md:text-[15px]">{role.description}</span>
+                    <span className={`mt-1.5 block text-[12px] font-semibold md:hidden ${role.tone.text}`}>{role.helper}</span>
                   </span>
-                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 transition-[background-color,transform] duration-150 ${role.tone.border} ${role.tone.ringHover} ${active ? 'translate-x-0.5 md:translate-x-0 md:translate-y-0.5' : ''}`}>
+                  <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-full border-[1.5px] transition-[background-color,transform] duration-150 md:mt-1 ${role.tone.border} ${role.tone.ringHover} ${active ? 'translate-x-0.5 md:translate-x-0 md:translate-y-0.5' : ''}`}>
                     <ArrowRight aria-hidden="true" className={`h-5 w-5 ${role.tone.text}`} />
                   </span>
                 </button>
@@ -132,22 +132,22 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
             {/* Businesses are not an in-app role: this hands off to the site. */}
             <a
               href={BUSINESS_URL}
-              className="group flex w-full items-center gap-4 rounded-2xl border-2 border-guaca-teal/45 bg-guaca-ocean-deep/55 p-4 text-left backdrop-blur-md transition-[transform,border-color,background-color] duration-150 ease-out hover:-translate-y-0.5 hover:border-guaca-teal/80 hover:bg-guaca-ocean-deep/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:col-span-2 md:p-3.5"
+              className="group flex w-full items-center gap-4 rounded-[22px] border-[1.5px] border-guaca-teal/60 bg-[rgba(14,58,76,0.48)] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition-[transform,border-color,background-color] duration-150 ease-out hover:-translate-y-0.5 hover:border-guaca-teal hover:bg-[rgba(14,58,76,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:col-span-2 md:px-5 md:py-4"
             >
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_5px_rgba(255,255,255,0.14)] md:h-14 md:w-14">
+              <span className="grid h-[68px] w-[68px] shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.18),0_0_0_7px_rgba(255,255,255,0.06)] md:h-16 md:w-16">
                 <Store aria-hidden="true" className="h-8 w-8 text-guaca-teal md:h-7 md:w-7" strokeWidth={1.9} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[20px] font-extrabold leading-tight text-guaca-teal md:text-[16px]">
+                <span className="block text-[21px] font-extrabold leading-tight text-guaca-teal md:text-[18px]">
                   Business<span className="hidden md:inline"> access</span>
                 </span>
-                <span className="mt-1 block text-[14px] font-semibold leading-snug text-white/92 md:mt-0.5 md:text-[13px]">
+                <span className="mt-1 block text-[14px] font-semibold leading-snug text-white/95 md:mt-1 md:text-[14px]">
                   <span className="md:hidden">Publish current local information</span>
                   <span className="hidden md:inline">Partner with Guaca to build stronger communities</span>
                 </span>
                 <span className="mt-1.5 block text-[12px] font-semibold text-guaca-teal md:hidden">Coverage gaps · live demand</span>
               </span>
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-guaca-teal/60 transition-[background-color,transform] duration-150 group-hover:bg-guaca-teal/15 group-hover:translate-x-0.5">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full border-[1.5px] border-guaca-teal/70 transition-[background-color,transform] duration-150 group-hover:bg-guaca-teal/15 group-hover:translate-x-0.5">
                 <ArrowRight aria-hidden="true" className="h-5 w-5 text-guaca-teal" />
               </span>
             </a>
@@ -161,7 +161,7 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
 
         {/* Footer */}
         <div className="mt-5 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-guaca-teal/60 bg-guaca-ocean-deep/50 px-4 py-2 text-[12px] font-bold text-white/90 backdrop-blur-md">
+          <div className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-guaca-teal/80 bg-[rgba(14,58,76,0.5)] px-4 py-2 text-[12px] font-bold text-white/95 backdrop-blur-md md:text-[13px]">
             <Palmtree className="h-3.5 w-3.5 text-guaca-teal" />
             <span>Caribbean beta · coverage grows locally</span>
           </div>
