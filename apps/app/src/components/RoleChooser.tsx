@@ -47,8 +47,10 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
           cards sit on calm water. */}
       <div className="absolute inset-0 bg-[url('/assets/join-caribbean-phone.webp')] bg-cover bg-center md:hidden" />
       <div className="absolute inset-0 hidden bg-[url('/assets/join-caribbean-wide.webp')] bg-cover bg-center md:block" />
-      <div className="absolute inset-0 bg-gradient-to-b from-guaca-sea/30 via-guaca-ocean/50 to-guaca-ocean-deep/95" />
-      <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-b from-transparent to-guaca-ocean-deep" />
+      {/* Light enough that the painted foliage and the macaw at the bottom
+          stay visible; the footer links sit on the darker band. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-guaca-sea/20 via-guaca-ocean/35 to-guaca-ocean-deep/60" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-guaca-ocean-deep/70" />
 
       {/* Palm frond corners */}
       <PalmFrondLeft className="pointer-events-none absolute left-[-10px] top-[-10px] h-44 w-32 opacity-80" />
