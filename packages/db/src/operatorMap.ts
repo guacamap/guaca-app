@@ -57,8 +57,9 @@ export async function operatorMapData(pool: Pool): Promise<OperatorMapData> {
     ),
     pool.query(
       `select g.id, g.category, g.question_count,
+              -- h3_cell_to_lat_lng returns a point(x = lng, y = lat), indexed from 0.
               (h3_cell_to_lat_lng(g.h3_8::h3index))[1] as lat,
-              (h3_cell_to_lat_lng(g.h3_8::h3index))[2] as lon
+              (h3_cell_to_lat_lng(g.h3_8::h3index))[0] as lon
          from gaps g
         where g.status = 'open' and g.question_count > 0
         order by g.question_count desc
