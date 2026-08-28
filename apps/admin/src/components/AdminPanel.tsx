@@ -63,19 +63,6 @@ const CATEGORY_GLYPH: Record<string, { emoji: string; color: string }> = {
   practical: { emoji: '🧭', color: '#546E7A' },
 };
 
-const ACTIVITY_ICON: Record<string, string> = {
-  QUESTION_ASKED: '💬',
-  REFUSED: '🚫',
-  GAP_SCORED: '📊',
-  MISSION_APPROVED: '📝',
-  SUBMITTED: '📸',
-  CHECKS_PASSED: '✅',
-  VISION_OK: '👁️',
-  SECOND_LOCAL_CONFIRMED: '🤝',
-  VERIFIED: '📍',
-  LOOP_CLOSED: '🔄',
-};
-
 interface OverviewDeltas {
   verifiedWeek: number; gapsWeek: number; missionsWeek: number; waitlistToday: number; conflictsResolvedWeek: number; actionsWeek: number;
 }
@@ -701,20 +688,21 @@ export function AdminPanel() {
               <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
                 <h2 className="shrink-0 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Live activity</h2>
                 {activity.length === 0 && <EmptyCard text="No activity yet." />}
-                {activity.map((e) => (
+                {activity.map((e) => {
+                  const v = describeEvent(e);
+                  return (
                   <div key={e.id} className="flex shrink-0 items-baseline gap-2 rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-guaca-sand/60">
-                    <span className="text-[12px]">{ACTIVITY_ICON[e.kind] ?? '•'}</span>
+                    <span className={`grid h-6 w-6 shrink-0 place-items-center self-center rounded-full ${v.bg}`}><v.Icon className={`h-3.5 w-3.5 ${v.fg}`} /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-black text-guaca-ink">{e.kind.replaceAll('_', ' ').toLowerCase()}</p>
-                      <p className="truncate text-[9px] font-semibold text-guaca-ink/40">
-                        {e.agent}{typeof e.payload.reason === 'string' ? ` · ${e.payload.reason}` : ''}
-                      </p>
+                      <p className="truncate text-[10px] font-black text-guaca-ink">{v.title}</p>
+                      <p className="truncate text-[9px] font-semibold text-guaca-ink/40">{v.subtitle}</p>
                     </div>
                     <span className="shrink-0 text-[8.5px] font-bold tabular-nums text-guaca-ink/30">
                       {new Date(e.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -829,10 +817,10 @@ export function AdminPanel() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <section>
               <h1 className="text-[16px] font-black text-guaca-ink">Spotter roster</h1>
-              <div className="mt-2 flex gap-2">
-                <Input value={newSpotterName} onChange={(e) => setNewSpotterName(e.target.value)} placeholder="Name" aria-label="Name" className="h-10 w-40" />
-                <Input value={newSpotterEmail} onChange={(e) => setNewSpotterEmail(e.target.value)} placeholder="email (their login)" aria-label="Email" type="email" className="h-10 w-52" />
-                <Input value={newSpotterPhone} onChange={(e) => setNewSpotterPhone(e.target.value)} placeholder="+58 … (contact)" aria-label="Phone" className="h-10 w-36" />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Input value={newSpotterName} onChange={(e) => setNewSpotterName(e.target.value)} placeholder="Name" aria-label="Name" className="h-10 min-w-[9rem] flex-1" />
+                <Input value={newSpotterEmail} onChange={(e) => setNewSpotterEmail(e.target.value)} placeholder="email (their login)" aria-label="Email" type="email" className="h-10 min-w-[12rem] flex-[1.4]" />
+                <Input value={newSpotterPhone} onChange={(e) => setNewSpotterPhone(e.target.value)} placeholder="+58 … (contact)" aria-label="Phone" className="h-10 min-w-[8rem] flex-1" />
                 <Button
                   type="button"
                   disabled={busy || newSpotterName.length < 2 || newSpotterPhone.length < 6 || !newSpotterEmail.includes('@')}
@@ -840,7 +828,7 @@ export function AdminPanel() {
                     const res = await api('POST', '/api/operator/spotters', { name: newSpotterName, email: newSpotterEmail, phone: newSpotterPhone });
                     if (res) { setFlash('Spotter added.'); setNewSpotterName(''); setNewSpotterPhone(''); setNewSpotterEmail(''); await loadTab('people'); }
                   }}
-                  className="h-10 rounded-xl bg-guaca-teal px-4 text-[10px] font-black text-white hover:bg-guaca-teal-dark"
+                  className="h-10 shrink-0 rounded-xl bg-guaca-teal px-4 text-[10px] font-black text-white hover:bg-guaca-teal-dark"
                 >
                   Add
                 </Button>
