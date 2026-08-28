@@ -29,11 +29,41 @@ export interface OperatorMapHeat {
   weight: number;
 }
 
+/** A mission in flight, placed at the centre of its target cell. */
+export interface OperatorMapMission {
+  id: string; status: string; category: string; brief: string; spotterName: string;
+  rewardMinor: number; currency: string; createdBy: string; offeredAt: string; expiresAt: string;
+  lat: number; lon: number;
+}
+
+/** A place one local has submitted and no second local has confirmed. */
+export interface OperatorMapPending {
+  id: string; name: string; category: string; status: string; witnessCount: number;
+  spotterName: string | null; createdAt: string; lat: number; lon: number;
+}
+
+/** An active spotter at the centre of the cell they own. */
+export interface OperatorMapSpotter {
+  id: string; name: string; level: number; verifiedPlaces: number; openMissions: number; lat: number; lon: number;
+}
+
+export interface OperatorMapProperty { id: string; name: string; plan: string; lat: number; lon: number }
+
+/** A visible post with at least one report, at its place. */
+export interface OperatorMapReport {
+  postId: string; placeId: string; placeName: string; reports: number; reason: string; excerpt: string; lat: number; lon: number;
+}
+
 export interface OperatorMapData {
   places: OperatorMapPlace[];
   gaps: OperatorMapGap[];
   candidates: OperatorMapCandidate[];
   heat: OperatorMapHeat[];
+  missions: OperatorMapMission[];
+  pending: OperatorMapPending[];
+  spotters: OperatorMapSpotter[];
+  properties: OperatorMapProperty[];
+  reports: OperatorMapReport[];
 }
 
 /**
@@ -44,7 +74,7 @@ export interface OperatorMapData {
  * agent's scoring geography exactly.
  */
 export async function operatorMapData(pool: Pool): Promise<OperatorMapData> {
-  const [places, gaps, candidates, heat] = await Promise.all([
+  const [places, gaps, candidates, heat, missions, pending, spotters, properties, reports] = await Promise.all([
     pool.query(
       `select p.id, p.name, p.category,
               ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon,
@@ -83,6 +113,56 @@ export async function operatorMapData(pool: Pool): Promise<OperatorMapData> {
         order by zd.people_count desc
         limit 50`,
     ),
+    // Everything the operator is responsible for, where it is happening.
+    pool.query(
+      `select m.id, m.status, m.target_category, m.brief, m.reward_minor, m.currency, m.created_by,
+              m.offered_at, m.expires_at, s.name as spotter_name,
+              (h3_cell_to_lat_lng(m.target_h3::h3index))[1] as lat,
+              (h3_cell_to_lat_lng(m.target_h3::h3index))[0] as lon
+         from missions m
+         join spotters s on s.id = m.spotter_id
+        where m.status in ('offered', 'accepted', 'submitted')
+        order by m.offered_at desc
+        limit 200`,
+    ),
+    pool.query(
+      `select p.id, p.name, p.category, p.verification_status, p.witness_count, p.created_at,
+              ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon,
+              s.name as spotter_name
+         from places p
+         left join spotters s on s.id = p.created_by_spotter_id
+        where p.verification_status in ('pending', 'provisional')
+        order by p.created_at desc
+        limit 300`,
+    ),
+    pool.query(
+      `select s.id, s.name, s.level,
+              (h3_cell_to_lat_lng(s.home_h3::h3index))[1] as lat,
+              (h3_cell_to_lat_lng(s.home_h3::h3index))[0] as lon,
+              (select count(*)::int from places p where p.created_by_spotter_id = s.id and p.verification_status = 'verified') as verified_places,
+              (select count(*)::int from missions m where m.spotter_id = s.id and m.status in ('offered', 'accepted', 'submitted')) as open_missions
+         from spotters s
+        where s.active and s.home_h3 is not null
+        order by s.name
+        limit 200`,
+    ),
+    pool.query(
+      `select id, name, plan, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon
+         from properties order by created_at desc limit 200`,
+    ),
+    pool.query(
+      `select pp.id as post_id, p.id as place_id, p.name as place_name, left(pp.body, 90) as excerpt,
+              count(r.reporter_key)::int as reports,
+              mode() within group (order by r.reason) as reason,
+              ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon
+         from place_posts pp
+         join place_post_reports r on r.post_id = pp.id
+         join places p on p.id = pp.place_id
+        where pp.status = 'visible'
+        group by pp.id, p.id
+        order by reports desc, pp.created_at desc
+        limit 100`,
+    ),
   ]);
 
   return {
@@ -113,6 +193,25 @@ export async function operatorMapData(pool: Pool): Promise<OperatorMapData> {
         weight: Number(r.weight),
       }))
       .filter((h: OperatorMapHeat) => Number.isFinite(h.lat) && Number.isFinite(h.lon)),
+    missions: missions.rows.map((r) => ({
+      id: r.id, status: r.status, category: r.target_category, brief: r.brief, spotterName: r.spotter_name,
+      rewardMinor: r.reward_minor, currency: r.currency, createdBy: r.created_by,
+      offeredAt: new Date(r.offered_at).toISOString(), expiresAt: new Date(r.expires_at).toISOString(),
+      lat: Number(r.lat), lon: Number(r.lon),
+    })),
+    pending: pending.rows.map((r) => ({
+      id: r.id, name: r.name, category: r.category, status: r.verification_status, witnessCount: r.witness_count,
+      spotterName: r.spotter_name, createdAt: new Date(r.created_at).toISOString(), lat: Number(r.lat), lon: Number(r.lon),
+    })),
+    spotters: spotters.rows.map((r) => ({
+      id: r.id, name: r.name, level: r.level, verifiedPlaces: r.verified_places, openMissions: r.open_missions,
+      lat: Number(r.lat), lon: Number(r.lon),
+    })),
+    properties: properties.rows.map((r) => ({ id: r.id, name: r.name, plan: r.plan, lat: Number(r.lat), lon: Number(r.lon) })),
+    reports: reports.rows.map((r) => ({
+      postId: r.post_id, placeId: r.place_id, placeName: r.place_name, reports: r.reports, reason: r.reason ?? 'other',
+      excerpt: r.excerpt, lat: Number(r.lat), lon: Number(r.lon),
+    })),
   };
 }
 

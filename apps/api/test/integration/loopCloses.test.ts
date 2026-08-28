@@ -208,4 +208,35 @@ describe('THE CORE LOOP closes end to end', () => {
     // "One mission, one Spotter, one guaranteed payment" survives a re-run.
     expect(m.rows[0]!.n).toBe(1);
   });
+
+  it('the oversight map shows the mission where it is, with the spotter and the paying property', async () => {
+    process.env.OPERATOR_TOKEN = 'test-operator-token';
+    try {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/operator/map',
+        headers: { authorization: 'Bearer test-operator-token' },
+      });
+      expect(res.statusCode).toBe(200);
+      const map = res.json();
+      // The commissioned mission sits at its target cell, near where the guests asked.
+      expect(map.missions).toHaveLength(1);
+      const mission = map.missions[0];
+      expect(mission.status).toBe('offered');
+      expect(mission.spotterName).toBe('Yorman');
+      expect(Math.abs(mission.lat - 10.4716)).toBeLessThan(0.01);
+      expect(Math.abs(mission.lon + 68.0056)).toBeLessThan(0.01);
+      // The spotter at the cell they own, with the mission counted against them.
+      expect(map.spotters).toHaveLength(1);
+      expect(map.spotters[0].name).toBe('Yorman');
+      expect(map.spotters[0].openMissions).toBe(1);
+      // The villa whose subscription weighted the gap.
+      expect(map.properties.map((p: { name: string; plan: string }) => [p.name, p.plan])).toEqual([['Posada del Puerto', 'paid']]);
+      // Nothing is verified or reported yet, and the layers say so rather than erroring.
+      expect(map.pending).toEqual([]);
+      expect(map.reports).toEqual([]);
+    } finally {
+      delete process.env.OPERATOR_TOKEN;
+    }
+  });
 });

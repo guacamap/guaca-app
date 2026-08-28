@@ -1,28 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Activity,
-  AlertTriangle,
-  BadgeCheck,
-  Ban,
-  Bot,
-  Check,
-  ClipboardList,
-  Coins,
-  Download,
-  Globe2,
-  Loader2,
-  KeyRound,
-  ListChecks,
-  Lock,
-  Megaphone,
-  Play,
-  Radio,
-  Sparkles,
-  Users,
-  X,
-} from 'lucide-react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Activity, AlertTriangle, BadgeCheck, Ban, Bot, Check, ClipboardList, Coins, Download, Globe2, Loader2, KeyRound, ListChecks, Lock, Megaphone, Play, Radio, Sparkles, Users, X } from 'lucide-react';
 import { Button, GuacaMap, GuacaLogo, Input } from '@guaca/ui';
 import { StewardReview } from './StewardReview';
 
@@ -41,7 +20,28 @@ interface MapData {
   gaps: Array<{ id: string; category: string; questionCount: number; lat: number; lon: number }>;
   candidates: Array<{ id: string; lat: number; lon: number }>;
   heat: Array<{ lat: number; lon: number; weight: number }>;
+  missions: Array<{ id: string; status: string; category: string; brief: string; spotterName: string; rewardMinor: number; currency: string; createdBy: string; offeredAt: string; expiresAt: string; lat: number; lon: number }>;
+  pending: Array<{ id: string; name: string; category: string; status: string; witnessCount: number; spotterName: string | null; createdAt: string; lat: number; lon: number }>;
+  spotters: Array<{ id: string; name: string; level: number; verifiedPlaces: number; openMissions: number; lat: number; lon: number }>;
+  properties: Array<{ id: string; name: string; plan: string; lat: number; lon: number }>;
+  reports: Array<{ postId: string; placeId: string; placeName: string; reports: number; reason: string; excerpt: string; lat: number; lon: number }>;
 }
+
+/** The oversight map's layers. Each is a toggle in the legend. */
+type MapLayer = 'verified' | 'pending' | 'gaps' | 'missions' | 'spotters' | 'properties' | 'reports' | 'osm' | 'heat';
+const MAP_LAYERS: Array<{ key: MapLayer; label: string; color: string; hollow?: boolean }> = [
+  { key: 'verified', label: 'Verified', color: '#0D8B8B' },
+  { key: 'pending', label: 'Awaiting 2nd witness', color: '#0D8B8B', hollow: true },
+  { key: 'gaps', label: 'Gaps', color: '#E8735A' },
+  { key: 'missions', label: 'Missions', color: '#E9A23B' },
+  { key: 'spotters', label: 'Spotters', color: '#0C4A5C' },
+  { key: 'properties', label: 'Properties', color: '#6B4E9B' },
+  { key: 'reports', label: 'Reported posts', color: '#C0392B' },
+  { key: 'osm', label: 'OSM', color: '#0C4A5C80' },
+  { key: 'heat', label: 'Asking heat', color: '#F2C14E' },
+];
+const MISSION_EMOJI: Record<string, string> = { offered: '📨', accepted: '🚶', submitted: '📸' };
+type MapSelection = { kind: 'mission' | 'pending' | 'spotter' | 'property' | 'report' | 'place' | 'gap'; id: string };
 
 interface ActivityEvent {
   id: string;
@@ -238,6 +238,8 @@ export function AdminPanel() {
   const [wlQuery, setWlQuery] = useState('');
   const [posts, setPosts] = useState<ReportedPost[]>([]);
   const [mapData, setMapData] = useState<MapData | null>(null);
+  const [mapLayers, setMapLayers] = useState<Record<MapLayer, boolean>>({ verified: true, pending: true, gaps: true, missions: true, spotters: true, properties: true, reports: true, osm: true, heat: true });
+  const [mapSel, setMapSel] = useState<MapSelection | null>(null);
   const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -635,17 +637,31 @@ export function AdminPanel() {
           <div>
             <div className="flex items-baseline justify-between">
               <h1 className="text-[26px] font-black tracking-[-.02em] text-guaca-ink">Oversight map</h1>
-              <div className="flex gap-4 text-[10px] font-black uppercase tracking-[.08em] text-guaca-ink/45">
-                <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-guaca-teal" /> verified ({mapData?.places.length ?? 0})</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-guaca-coral" /> gaps ({mapData?.gaps.length ?? 0})</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0C4A5C]/50" /> OSM ({mapData?.candidates.length ?? 0})</span>
-              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {MAP_LAYERS.map((l) => {
+                const count = !mapData ? 0
+                  : l.key === 'verified' ? mapData.places.length : l.key === 'pending' ? mapData.pending.length : l.key === 'gaps' ? mapData.gaps.length
+                  : l.key === 'missions' ? mapData.missions.length : l.key === 'spotters' ? mapData.spotters.length : l.key === 'properties' ? mapData.properties.length
+                  : l.key === 'reports' ? mapData.reports.length : l.key === 'osm' ? mapData.candidates.length : mapData.heat.length;
+                const on = mapLayers[l.key];
+                return (
+                  <button
+                    key={l.key} type="button" aria-pressed={on}
+                    onClick={() => setMapLayers((m) => ({ ...m, [l.key]: !m[l.key] }))}
+                    className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9.5px] font-black uppercase tracking-[.08em] ring-1 transition ${on ? 'bg-white text-guaca-ink/70 ring-guaca-sand shadow-sm' : 'bg-transparent text-guaca-ink/30 ring-guaca-sand/60 line-through'}`}
+                  >
+                    <span className="inline-block h-2.5 w-2.5 rounded-full" style={l.hollow ? { border: `2px solid ${l.color}` } : { background: l.color }} />
+                    {l.label} ({count})
+                  </button>
+                );
+              })}
             </div>
             <div className="mt-3 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_320px]">
               <div className="h-[calc(100vh-220px)] min-h-[400px] overflow-hidden rounded-2xl shadow-lg ring-1 ring-guaca-sand">
                 {mapData ? (
                   <GuacaMap
-                    pins={mapData.places.map((p) => {
+                    pins={!mapLayers.verified ? [] : mapData.places.map((p) => {
                       const glyph = CATEGORY_GLYPH[p.category] ?? { emoji: '📍', color: '#0D8B8B' };
                       return {
                         id: p.id,
@@ -658,7 +674,35 @@ export function AdminPanel() {
                         verified: true,
                       };
                     })}
-                    gapPins={mapData.gaps.map((g) => ({
+                    selectedPinId={mapSel?.kind === 'place' ? mapSel.id : null}
+                    onPinClick={(id) => setMapSel({ kind: 'place', id })}
+                    selectedGapId={mapSel?.kind === 'gap' ? mapSel.id : null}
+                    onGapClick={(id) => setMapSel({ kind: 'gap', id })}
+                    markers={[
+                      ...(mapLayers.missions ? mapData.missions.map((m) => ({
+                        id: `mission:${m.id}`, lat: m.lat, lng: m.lon, emoji: MISSION_EMOJI[m.status] ?? '📨', color: '#E9A23B',
+                        badge: m.status, label: `Mission ${m.status}: ${m.category} for ${m.spotterName}`,
+                      })) : []),
+                      ...(mapLayers.pending ? mapData.pending.map((p) => ({
+                        id: `pending:${p.id}`, lat: p.lat, lng: p.lon, emoji: CATEGORY_GLYPH[p.category]?.emoji ?? '📍', color: '#0D8B8B', hollow: true,
+                        badge: `${p.witnessCount}/2`, label: `${p.name}, awaiting a second witness`,
+                      })) : []),
+                      ...(mapLayers.spotters ? mapData.spotters.map((sp) => ({
+                        id: `spotter:${sp.id}`, lat: sp.lat, lng: sp.lon, emoji: '🧭', color: '#0C4A5C',
+                        badge: `L${sp.level}`, label: `Spotter ${sp.name}, level ${sp.level}`,
+                      })) : []),
+                      ...(mapLayers.properties ? mapData.properties.map((pr) => ({
+                        id: `property:${pr.id}`, lat: pr.lat, lng: pr.lon, emoji: '🏡', color: '#6B4E9B',
+                        ...(pr.plan === 'paid' ? { badge: 'paid' } : {}), label: `${pr.name} (${pr.plan})`,
+                      })) : []),
+                      ...(mapLayers.reports ? mapData.reports.map((r) => ({
+                        id: `report:${r.postId}`, lat: r.lat, lng: r.lon, emoji: '🚩', color: '#C0392B',
+                        badge: String(r.reports), label: `${r.reports} report(s) on a post at ${r.placeName}`,
+                      })) : []),
+                    ]}
+                    selectedMarkerId={mapSel && mapSel.kind !== 'place' && mapSel.kind !== 'gap' ? `${mapSel.kind}:${mapSel.id}` : null}
+                    onMarkerClick={(id) => { const [kind, ...rest] = id.split(':'); setMapSel({ kind: kind as MapSelection['kind'], id: rest.join(':') }); }}
+                    gapPins={!mapLayers.gaps ? [] : mapData.gaps.map((g) => ({
                       id: g.id,
                       lat: g.lat,
                       lng: g.lon,
@@ -666,14 +710,14 @@ export function AdminPanel() {
                       asks: g.questionCount,
                       category: g.category,
                     }))}
-                    dots={mapData.candidates.map((c) => ({
+                    dots={!mapLayers.osm ? [] : mapData.candidates.map((c) => ({
                       id: c.id,
                       lat: c.lat,
                       lng: c.lon,
                       label: 'OSM candidate',
                       category: 'practical',
                     }))}
-                    heat={mapData.heat.map((h) => ({ lat: h.lat, lng: h.lon, weight: h.weight }))}
+                    heat={!mapLayers.heat ? [] : mapData.heat.map((h) => ({ lat: h.lat, lng: h.lon, weight: h.weight }))}
                     mapStyle="streets"
                     center={[-66, 14]}
                     zoom={4.5}
@@ -686,6 +730,29 @@ export function AdminPanel() {
               </div>
 
               <div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 220px)' }}>
+                {mapSel && mapData && (() => {
+                  const card = describeSelection(mapSel, mapData);
+                  if (!card) return null;
+                  return (
+                    <div className="shrink-0 rounded-2xl bg-white p-3 shadow-sm" style={{ boxShadow: `0 0 0 2px ${card.color}66` }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[9px] font-black uppercase tracking-[.1em]" style={{ color: card.color }}>{card.kind}</p>
+                          <p className="truncate text-[13px] font-black text-guaca-ink">{card.title}</p>
+                        </div>
+                        <button type="button" aria-label="Close" onClick={() => setMapSel(null)} className="rounded-full p-1 text-guaca-ink/40 hover:bg-guaca-sand-light"><X className="h-3.5 w-3.5" /></button>
+                      </div>
+                      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[10.5px]">
+                        {card.rows.map(([k, v]) => (<Fragment key={k}><dt className="font-black uppercase tracking-[.06em] text-guaca-ink/40">{k}</dt><dd className="min-w-0 break-words font-bold text-guaca-ink/75">{v}</dd></Fragment>))}
+                      </dl>
+                      {card.tab && (
+                        <button type="button" onClick={() => setTab(card.tab!)} className="mt-3 w-full rounded-xl bg-guaca-ink px-3 py-2 text-[10px] font-black text-white hover:bg-guaca-ocean-deep">
+                          {card.cta}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
                 <h2 className="shrink-0 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">Live activity</h2>
                 {activity.length === 0 && <EmptyCard text="No activity yet." />}
                 {activity.map((e) => {
@@ -1537,6 +1604,46 @@ function timeAgo(iso: string): string {
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
   return new Date(iso).toLocaleDateString();
+}
+
+/** What the operator selected on the map, as a card: facts first, then the tab that acts on it. */
+function describeSelection(sel: MapSelection, d: MapData): { kind: string; title: string; color: string; rows: Array<[string, string]>; tab?: Tab; cta?: string } | null {
+  const money = (minor: number, cur: string) => `${(minor / 100).toFixed(2)} ${cur}`;
+  const when = (iso: string) => new Date(iso).toLocaleString();
+  switch (sel.kind) {
+    case 'mission': {
+      const m = d.missions.find((x) => x.id === sel.id); if (!m) return null;
+      return { kind: `Mission · ${m.status}`, title: `${m.category} for ${m.spotterName}`, color: '#E9A23B', tab: 'missions', cta: 'Open in Missions & Gaps',
+        rows: [['Brief', m.brief], ['Reward', money(m.rewardMinor, m.currency)], ['By', m.createdBy === 'agent' ? 'Gap agent' : 'Operator'], ['Offered', when(m.offeredAt)], ['Expires', when(m.expiresAt)]] };
+    }
+    case 'pending': {
+      const p = d.pending.find((x) => x.id === sel.id); if (!p) return null;
+      return { kind: `Awaiting 2nd witness · ${p.status}`, title: p.name, color: '#0D8B8B', tab: 'moderation', cta: 'Open in Moderation',
+        rows: [['Category', p.category], ['Witnesses', `${p.witnessCount} of 2`], ['Submitted by', p.spotterName ?? 'unknown'], ['Submitted', when(p.createdAt)]] };
+    }
+    case 'spotter': {
+      const sp = d.spotters.find((x) => x.id === sel.id); if (!sp) return null;
+      return { kind: 'Spotter', title: sp.name, color: '#0C4A5C', tab: 'people', cta: 'Open in People',
+        rows: [['Level', String(sp.level)], ['Verified places', String(sp.verifiedPlaces)], ['Open missions', String(sp.openMissions)]] };
+    }
+    case 'property': {
+      const pr = d.properties.find((x) => x.id === sel.id); if (!pr) return null;
+      return { kind: 'Property', title: pr.name, color: '#6B4E9B', rows: [['Plan', pr.plan]] };
+    }
+    case 'report': {
+      const r = d.reports.find((x) => x.postId === sel.id); if (!r) return null;
+      return { kind: 'Reported post', title: r.placeName, color: '#C0392B', tab: 'moderation', cta: 'Open in Moderation',
+        rows: [['Reports', String(r.reports)], ['Reason', r.reason], ['Post', r.excerpt]] };
+    }
+    case 'place': {
+      const p = d.places.find((x) => x.id === sel.id); if (!p) return null;
+      return { kind: 'Verified place', title: p.name, color: '#0D8B8B', rows: [['Category', p.category], ['Verified by', p.spotterName ?? 'unknown']] };
+    }
+    case 'gap': {
+      const g = d.gaps.find((x) => x.id === sel.id); if (!g) return null;
+      return { kind: 'Gap', title: `${g.category}`, color: '#E8735A', tab: 'missions', cta: 'Open in Missions & Gaps', rows: [['Asked', `${g.questionCount} times`]] };
+    }
+  }
 }
 
 function describeEvent(e: ActivityEvent): { title: string; subtitle: string; Icon: typeof Globe2; bg: string; fg: string; dot: string } {

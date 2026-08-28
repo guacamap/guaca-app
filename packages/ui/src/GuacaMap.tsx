@@ -59,6 +59,26 @@ export interface ZoneMarker {
   selected?: boolean
 }
 
+/**
+ * An operator overlay marker: a mission at its target cell, a place waiting
+ * for its second witness, a spotter's home cell, a paying property, a
+ * reported post. Not a place pin (nothing here is a verified claim) and not
+ * a gap (that is demand). A round badge with a glyph, coloured by kind.
+ */
+export interface OverlayMarker {
+  id: string
+  lat: number
+  lng: number
+  label: string
+  emoji: string
+  /** Ring and badge colour. */
+  color: string
+  /** Small count or status shown top-right, e.g. "3" or "offered". */
+  badge?: string
+  /** Hollow ring instead of a filled disc: something not yet proven. */
+  hollow?: boolean
+}
+
 /** Unverified candidates (OSM import) — rendered as a GPU circle layer,
  *  never as DOM markers: there can be hundreds. */
 interface MapDot {
@@ -89,6 +109,10 @@ export type MapStyleId = typeof MAP_STYLES[number]['id']
 interface GuacaMapProps {
   pins: MapPin[]
   gapPins?: GapPin[]
+  /** Operator overlays (missions, pending places, spotters, properties, reports). */
+  markers?: OverlayMarker[]
+  selectedMarkerId?: string | null
+  onMarkerClick?: (id: string) => void
   dots?: MapDot[]
   heat?: HeatPoint[]
   countries?: CountryMarker[]
@@ -352,6 +376,16 @@ function createGapPinHTML(asks: number, isSelected: boolean) {
   return `<div class="guaca-map-marker" style="display:flex;flex-direction:column;align-items:center;width:${size}px;cursor:pointer"><div style="width:${size}px;height:${size}px;border-radius:50%;background:rgba(232,115,90,0.9);display:flex;align-items:center;justify-content:center;border:2.5px solid #fff;box-sizing:border-box;box-shadow:0 0 0 4px rgba(232,115,90,0.25),0 2px 8px rgba(0,0,0,0.3);animation:gapPulse 2s ease-in-out infinite"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div><div style="position:absolute;top:-8px;right:-8px;background:#E8735A;color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.2)">${asks}</div><div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid rgba(232,115,90,0.9);margin-top:-2px"></div></div>`
 }
 
+function createOverlayMarkerHTML(m: OverlayMarker, isSelected: boolean) {
+  const size = isSelected ? 38 : 32
+  const fill = m.hollow ? 'rgba(255,255,255,0.92)' : m.color
+  const ring = isSelected ? `0 0 0 4px ${m.color}55, 0 2px 8px rgba(0,0,0,0.3)` : `0 0 0 2px ${m.color}33, 0 2px 6px rgba(0,0,0,0.25)`
+  const badge = m.badge
+    ? `<div style="position:absolute;top:-7px;right:-10px;background:${m.color};color:white;font-size:8.5px;font-weight:800;padding:1px 5px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.2);max-width:72px;overflow:hidden;text-overflow:ellipsis">${m.badge}</div>`
+    : ''
+  return `<div class="guaca-map-marker" style="position:relative;display:flex;flex-direction:column;align-items:center;width:${size}px;cursor:pointer"><div style="width:${size}px;height:${size}px;border-radius:50%;background:${fill};display:flex;align-items:center;justify-content:center;border:2.5px solid ${m.hollow ? m.color : '#fff'};box-sizing:border-box;box-shadow:${ring};font-size:${Math.round(size * 0.48)}px;line-height:1">${m.emoji}</div>${badge}<div style="width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid ${m.hollow ? m.color : fill};margin-top:-1px"></div></div>`
+}
+
 /**
  * Co-located pins rendered on top of each other leave only the upper one
  * tappable. Fan duplicates within ~11m out on a deterministic golden-angle
@@ -422,6 +456,9 @@ function createTreasureHTML() {
 export function GuacaMap({
   pins,
   gapPins,
+  markers,
+  selectedMarkerId,
+  onMarkerClick,
   dots,
   heat,
   countries,
@@ -604,7 +641,23 @@ export function GuacaMap({
         markersRef.current.set(gap.id, marker)
       })
     }
-  }, [pins, gapPins, selectedPinId, selectedGapId, onPinClick, onGapClick])
+
+    // Operator overlays: fanned apart when they share a spot with each other.
+    if (markers && markers.length > 0) {
+      const spread = deCollide(markers)
+      markers.forEach((m) => {
+        const wrapper = document.createElement('div')
+        wrapper.innerHTML = createOverlayMarkerHTML(m, m.id === selectedMarkerId)
+        const el = wrapper.firstElementChild as HTMLElement
+        if (!el) return
+        makeMarkerInteractive(el, m.label, () => onMarkerClick?.(m.id))
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat(spread.get(m.id) ?? [m.lng, m.lat])
+          .addTo(map)
+        markersRef.current.set(m.id, marker)
+      })
+    }
+  }, [pins, gapPins, markers, selectedPinId, selectedGapId, selectedMarkerId, onPinClick, onGapClick, onMarkerClick])
 
   // Keep data layers in sync
   useEffect(() => {
