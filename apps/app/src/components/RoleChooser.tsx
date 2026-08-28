@@ -42,8 +42,11 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
 
   return (
     <div className="relative flex h-full min-h-screen flex-col overflow-hidden bg-guaca-ocean-deep text-white sm:min-h-full">
-      {/* Ocean photo background */}
-      <div className="absolute inset-0 bg-[url('/assets/landing-caribbean-phone.jpg')] bg-cover bg-center" />
+      {/* The Caribbean from above, true geography: portrait crop on phones,
+          landscape from md up. Both keep the open sea in the middle so the
+          cards sit on calm water. */}
+      <div className="absolute inset-0 bg-[url('/assets/join-caribbean-phone.webp')] bg-cover bg-center md:hidden" />
+      <div className="absolute inset-0 hidden bg-[url('/assets/join-caribbean-wide.webp')] bg-cover bg-center md:block" />
       <div className="absolute inset-0 bg-gradient-to-b from-guaca-sea/30 via-guaca-ocean/50 to-guaca-ocean-deep/95" />
       <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-b from-transparent to-guaca-ocean-deep" />
 
