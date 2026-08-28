@@ -91,7 +91,7 @@ export async function operatorMapData(pool: Pool): Promise<OperatorMapData> {
               (h3_cell_to_lat_lng(g.h3_8::h3index))[1] as lat,
               (h3_cell_to_lat_lng(g.h3_8::h3index))[0] as lon
          from gaps g
-        where g.status = 'open' and g.question_count > 0
+        where g.status = 'open' and g.question_count > 0 and g.h3_8 ~ '^8[0-9a-f]{14}$'
         order by g.question_count desc
         limit 100`,
     ),
@@ -122,6 +122,9 @@ export async function operatorMapData(pool: Pool): Promise<OperatorMapData> {
          from missions m
          join spotters s on s.id = m.spotter_id
         where m.status in ('offered', 'accepted', 'submitted')
+          -- seed and imported rows have carried non-cell strings here; the
+          -- h3 cast throws on those and would take the whole map down.
+          and m.target_h3 ~ '^8[0-9a-f]{14}$'
         order by m.offered_at desc
         limit 200`,
     ),
@@ -142,7 +145,7 @@ export async function operatorMapData(pool: Pool): Promise<OperatorMapData> {
               (select count(*)::int from places p where p.created_by_spotter_id = s.id and p.verification_status = 'verified') as verified_places,
               (select count(*)::int from missions m where m.spotter_id = s.id and m.status in ('offered', 'accepted', 'submitted')) as open_missions
          from spotters s
-        where s.active and s.home_h3 is not null
+        where s.active and s.home_h3 ~ '^8[0-9a-f]{14}$'
         order by s.name
         limit 200`,
     ),
