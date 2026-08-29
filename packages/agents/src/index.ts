@@ -35,6 +35,8 @@ export { runPlanner } from './planner/planner.js';
 export type { PlannerInput, PlannerDb, PlannerOutcome } from './planner/planner.js';
 export { runGroundedPlanner } from './planner/groundedPlanner.js';
 export { answerFromCatalog } from './planner/pipeline.js';
+export { converse, ConciergeSchema } from './planner/concierge.js';
+export type { ConciergeTurn, ConciergeInput } from './planner/concierge.js';
 export type { CatalogPlace, PipelineOptions, PipelineOutcome, AnswerPath, RefusalStage } from './planner/pipeline.js';
 export type { GroundedPlannerOptions, GroundedOutcome } from './planner/groundedPlanner.js';
 export { selectSpotter, type SpotterCandidate } from './gap/spotterSelection.js';
