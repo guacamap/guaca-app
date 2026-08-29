@@ -284,6 +284,16 @@ export async function ask(
     minCandidates: opts.minCandidates,
   });
 
+  // The concierge asked a question but chose 'ask', and the pipeline could
+  // not place the text either: that turn is a question to the traveller,
+  // not a refusal. Nothing is lost (an unclear text is not demand).
+  if (
+    outcome.kind === 'refusal' && outcome.reason === 'UNCLEAR_QUESTION' &&
+    turn.via === 'model' && /\?\s*$/.test(turn.reply.trim())
+  ) {
+    return { kind: 'chat', text: turn.reply.trim(), placeIds: [] };
+  }
+
   const category = outcome.category ?? extractIntent(askText).category;
   if (outcome.kind === 'refusal') {
     // The refusal itself is the demand record: the question row written here
