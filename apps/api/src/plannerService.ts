@@ -25,6 +25,58 @@ import {
   type TripStop,
 } from '@guaca/shared';
 import { suggestionsNear } from './suggestionsService.js';
+import { contextLine, type AreaContext, type ContextProvider } from './context.js';
+
+export interface AreaRow { id: string; slug: string; name: string; country: string; timezone: string; lat: number; lon: number }
+
+/** The area a point falls in, with its centroid; null outside every area. */
+export async function areaAt(pool: Pool, lat: number, lon: number): Promise<AreaRow | null> {
+  const r = await pool.query<AreaRow>(
+    `select id, slug, name, country, timezone,
+            ST_Y(ST_Centroid(geom::geometry)) as lat, ST_X(ST_Centroid(geom::geometry)) as lon
+       from areas where ST_Covers(geom, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) limit 1`,
+    [lat, lon],
+  );
+  return r.rows[0] ?? null;
+}
+
+/** Context for an area (or, outside every area, for the point itself). Never throws. */
+export async function contextFor(provider: ContextProvider | undefined, area: AreaRow | null, lat: number, lon: number): Promise<AreaContext | null> {
+  if (!provider) return null;
+  try {
+    return await provider.forArea(area
+      ? { lat: area.lat, lon: area.lon, country: area.country, timezone: area.timezone }
+      : { lat, lon, country: 'VE', timezone: 'America/Caracas' });
+  } catch {
+    return null;
+  }
+}
+
+const STORM_TEXT: Record<'en' | 'es', (a: NonNullable<AreaContext['alert']>) => string> = {
+  en: (a) => `There is an active ${a.kind.replace('_', ' ')} alert (${a.name}, ${a.level}) about ${Math.round(a.distanceKm)} km from here. I am not recommending places right now. Please follow local authorities and the official forecast (${a.source === 'NHC' ? 'nhc.noaa.gov' : 'gdacs.org'}), and ask me again once it has passed.`,
+  es: (a) => `Hay una alerta activa de ${a.kind === 'tropical_cyclone' ? 'ciclón tropical' : a.kind === 'flood' ? 'inundación' : a.kind === 'earthquake' ? 'sismo' : a.kind === 'tsunami' ? 'tsunami' : 'volcán'} (${a.name}, ${a.level}) a unos ${Math.round(a.distanceKm)} km. Ahora mismo no recomiendo lugares. Sigue a las autoridades locales y el pronóstico oficial (${a.source === 'NHC' ? 'nhc.noaa.gov' : 'gdacs.org'}), y pregúntame de nuevo cuando pase.`,
+};
+
+/** Deterministic planner notes from the context: what was left out and why. */
+function contextNotes(ctx: AreaContext | null, lang: 'en' | 'es'): { skipBeaches: boolean; notes: string[] } {
+  if (!ctx) return { skipBeaches: false, notes: [] };
+  const notes: string[] = [];
+  let skipBeaches = false;
+  if (ctx.sea && ctx.sea.state === 'rough') {
+    skipBeaches = true;
+    notes.push(lang === 'es' ? `Mar picado hoy (olas de ${ctx.sea.waveM.toFixed(1)} m): dejé las playas fuera.` : `Rough sea today (${ctx.sea.waveM.toFixed(1)} m waves): beaches left out.`);
+  }
+  if (ctx.weather && ctx.weather.rainPct >= 60) {
+    notes.push(lang === 'es' ? `Lluvia probable hoy (${ctx.weather.rainPct}%): lleva algo para cubrirte.` : `Rain likely today (${ctx.weather.rainPct}%): bring cover.`);
+  }
+  if (ctx.weather && ctx.weather.uv >= 10) {
+    notes.push(lang === 'es' ? `UV ${Math.round(ctx.weather.uv)} al mediodía: mejor lo de afuera temprano o después de las 4.` : `UV ${Math.round(ctx.weather.uv)} at midday: do the outdoor stops early or after 4 pm.`);
+  }
+  if (ctx.holiday) {
+    notes.push(lang === 'es' ? `Hoy es feriado (${ctx.holiday.localName}): algunos negocios cierran temprano.` : `Today is a public holiday (${ctx.holiday.localName}): some businesses close early.`);
+  }
+  return { skipBeaches, notes };
+}
 
 /** A follow-up the client renders as a chip. Never model text: an `ask`
  *  re-enters the same grounded path with a canonical query. */
@@ -53,6 +105,10 @@ export interface AskResult {
   mission?: { status: string; spotterName?: string; expiresAt?: string; questionId: string };
   /** On a refusal: what we understood, what exists nearby, and what to do next. */
   refusal?: RefusalContext;
+  /** Deterministic notes from the day's context (sea, rain, UV, holiday). */
+  notes?: string[];
+  /** The context this turn was answered with, for the client's header line. */
+  context?: AreaContext;
   /** The persisted question — the demand signal the gap agent later reads. */
   questionId?: string;
   /** Grounded follow-ups near the ask — deterministic trend picks, never model output. */
@@ -163,8 +219,9 @@ export async function ask(
     /** Needed for the mission and notify turns. */
     touristId?: string;
   },
-  opts: { minCandidates: number; inference: import('@guaca/agents').Inference },
+  opts: { minCandidates: number; inference: import('@guaca/agents').Inference; contextProvider?: ContextProvider },
 ): Promise<AskResult> {
+  const lang: 'en' | 'es' = input.language === 'es' ? 'es' : 'en';
   const record = async (
     answered: boolean,
     category: string,
@@ -209,7 +266,20 @@ export async function ask(
     }
   };
 
-  const rows = await q.places.findVerifiedNear(pool, input.lat, input.lon, 5000, undefined);
+  const area = await areaAt(pool, input.lat, input.lon);
+  const ctx = await contextFor(opts.contextProvider, area, input.lat, input.lon);
+  const withCtx = ctx ? { context: ctx } : {};
+
+  // Storm mode: an active alert nearby outranks the map. No recommendations,
+  // the alert, where the official word is. The one case a feed wins.
+  if (ctx?.alert) {
+    return { kind: 'chat', text: STORM_TEXT[lang](ctx.alert), placeIds: [], ...withCtx };
+  }
+
+  const allRows = await q.places.findVerifiedNear(pool, input.lat, input.lon, 5000, undefined);
+  const { skipBeaches, notes } = contextNotes(ctx, lang);
+  const rows = skipBeaches ? allRows.filter((r) => r.category !== 'beach_water') : allRows;
+  const withNotes = notes.length ? { notes } : {};
   const places = new Map(
     rows.map((r) => [
       r.id,
@@ -234,9 +304,10 @@ export async function ask(
     hasOpenRefusal: !!input.lastQuestionId,
     coverage: { verifiedNearby: rows.length, byCategory: byCategoryAll },
     placeNames: rows.map((r) => r.name),
+    ...(ctx ? { now: contextLine(ctx) } : {}),
   });
   if (turn.mode === 'chat') {
-    return { kind: 'chat', text: turn.reply, placeIds: [] };
+    return { kind: 'chat', text: turn.reply, placeIds: [], ...withCtx };
   }
   if (turn.mode === 'mission' || turn.mode === 'notify') {
     if (!input.lastQuestionId || !input.touristId) {
@@ -291,7 +362,7 @@ export async function ask(
     outcome.kind === 'refusal' && outcome.reason === 'UNCLEAR_QUESTION' &&
     turn.via === 'model' && /\?\s*$/.test(turn.reply.trim())
   ) {
-    return { kind: 'chat', text: turn.reply.trim(), placeIds: [] };
+    return { kind: 'chat', text: turn.reply.trim(), placeIds: [], ...withCtx };
   }
 
   const category = outcome.category ?? extractIntent(askText).category;
@@ -307,6 +378,8 @@ export async function ask(
       text: REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!,
       placeIds: [],
       ...lead,
+      ...withNotes,
+      ...withCtx,
       ...(questionId ? { questionId } : {}),
       refusal: {
         reason: outcome.reason,
@@ -328,6 +401,8 @@ export async function ask(
     text: renderItinerary(outcome.artifact, places, input.language),
     placeIds: ids,
     ...lead,
+    ...withNotes,
+    ...withCtx,
     ...(questionId ? { questionId } : {}),
     ...(sugg ? { suggestions: sugg } : {}),
   };

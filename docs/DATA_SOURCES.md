@@ -12,7 +12,12 @@
 | Fastify + WebSockets | API and live ops stream | MIT |
 | sharp / sharp-phash | Photo hashing (sha256 + 64-bit pHash) | Apache-2.0 |
 | Reloadly (planned, NOT wired) | Airtime top-up payouts for Spotters | provider terms; MVP uses MockPayoutProvider |
-| Open-Meteo (wired 2026-08-19) | Area weather forecast modulating trend scores and category recommendations — coordinates only, no user data | CC-BY 4.0; free, keyless; `WEATHER_ENABLED` kill switch, degrades to weather-free |
+| Open-Meteo (wired 2026-08-19; hourly, Marine and Air Quality added 2026-08-29) | Area weather, sea state, UV, sunrise and sunset for trend scores, the planner's day rules and the concierge's "right now" line — coordinates only, no user data | CC-BY 4.0; free for non-commercial use, keyless; subscribe to Standard the month a business pays; `WEATHER_ENABLED` kill switch, degrades to context-free |
+| NOAA National Hurricane Center `CurrentStorms.json` (2026-08-29) | Active tropical cyclones; one within 300 km of an area puts Guaca in storm mode (no recommendations, official sources) | US public domain |
+| GDACS event list API (2026-08-29) | Floods, earthquakes, tsunami and volcano alerts, same storm mode | Free; acknowledge "Global Disaster Alert and Coordination System, GDACS" |
+| Nager.Date (2026-08-29) | Public holidays per country, so Guaca can say businesses may close early | Free, no key |
+| DolarAPI `ve.dolarapi.com` (2026-08-29) | Official (BCV) and parallel USD/VES rates, both shown, for Venezuela areas only | Open source, free; fallbacks Cotizave, BCV Today |
+| Overture Maps Places (evaluated 2026-08-29; 377 places in the Puerto Cabello box) | Public phone, website and social links for candidate places, shown as public data until a Spotter confirms | CDLA Permissive 2.0 |
 
 **Attribution.** OpenStreetMap data (Overpass candidates) is
 © OpenStreetMap contributors, used under the ODbL. Basemap attribution is

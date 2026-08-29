@@ -2,11 +2,13 @@ import { pool, clusterUnanswered, expireMissions, recomputeZoneDemand } from '@g
 import { runGapAgent } from '@guaca/agents';
 import { buildApp } from './app.js';
 import { gapAgentOptions } from './gapAgentDeps.js';
+import { disabledContextProvider, liveContextProvider } from './context.js';
 import { runGapCycle, startGapScheduler } from './scheduler.js';
 import { recomputeTrends } from './trendsService.js';
 import { disabledWeatherProvider, openMeteoProvider } from './weather.js';
 
-const app = buildApp({ pool });
+const contextProvider = (process.env.WEATHER_ENABLED ?? 'true') !== 'false' ? liveContextProvider() : disabledContextProvider();
+const app = buildApp({ pool, contextProvider });
 const port = Number(process.env.API_PORT ?? 3001);
 
 const AREA_ID =

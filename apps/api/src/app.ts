@@ -27,6 +27,8 @@ export interface AppOptions {
   emailSender?: EmailSender;
   /** Injected by tests; defaults to MinIO/S3 from env. */
   objectStore?: ObjectStore;
+  /** Weather, sea, sun, holiday, rates, alerts per area; tests inject a stub. */
+  contextProvider?: import('./context.js').ContextProvider;
 }
 
 /** §4.1 — auth tokens arrive as an httpOnly cookie (web) or a Bearer
@@ -878,6 +880,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return { ok: true, propertyName: property.name };
   });
 
+  /** What a local knows right now around a point: for the app's header line. */
+  app.get('/api/context', async (req, reply) => {
+    const q = req.query as { lat?: string; lon?: string };
+    const lat = Number(q.lat ?? 10.4716);
+    const lon = Number(q.lon ?? -68.0056);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return reply.code(400).send({ error: 'lat and lon required' });
+    const { areaAt, contextFor } = await import('./plannerService.js');
+    const area = await areaAt(options.pool, lat, lon);
+    const ctx = await contextFor(options.contextProvider, area, lat, lon);
+    return reply.header('cache-control', 'public, max-age=300').send({ area: area ? { slug: area.slug, name: area.name, country: area.country, timezone: area.timezone } : null, context: ctx });
+  });
+
   app.post('/api/ask', async (req, reply) => {
     const body = req.body as {
       text?: string;
@@ -922,6 +936,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       {
         minCandidates: options.minCandidates ?? Number(process.env.PLANNER_MIN_CANDIDATES ?? 3),
         inference,
+        ...(options.contextProvider ? { contextProvider: options.contextProvider } : {}),
       },
     );
     return reply.send(result);

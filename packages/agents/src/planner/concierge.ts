@@ -31,6 +31,8 @@ export interface ConciergeInput {
   coverage: { verifiedNearby: number; byCategory: ReadonlyMap<string, number> };
   /** Every verified place name nearby: the reply must not contain one. */
   placeNames: readonly string[];
+  /** One line of facts about right now (time, weather, sea, sunset, holiday, rates, alert). */
+  now?: string;
 }
 
 const FALLBACK: Record<'en' | 'es', string> = {
@@ -85,7 +87,8 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
           : '') +
         `Verified coverage nearby (use only to set expectations, never to name anything): ${input.coverage.verifiedNearby} places` +
         (coverage ? ` (${coverage})` : '') +
-        '. Categories: ' + CATEGORY_VALUES.join(', ') + '.',
+        '. Categories: ' + CATEGORY_VALUES.join(', ') + '.' +
+        (input.now ? ` Right now: ${input.now}. You may mention these facts (heat, rain, sea, sunset, holiday, exchange rate) when they help; a local would.` : ''),
       user: (transcript ? `Conversation so far:\n${transcript}\n\n` : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
