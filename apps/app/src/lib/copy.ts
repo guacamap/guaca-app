@@ -230,6 +230,13 @@ export interface AppCopy {
     refusalMissionBudget: string
     refusalMissionNoSpotter: string
     refusalMissionFailed: string
+    discoverTitle: string
+    discoverSub: string
+    discoverMore: string
+    discoverLess: string
+    verifiedBySpotters: string
+    coverageTitle: string
+    coverageBody: string
     addToPlan: string
     addedToPlan: string
     removeStop: string
@@ -535,6 +542,13 @@ export const appCopy: Record<Lang, AppCopy> = {
       refusalMissionBudget: 'Today’s missions are all assigned. Your question stays in line; we’ll email you.',
       refusalMissionNoSpotter: 'No Spotter covers this zone yet. Your question is saved; we’ll email you when one does.',
       refusalMissionFailed: 'Could not send a local right now. Your question is saved.',
+      discoverTitle: 'Discover now',
+      discoverSub: 'Live places nearby',
+      discoverMore: 'See more places',
+      discoverLess: 'Show fewer',
+      verifiedBySpotters: 'Verified by Spotters',
+      coverageTitle: 'Coverage grows locally',
+      coverageBody: 'Verified places appear as Spotters confirm them on the ground.',
       addToPlan: 'Add to plan',
       addedToPlan: 'In your plan',
       removeStop: 'Remove stop',
@@ -847,6 +861,13 @@ export const appCopy: Record<Lang, AppCopy> = {
       refusalMissionBudget: 'Las misiones de hoy ya están asignadas. Tu pregunta sigue en fila; te avisamos por correo.',
       refusalMissionNoSpotter: 'Ningún Spotter cubre esta zona todavía. Guardamos tu pregunta; te avisamos cuando haya uno.',
       refusalMissionFailed: 'No pudimos enviar a un local ahora. Tu pregunta quedó guardada.',
+      discoverTitle: 'Descubre ahora',
+      discoverSub: 'Lugares vivos cerca',
+      discoverMore: 'Ver más lugares',
+      discoverLess: 'Ver menos',
+      verifiedBySpotters: 'Verificado por Spotters',
+      coverageTitle: 'La cobertura crece localmente',
+      coverageBody: 'Los lugares verificados aparecen cuando los Spotters los confirman en el terreno.',
       addToPlan: 'Agregar al plan',
       addedToPlan: 'En tu plan',
       removeStop: 'Quitar parada',

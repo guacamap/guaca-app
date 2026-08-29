@@ -1,3 +1,12 @@
 @import "tailwindcss";
 @source "../../../packages/ui/src";
 @import "@guaca/ui/theme.css";
+
+/* Desktop map: the Discover column owns the right edge, so mapbox's
+   bottom-right controls step left of it and above the coverage card. */
+@media (min-width: 1024px) {
+  .tourist-map .mapboxgl-ctrl-bottom-right {
+    right: 344px;
+    bottom: 112px;
+  }
+}

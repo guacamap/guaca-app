@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, ChevronRight, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Palmtree, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
 import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
 import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
@@ -1176,9 +1176,25 @@ export function TouristView() {
   const placeById = (id: string): ApiPlace | undefined =>
     places.find((p) => p.id === id) ?? planPlaces[id]
 
+  const [discoverAll, setDiscoverAll] = useState(false)
+  /** Verified places by distance from the map centre, for the desktop column. */
+  const nearbyVerified = useMemo(() => {
+    const [clng, clat] = center
+    const kmOf = (lat: number, lon: number) => {
+      const dLat = (lat - clat) * 111.32
+      const dLon = (lon - clng) * 111.32 * Math.cos((clat * Math.PI) / 180)
+      return Math.hypot(dLat, dLon)
+    }
+    return places
+      .filter((p) => !catFilter || p.category === catFilter)
+      .map((p) => ({ place: p, km: kmOf(p.lat, p.lon) }))
+      .sort((a, b) => a.km - b.km)
+  }, [places, center, catFilter])
+  const discoverPlaces = discoverAll ? nearbyVerified.slice(0, 12) : nearbyVerified.slice(0, 3)
+
   const renderMap = () => (
     <>
-      <div className="absolute inset-0 z-0">
+      <div className="tourist-map absolute inset-0 z-0">
         <GuacaMap
           pins={pins}
           dots={dots}
@@ -1224,30 +1240,30 @@ export function TouristView() {
         </div>
       )}
 
-      <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/55 via-guaca-ocean/12 to-transparent px-4 pb-12 pt-8 lg:inset-x-auto lg:left-0 lg:w-[560px] lg:rounded-br-[28px]">
+      <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/55 via-guaca-ocean/12 to-transparent px-4 pb-12 pt-8 lg:inset-x-auto lg:left-0 lg:w-[820px] lg:bg-none lg:px-6 lg:pb-0 lg:pt-6">
         <form
           onSubmit={(e) => { e.preventDefault(); void ask() }}
-          className="flex items-center gap-2 rounded-full border border-white/65 bg-guaca-sand-light/95 px-3 py-2 shadow-xl shadow-guaca-ocean-deep/14 backdrop-blur-md"
+          className="flex items-center gap-2 rounded-full border border-white/65 bg-guaca-sand-light/95 px-3 py-2 shadow-xl shadow-guaca-ocean-deep/14 backdrop-blur-md lg:max-w-[600px] lg:gap-3 lg:border-white lg:bg-white lg:px-5 lg:py-2.5 lg:shadow-[0_12px_40px_-12px_rgba(12,74,92,0.35)]"
         >
-          <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-guaca-ocean/55" />
+          <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-guaca-ocean/55 lg:h-6 lg:w-6 lg:text-guaca-ocean-deep" strokeWidth={2.2} />
           <Input
             value={askText}
             onChange={(event) => setAskText(event.target.value)}
             placeholder={t.askPlaceholder}
             aria-label={t.askPlaceholder}
-            className="h-7 flex-1 border-0 bg-transparent px-0 text-[12px] shadow-none placeholder:text-guaca-ink/35 focus-visible:ring-0"
+            className="h-7 flex-1 border-0 bg-transparent px-0 text-[12px] shadow-none placeholder:text-guaca-ink/35 focus-visible:ring-0 lg:h-10 lg:text-[16px] lg:placeholder:text-guaca-ink/40"
           />
-          <Button type="button" size="icon" variant="ghost" aria-label={t.profileUpdates} onClick={() => setActiveTab('updates')} className="relative h-10 w-10 rounded-full bg-white/70 text-guaca-ocean hover:bg-white">
-            <Bell aria-hidden="true" className="h-3.5 w-3.5" />
+          <Button type="button" size="icon" variant="ghost" aria-label={t.profileUpdates} onClick={() => setActiveTab('updates')} className="relative h-10 w-10 rounded-full bg-white/70 text-guaca-ocean hover:bg-white lg:h-11 lg:w-11 lg:bg-guaca-sand-light lg:text-guaca-ocean-deep lg:ring-1 lg:ring-guaca-sand">
+            <Bell aria-hidden="true" className="h-3.5 w-3.5 lg:h-5 lg:w-5" />
             {updates.length > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-guaca-coral ring-2 ring-white" />}
           </Button>
         </form>
         {/* Category filter — browse without typing. */}
-        <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+        <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] lg:mt-4 lg:flex-wrap lg:gap-2 lg:overflow-visible">
           <button
             type="button"
             onClick={() => setCatFilter(null)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md ${catFilter === null ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70'}`}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md lg:px-4 lg:py-2.5 lg:text-[14px] lg:shadow-[0_8px_24px_-10px_rgba(12,74,92,0.35)] ${catFilter === null ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70 lg:bg-white lg:text-guaca-ink'}`}
           >
             {t.allCategories}
           </button>
@@ -1256,7 +1272,7 @@ export function TouristView() {
               key={key}
               type="button"
               onClick={() => setCatFilter((prev) => (prev === key ? null : key))}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md ${catFilter === key ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70'}`}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md lg:px-4 lg:py-2.5 lg:text-[14px] lg:shadow-[0_8px_24px_-10px_rgba(12,74,92,0.35)] ${catFilter === key ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70 lg:bg-white lg:text-guaca-ink'}`}
             >
               {glyph.emoji} {t.categoryLabels[key] ?? key}
             </button>
@@ -1265,7 +1281,7 @@ export function TouristView() {
             type="button"
             aria-pressed={trendOnly}
             onClick={() => setTrendOnly((prev) => !prev)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md ${trendOnly ? 'bg-guaca-coral text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70'}`}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md lg:px-4 lg:py-2.5 lg:text-[14px] lg:shadow-[0_8px_24px_-10px_rgba(12,74,92,0.35)] ${trendOnly ? 'bg-guaca-coral text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70 lg:bg-white lg:text-guaca-ink'}`}
           >
             🔥 {t.trendChip}
           </button>
@@ -1274,11 +1290,11 @@ export function TouristView() {
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="mt-1.5 flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep/85 px-3 py-1.5 text-[11px] font-black text-white shadow-md backdrop-blur-md"
+          className="mt-1.5 flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep/85 px-3 py-1.5 text-[11px] font-black text-white shadow-md backdrop-blur-md lg:mt-3 lg:gap-2 lg:bg-white lg:px-5 lg:py-3 lg:text-[16px] lg:text-guaca-ink lg:shadow-[0_8px_24px_-10px_rgba(12,74,92,0.35)]"
         >
-          <MapPin className="h-3 w-3 text-guaca-mango-light" />
+          <MapPin className="h-3 w-3 text-guaca-mango-light lg:hidden" />
           {selectedArea ? `${flagOf(selectedArea.country)} ${selectedArea.name}` : t.pickerExplore}
-          <ChevronDown className="h-3 w-3" />
+          <ChevronDown className="h-3 w-3 lg:h-4 lg:w-4" />
         </button>
       </div>
 
@@ -1369,13 +1385,17 @@ export function TouristView() {
       {/* Zone demand, scoped to the selected area — the honest "N people
           asked here" that funds missions, about where you are looking. */}
       {!selected && !selectedCandidate && (selectedArea?.peopleAsking ?? 0) > 0 && (
-        <div className="absolute bottom-24 left-4 z-[600] w-[200px] rounded-[22px] bg-guaca-ocean-deep/92 p-3.5 text-white shadow-lg backdrop-blur-md">
-          <p className="text-[8.5px] font-black uppercase tracking-[.12em] text-white/60">
-            <UsersRound className="mr-1 inline h-3 w-3" /> {t.zoneDemandTitle}
+        <div className="absolute bottom-24 left-4 z-[600] w-[200px] rounded-[22px] bg-guaca-ocean-deep/92 p-3.5 text-white shadow-lg backdrop-blur-md lg:bottom-8 lg:left-6 lg:flex lg:w-[330px] lg:items-center lg:gap-4 lg:rounded-[26px] lg:p-5">
+          <span className="hidden h-12 w-12 shrink-0 place-items-center rounded-full bg-guaca-teal/25 lg:grid">
+            <UsersRound className="h-6 w-6 text-guaca-teal" />
+          </span>
+          <div className="min-w-0 flex-1">
+          <p className="text-[8.5px] font-black uppercase tracking-[.12em] text-white/60 lg:text-[11px] lg:text-white/85">
+            <UsersRound className="mr-1 inline h-3 w-3 lg:hidden" /> {t.zoneDemandTitle}
           </p>
-          <p className="mt-1 text-[13px] font-black leading-tight">
+          <p className="mt-1 text-[13px] font-black leading-tight lg:text-[15px]">
             {selectedArea!.peopleAsking}{' '}
-            <span className="text-[10px] font-bold text-guaca-mango-light">
+            <span className="text-[10px] font-bold text-guaca-mango-light lg:text-[13px] lg:text-white/85">
               {selectedArea!.peopleAsking === 1 ? t.personAsking : t.peopleAsking} · {selectedArea!.name}
             </span>
           </p>
@@ -1391,12 +1411,74 @@ export function TouristView() {
               ))}
             </div>
           )}
+          </div>
+          <ChevronRight className="hidden h-5 w-5 shrink-0 text-white/70 lg:block" />
         </div>
       )}
 
+      {/* Desktop only: what the map promises, in one line, beside the demand card. */}
+      {!selected && !selectedCandidate && (
+        <div className="absolute bottom-8 right-[352px] z-[600] hidden items-center gap-4 rounded-[26px] bg-white/95 p-4 pr-6 shadow-[0_16px_40px_-16px_rgba(12,74,92,0.4)] backdrop-blur-md lg:flex">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-guaca-teal/12">
+            <MapPin className="h-6 w-6 text-guaca-teal" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[15px] font-black text-guaca-ink">{t.coverageTitle}</p>
+            <p className="mt-0.5 max-w-[260px] text-[12px] font-semibold leading-snug text-guaca-ink/60">{t.coverageBody}</p>
+          </div>
+          <Palmtree className="h-9 w-9 shrink-0 text-guaca-teal/70" />
+        </div>
+      )}
+
+      {/* Desktop only: the nearest verified places as a column, so a wide
+          screen browses the map and the list at once. Category tiles, not
+          photos: places carry no photo yet, and a stock image would be a
+          claim about a place nobody made. */}
+      <aside className="absolute bottom-6 right-6 top-6 z-[600] hidden w-[320px] flex-col rounded-[28px] bg-white/96 p-4 shadow-[0_20px_60px_-20px_rgba(12,74,92,0.45)] backdrop-blur-md lg:flex">
+        <p className="flex items-center gap-2 text-[18px] font-black text-guaca-ink"><Sparkles className="h-5 w-5 text-guaca-teal" /> {t.discoverTitle}</p>
+        <p className="mt-0.5 text-[13px] font-semibold text-guaca-ink/55">{t.discoverSub}</p>
+        <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [scrollbar-width:thin]">
+          {discoverPlaces.length === 0 && <p className="rounded-2xl bg-guaca-sand-light p-4 text-[12px] font-semibold text-guaca-ink/55">{t.emptyMapBody}</p>}
+          {discoverPlaces.map(({ place: p, km }) => {
+            const glyph = CATEGORY_GLYPH[p.category] ?? { emoji: '📍', color: '#0D8B8B' }
+            const saved = favIds.has(p.id)
+            return (
+              <div key={p.id} className="relative overflow-hidden rounded-[22px] bg-white shadow-[0_8px_24px_-12px_rgba(12,74,92,0.35)] ring-1 ring-guaca-sand/70">
+                <button type="button" onClick={() => { setSelectedCandidate(null); openPlace(p.id) }} className="block w-full text-left">
+                  <div className="relative h-24" style={{ background: `linear-gradient(135deg, ${glyph.color}33, ${glyph.color}99)` }}>
+                    <span className="absolute left-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white text-[18px] shadow-sm">{glyph.emoji}</span>
+                    {p.trendBadge === 'trending' && <span className="absolute bottom-3 left-3 rounded-full bg-guaca-teal px-2 py-0.5 text-[10px] font-black text-white">🔥 {t.trendChip}</span>}
+                  </div>
+                  <div className="px-3.5 pb-3.5 pt-2.5">
+                    <p className="truncate text-[15px] font-black text-guaca-ink">{p.name}</p>
+                    <p className="mt-0.5 text-[12px] font-semibold text-guaca-ink/55">{t.categoryLabels[p.category] ?? p.category} · {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`}</p>
+                    <p className="mt-1 flex items-center gap-1 text-[12px] font-bold text-guaca-teal"><BadgeCheck className="h-3.5 w-3.5" /> {p.spotter_name ? `${t.verifiedBy} ${p.spotter_name}` : t.verifiedBySpotters}</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  aria-label={saved ? t.favSaved : t.favSave}
+                  aria-pressed={saved}
+                  onClick={() => toggleFavorite(p)}
+                  className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-xl bg-white shadow-sm ${saved ? 'text-guaca-coral' : 'text-guaca-ink/60 hover:text-guaca-ink'}`}
+                  style={{ position: 'absolute' }}
+                >
+                  <Heart className={`h-4 w-4 ${saved ? 'fill-guaca-coral' : ''}`} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+        {nearbyVerified.length > 3 && (
+          <button type="button" onClick={() => setDiscoverAll((v) => !v)} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-guaca-teal text-[14px] font-black text-guaca-teal hover:bg-guaca-teal/8">
+            {discoverAll ? t.discoverLess : t.discoverMore} <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
+      </aside>
+
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
       {selected && (
-        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-6 lg:w-[440px]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-black leading-tight text-guaca-ink">{selected.name}</h3>
@@ -1582,7 +1664,7 @@ export function TouristView() {
 
       {/* Candidate card — an OSM dot: known to open data, unknown to us. */}
       {!selected && selectedCandidate && (
-        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-6 lg:w-[440px]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
           <div className="guaca-card rounded-[30px] p-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -1615,7 +1697,7 @@ export function TouristView() {
 
       {/* Ask result / teaser card. */}
       {!selected && !selectedCandidate && (
-        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-6 lg:w-[440px]">
+        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
           {askState.kind === 'asking' && (
             <div className="guaca-card rounded-[30px] p-4">
               <p className="text-[12px] font-black text-guaca-ink/55">{t.asking}</p>
@@ -2309,7 +2391,11 @@ export function TouristView() {
       {/* min-h-0 lets this region scroll instead of growing the page and
           pushing the tab bar past the fold. */}
       <div className="relative min-h-0 flex-1 lg:order-2">{tabScreens[activeTab]()}</div>
-      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-4 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:w-24 lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
+      <div className="relative z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-4 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:flex lg:w-28 lg:flex-col lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
+        <a href="/" className="mb-6 hidden flex-col items-center gap-1 lg:flex" aria-label="Guaca">
+          <img src="/brand/guaca-mark.png" alt="" className="h-12 w-12 object-contain" />
+          <span className="text-[15px] font-black lowercase tracking-tight text-guaca-teal">guaca</span>
+        </a>
         <div className="flex items-center justify-around lg:flex-col lg:justify-start lg:gap-5">
           {[
             { id: 'map' as const, label: t.tabMap, icon: MapPin },
@@ -2319,8 +2405,12 @@ export function TouristView() {
           ].map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.id
-            return <Button key={tab.id} type="button" variant="ghost" onClick={() => setActiveTab(tab.id)} aria-label={tab.label} aria-current={active ? 'page' : undefined} className={`h-14 min-w-16 flex-col gap-1 rounded-2xl px-3 text-[10px] font-bold hover:bg-transparent ${active ? 'text-guaca-teal' : 'text-guaca-ink/42'}`}><Icon className={`h-5 w-5 ${active ? 'fill-guaca-teal/10' : ''}`} />{tab.label}</Button>
+            return <Button key={tab.id} type="button" variant="ghost" onClick={() => setActiveTab(tab.id)} aria-label={tab.label} aria-current={active ? 'page' : undefined} className={`h-14 min-w-16 flex-col gap-1 rounded-2xl px-3 text-[10px] font-bold hover:bg-transparent lg:h-[76px] lg:w-[88px] lg:text-[13px] ${active ? 'text-guaca-teal lg:bg-guaca-teal/10' : 'text-guaca-ink/42 lg:hover:bg-guaca-sand'}`}><Icon className={`h-5 w-5 lg:h-7 lg:w-7 ${active ? 'fill-guaca-teal/10' : ''}`} />{tab.label}</Button>
           })}
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-56 overflow-hidden lg:block" aria-hidden="true">
+          <Palmtree className="absolute left-3 top-2 h-24 w-24 text-guaca-teal/60" strokeWidth={1.4} />
+          <svg viewBox="0 0 112 90" className="absolute inset-x-0 bottom-0 w-full text-guaca-teal/25" fill="currentColor"><path d="M0 40c18-12 36-12 56 0s38 12 56 0v50H0z"/><path d="M0 62c18-12 36-12 56 0s38 12 56 0v28H0z" opacity=".6"/></svg>
         </div>
       </div>
     </div>
