@@ -1,20 +1,7 @@
-import {
-  pool,
-  clusterUnanswered,
-  rankedGaps,
-  commissionMission,
-  expireMissions,
-  loadGapSignals,
-  listSpotterCandidates,
-  recomputeZoneDemand,
-} from '@guaca/db';
-import {
-  runGapAgent,
-  scoreGap,
-  selectSpotter,
-  composeBrief,
-} from '@guaca/agents';
+import { pool, clusterUnanswered, expireMissions, recomputeZoneDemand } from '@guaca/db';
+import { runGapAgent } from '@guaca/agents';
 import { buildApp } from './app.js';
+import { gapAgentOptions } from './gapAgentDeps.js';
 import { runGapCycle, startGapScheduler } from './scheduler.js';
 import { recomputeTrends } from './trendsService.js';
 import { disabledWeatherProvider, openMeteoProvider } from './weather.js';
@@ -55,55 +42,7 @@ const scheduler = startGapScheduler({
       // People-per-zone snapshot AFTER clustering: this tick's refusals
       // are already in the counts surfaces read.
       recomputeZoneDemand: () => recomputeZoneDemand(pool, AREA_ID),
-      runAgent: () =>
-        runGapAgent({
-          areaId: AREA_ID,
-          dryRun: gapDryRun,
-          minScore: Number(process.env.GAP_AGENT_MIN_SCORE ?? 45),
-          maxRewardMinor: Number(process.env.GAP_AGENT_MAX_REWARD_MINOR ?? 500),
-          dailyCap: Number(process.env.GAP_AGENT_MAX_MISSIONS_PER_DAY ?? 5),
-          listGaps: async (areaId) =>
-            (await rankedGaps(pool, areaId)).map((g) => ({
-              id: g.id,
-              category: g.category,
-              h3_8: g.h3_8,
-              questionCount: g.questionCount,
-              distinctSessionCount: g.distinctSessionCount,
-            })),
-          countMissionsToday: async () => {
-            const r = await pool.query<{ n: number }>(
-              `select count(*)::int as n from missions where offered_at >= date_trunc('day', now())`,
-            );
-            return r.rows[0]?.n ?? 0;
-          },
-          // Real signals: existing coverage suppresses spending, paying
-          // properties weight the score, and the zone name keeps briefs
-          // human. Stubs here would make all three inert.
-          loadSignals: (gap) =>
-            loadGapSignals(pool, {
-              id: gap.id,
-              category: gap.category,
-              h3_8: gap.h3_8,
-              areaId: AREA_ID,
-            }),
-          listSpotters: (zoneId) => listSpotterCandidates(pool, zoneId),
-          score: scoreGap,
-          selectSpotter: async (candidates, zoneId) =>
-            selectSpotter(candidates, zoneId),
-          composeBrief,
-          persistScore: async (gapId, score) => {
-            await pool.query(
-              `update gaps set score = $2, updated_at = now() where id = $1`,
-              [gapId, score],
-            );
-          },
-          commission: (args) =>
-            commissionMission(pool, {
-              ...args,
-              currency: 'USD',
-              expiresInHours: Number(process.env.MISSION_EXPIRY_HOURS ?? 48),
-            }),
-        }),
+      runAgent: () => runGapAgent(gapAgentOptions(pool, { areaId: AREA_ID, dryRun: gapDryRun })),
       broadcast: (event) => {
         const broadcaster = app as unknown as {
           broadcastAgentEvent?: (e: object) => void;

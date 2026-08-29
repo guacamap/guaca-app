@@ -27,6 +27,13 @@ export interface GapAgentOptions {
   loadSignals?(gap: GapRow): Promise<GapSignals>;
   /** Real spotter candidates for the zone. Required in production. */
   listSpotters?(zoneId: string): Promise<SpotterCandidate[]>;
+  /**
+   * A traveller asked outright for a local to be sent. The demand-volume
+   * gates (three asks, two sessions) exist to keep the scheduler from
+   * spending on noise; an explicit request is not noise. Spotter capacity,
+   * the daily cap and the reward cap still apply.
+   */
+  explicit?: boolean;
   score(g: GapSignals): ScoredGap;
   selectSpotter(candidates: SpotterCandidate[], zoneId: string): Promise<SpotterCandidate | null>;
   composeBrief(input: Parameters<typeof composeBrief>[0]): string;
@@ -96,7 +103,10 @@ export async function runGapAgent(
       }
     }
 
-    if (!HARD_GATES(signals)) {
+    // An explicit request skips the demand gates; whether a local can take
+    // it is decided below by spotter selection, which already prefers the
+    // zone's own spotters and falls back to the area's.
+    if (!options.explicit && !HARD_GATES(signals)) {
       explained.push(`gap ${gap.id}: gated (q=${gap.questionCount}, s=${gap.distinctSessionCount})`);
       continue;
     }

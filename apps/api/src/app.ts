@@ -793,6 +793,82 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
 
   /**
+   * The last option on a refusal: the traveller asks for a local to be sent.
+   * The same gap agent the scheduler runs, scoped to the one gap this
+   * question belongs to, with the score floor dropped (the demand is
+   * explicit) and every other guard intact: one open mission per gap, the
+   * daily cap, the reward cap, a real spotter in the zone. The traveller is
+   * also put on the question's watch, so the answer reaches them.
+   */
+  app.post('/api/questions/:id/mission', async (req, reply) => {
+    const touristId = await requireTourist(req);
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const { id } = req.params as { id: string };
+    const qrow = await options.pool.query<{ id: string; area_id: string | null; category: string | null; h3_8: string | null }>(
+      `select id, area_id, intent->>'category' as category, intent->>'h3_8' as h3_8 from questions where id = $1`,
+      [id],
+    );
+    const question = qrow.rows[0];
+    if (!question) return reply.code(404).send({ error: 'question not found' });
+    if (!question.area_id || !question.category || !question.h3_8) {
+      return reply.code(409).send({ status: 'no_intent' });
+    }
+    await options.pool.query(
+      `insert into question_notifications (question_id, tourist_id) values ($1, $2) on conflict do nothing`,
+      [id, touristId],
+    );
+    const { clusterUnanswered, gapAgentOptions } = await import('./gapAgentDeps.js');
+    await clusterUnanswered(options.pool, question.area_id);
+    const gapRow = await options.pool.query<{ id: string; category: string; h3_8: string; question_count: number; distinct_session_count: number; last_asked_at: Date | null }>(
+      `select id, category, h3_8, question_count, distinct_session_count, last_asked_at from gaps
+        where area_id = $1 and category = $2 and h3_8 = $3`,
+      [question.area_id, question.category, question.h3_8],
+    );
+    const gap = gapRow.rows[0];
+    if (!gap) return reply.code(409).send({ status: 'no_gap' });
+
+    const describe = async (missionId?: string) => {
+      const m = await options.pool.query<{ id: string; expires_at: Date; spotter: string }>(
+        `select m.id, m.expires_at, s.name as spotter from missions m join spotters s on s.id = m.spotter_id
+          where m.gap_id = $1 and m.status in ('offered','accepted','submitted') ${missionId ? 'and m.id = $2' : ''}
+          order by m.offered_at desc limit 1`,
+        missionId ? [gap.id, missionId] : [gap.id],
+      );
+      const row = m.rows[0];
+      if (!row) return null;
+      const [first, last] = row.spotter.split(/\s+/);
+      return { missionId: row.id, spotterName: last ? `${first} ${last[0]}.` : first, expiresAt: row.expires_at.toISOString() };
+    };
+    const open = await describe();
+    if (open) return reply.send({ status: 'already_open', ...open });
+
+    const { runGapAgent } = await import('@guaca/agents');
+    const result = await runGapAgent(
+      gapAgentOptions(options.pool, {
+        areaId: question.area_id,
+        dryRun: false,
+        minScore: 0,
+        explicit: true,
+        listGaps: async () => [{
+          id: gap.id, category: gap.category, h3_8: gap.h3_8,
+          questionCount: gap.question_count, distinctSessionCount: gap.distinct_session_count,
+          lastAskedAt: gap.last_asked_at ? gap.last_asked_at.toISOString() : null,
+        }],
+      }),
+    );
+    const done = result.commissioned[0];
+    if (done?.missionId) {
+      const m = await describe(done.missionId);
+      console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'info', event: 'mission.requested_by_tourist', detail: { questionId: id, gapId: gap.id, missionId: done.missionId } }));
+      return reply.send({ status: 'commissioned', ...m });
+    }
+    const why = result.explained.join(' ').toLowerCase();
+    const status = /daily cap/.test(why) ? 'budget' : /spotter/.test(why) ? 'no_spotter' : /approval|reward/.test(why) ? 'needs_approval' : 'declined';
+    console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'info', event: 'mission.request_declined', detail: { questionId: id, gapId: gap.id, status, explained: result.explained } }));
+    return reply.send({ status, detail: result.explained.slice(-1)[0] ?? null });
+  });
+
+  /**
    * What this tourist is waiting on, and what already came back. Questions
    * stay anonymous: the only link is the opt-in row the tourist created.
    */
