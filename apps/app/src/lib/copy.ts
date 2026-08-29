@@ -237,6 +237,10 @@ export interface AppCopy {
     verifiedBySpotters: string
     coverageTitle: string
     coverageBody: string
+    nowSunset: string
+    nowHoliday: string
+    nowSea: Record<'calm' | 'moderate' | 'rough', string>
+    nowRates: string
     addToPlan: string
     addedToPlan: string
     removeStop: string
@@ -549,6 +553,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       verifiedBySpotters: 'Verified by Spotters',
       coverageTitle: 'Coverage grows locally',
       coverageBody: 'Verified places appear as Spotters confirm them on the ground.',
+      nowSunset: 'sunset {time}',
+      nowHoliday: 'holiday: {name}',
+      nowSea: { calm: 'calm sea', moderate: 'some waves', rough: 'rough sea' },
+      nowRates: '1 USD = {official} {currency} official · {parallel} parallel',
       addToPlan: 'Add to plan',
       addedToPlan: 'In your plan',
       removeStop: 'Remove stop',
@@ -868,6 +876,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       verifiedBySpotters: 'Verificado por Spotters',
       coverageTitle: 'La cobertura crece localmente',
       coverageBody: 'Los lugares verificados aparecen cuando los Spotters los confirman en el terreno.',
+      nowSunset: 'atardecer {time}',
+      nowHoliday: 'feriado: {name}',
+      nowSea: { calm: 'mar en calma', moderate: 'algo de oleaje', rough: 'mar picado' },
+      nowRates: '1 USD = {official} {currency} oficial · {parallel} paralelo',
       addToPlan: 'Agregar al plan',
       addedToPlan: 'En tu plan',
       removeStop: 'Quitar parada',

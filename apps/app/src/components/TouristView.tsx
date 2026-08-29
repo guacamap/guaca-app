@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, ChevronRight, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Palmtree, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, ChevronRight, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Palmtree, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Sun, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
 import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
 import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
@@ -86,6 +86,17 @@ type AskState =
   | { kind: 'refusal'; text: string; questionId?: string; refusal?: RefusalContext }
   | { kind: 'error' }
 
+/** What a local knows right now (see apps/api/src/context.ts). */
+interface AreaNow {
+  localTime: string
+  weather: { tempC: number; rainPct: number; windKmh: number; uv: number; summary: string } | null
+  sea: { waveM: number; swellM: number; seaTempC: number | null; state: 'calm' | 'moderate' | 'rough' } | null
+  sun: { sunrise: string; sunset: string } | null
+  holiday: { name: string; localName: string } | null
+  rates: { currency: string; official: number; parallel: number | null; asOf: string } | null
+  alert: { kind: string; name: string; level: string; distanceKm: number; source: string } | null
+}
+
 interface ChatMsg {
   id: string
   role: 'user' | 'guaca'
@@ -97,6 +108,8 @@ interface ChatMsg {
   questionId?: string
   suggestions?: Rec[]
   refusal?: RefusalContext
+  /** Deterministic notes from the day's context (sea, rain, UV, holiday). */
+  notes?: string[]
 }
 
 interface SavedPlan {
@@ -743,6 +756,8 @@ export function TouristView() {
     suggestions?: Rec[]
     refusal?: RefusalContext
     mission?: { status: string; spotterName?: string; expiresAt?: string; questionId: string }
+    notes?: string[]
+    context?: AreaNow
   }
   const askApi = async (text: string, withThread = false): Promise<AskReply | null> => {
     // The thread rides along so Guaca can converse; the latest refusal lets
@@ -1019,7 +1034,9 @@ export function TouristView() {
           ...(body.questionId ? { questionId: body.questionId } : {}),
           ...(body.suggestions ? { suggestions: body.suggestions } : {}),
           ...(body.refusal ? { refusal: body.refusal } : {}),
+          ...(body.notes?.length ? { notes: body.notes } : {}),
         }
+        if (body.context) setNow(body.context)
         if (body.kind === 'answer') savePlanFromAnswer(text, body.text, body.placeIds)
         if (body.kind === 'mission' && body.mission) {
           const m = body.mission
@@ -1197,6 +1214,28 @@ export function TouristView() {
     places.find((p) => p.id === id) ?? planPlaces[id]
 
   const [discoverAll, setDiscoverAll] = useState(false)
+  /** The day around the map centre: weather, sea, sunset, holiday, rates. */
+  const [now, setNow] = useState<AreaNow | null>(null)
+  useEffect(() => {
+    const [lng, lat] = center
+    const ctrl = new AbortController()
+    fetch(`/api/context?lat=${lat.toFixed(3)}&lon=${lng.toFixed(3)}`, { credentials: 'include', signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { context: AreaNow | null } | null) => { if (d?.context) setNow(d.context) })
+      .catch(() => {})
+    return () => ctrl.abort()
+  }, [Math.round(center[0] * 20) / 20, Math.round(center[1] * 20) / 20])
+  const nowLine = useMemo(() => {
+    if (!now) return null
+    const fill = (str: string, vars: Record<string, string | number>) => Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), str)
+    const bits: string[] = []
+    if (now.weather) bits.push(`${Math.round(now.weather.tempC)}°C${now.weather.rainPct >= 40 ? ` · ${now.weather.rainPct}% ☔` : ''}${now.weather.uv >= 8 ? ` · UV ${Math.round(now.weather.uv)}` : ''}`)
+    if (now.sea) bits.push(t.nowSea[now.sea.state])
+    if (now.sun) bits.push(fill(t.nowSunset, { time: now.sun.sunset }))
+    if (now.holiday) bits.push(fill(t.nowHoliday, { name: now.holiday.localName }))
+    return bits.join(' · ')
+  }, [now, t])
+  const ratesLine = now?.rates ? Object.entries({ official: now.rates.official, currency: now.rates.currency, parallel: now.rates.parallel ?? '' }).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), t.nowRates).replace(/ · \s*(paralelo|parallel)$/, '') : null
   /** Verified places by distance from the map centre, for the desktop column. */
   const nearbyVerified = useMemo(() => {
     const [clng, clat] = center
@@ -1316,6 +1355,11 @@ export function TouristView() {
           {selectedArea ? `${flagOf(selectedArea.country)} ${selectedArea.name}` : t.pickerExplore}
           <ChevronDown className="h-3 w-3 lg:h-4 lg:w-4" />
         </button>
+        {nowLine && (
+          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-guaca-ocean-deep/70 px-3 py-1 text-[10.5px] font-bold text-white/90 backdrop-blur-md lg:hidden">
+            <Sun className="h-3 w-3 text-guaca-mango-light" /> {nowLine}
+          </p>
+        )}
       </div>
 
       {/* Country → city picker — every label an honest claim. */}
@@ -1456,7 +1500,8 @@ export function TouristView() {
           claim about a place nobody made. */}
       <aside className="absolute bottom-6 right-6 top-6 z-[600] hidden w-[320px] flex-col rounded-[28px] bg-white/96 p-4 shadow-[0_20px_60px_-20px_rgba(12,74,92,0.45)] backdrop-blur-md lg:flex">
         <p className="flex items-center gap-2 text-[18px] font-black text-guaca-ink"><Sparkles className="h-5 w-5 text-guaca-teal" /> {t.discoverTitle}</p>
-        <p className="mt-0.5 text-[13px] font-semibold text-guaca-ink/55">{t.discoverSub}</p>
+        <p className="mt-0.5 text-[13px] font-semibold text-guaca-ink/55">{t.discoverSub}{nowLine ? ` · ${nowLine}` : ''}</p>
+        {ratesLine && <p className="mt-1 text-[11px] font-bold text-guaca-ink/45">{ratesLine}</p>}
         <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [scrollbar-width:thin]">
           {discoverPlaces.length === 0 && <p className="rounded-2xl bg-guaca-sand-light p-4 text-[12px] font-semibold text-guaca-ink/55">{t.emptyMapBody}</p>}
           {discoverPlaces.map(({ place: p, km }) => {
@@ -1853,6 +1898,7 @@ export function TouristView() {
             ) : m.kind === 'refusal' ? (
               <div key={m.id} className="max-w-[92%] rounded-3xl rounded-bl-lg bg-guaca-ocean-deep p-4 text-white shadow-md">
                 {m.lead && <p className="mb-2 text-[12px] font-bold leading-relaxed text-white/85">{m.lead}</p>}
+                {m.notes?.map((n) => <p key={n} className="mb-1.5 flex items-start gap-1.5 text-[11px] font-bold leading-snug text-guaca-mango-light"><Sun className="mt-0.5 h-3.5 w-3.5 shrink-0" />{n}</p>)}
                 <p className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-mango-light">{t.refusalTitle}</p>
                 <p className="mt-1.5 whitespace-pre-line text-[13px] font-black leading-snug">{m.text}</p>
                 {renderRefusalBody(m.questionId, m.refusal, (text) => void askGuaca(text), true)}
@@ -1860,6 +1906,7 @@ export function TouristView() {
             ) : (
               <div key={m.id} className="guaca-card max-w-[92%] rounded-3xl rounded-bl-lg p-4">
                 {m.lead && <p className="mb-2 text-[12px] font-bold leading-relaxed text-guaca-ink/75">{m.lead}</p>}
+                {m.notes?.map((n) => <p key={n} className="mb-1.5 flex items-start gap-1.5 text-[11px] font-bold leading-snug text-guaca-mango-dark"><Sun className="mt-0.5 h-3.5 w-3.5 shrink-0" />{n}</p>)}
                 {m.kind === 'answer' && (
                   <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-teal">
                     <BadgeCheck className="h-3 w-3" /> {t.answerTitle}
