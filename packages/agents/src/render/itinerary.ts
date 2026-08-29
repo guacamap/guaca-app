@@ -8,6 +8,8 @@ export interface RenderPlace {
   name: string;
   landmarkDescription: string;
   category: string;
+  /** Only when a local confirmed it in person; public listing data never rides here. */
+  phone?: string | null;
 }
 
 /**
@@ -80,7 +82,7 @@ export function renderItinerary(
           `renderItinerary: no verified DB row for placeId ${stop.placeId}`,
         );
       }
-      lines.push(t.stop(place.name, fmt(stop.startMin), stop.reasonCode));
+      lines.push(t.stop(place.name, fmt(stop.startMin), stop.reasonCode) + (place.phone ? ` · tel ${place.phone}` : ''));
     }
   }
   lines.push(t.footer);

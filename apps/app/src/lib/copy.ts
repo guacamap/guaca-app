@@ -241,6 +241,10 @@ export interface AppCopy {
     nowHoliday: string
     nowSea: Record<'calm' | 'moderate' | 'rough', string>
     nowRates: string
+    publicListing: string
+    contactConfirmed: string
+    callCta: string
+    websiteCta: string
     addToPlan: string
     addedToPlan: string
     removeStop: string
@@ -557,6 +561,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       nowHoliday: 'holiday: {name}',
       nowSea: { calm: 'calm sea', moderate: 'some waves', rough: 'rough sea' },
       nowRates: '1 USD = {official} {currency} official · {parallel} parallel',
+      publicListing: 'Public listing · not yet confirmed by a local',
+      contactConfirmed: 'Details confirmed by a local',
+      callCta: 'Call',
+      websiteCta: 'Website',
       addToPlan: 'Add to plan',
       addedToPlan: 'In your plan',
       removeStop: 'Remove stop',
@@ -880,6 +888,10 @@ export const appCopy: Record<Lang, AppCopy> = {
       nowHoliday: 'feriado: {name}',
       nowSea: { calm: 'mar en calma', moderate: 'algo de oleaje', rough: 'mar picado' },
       nowRates: '1 USD = {official} {currency} oficial · {parallel} paralelo',
+      publicListing: 'Listado público · aún no confirmado por un local',
+      contactConfirmed: 'Datos confirmados por un local',
+      callCta: 'Llamar',
+      websiteCta: 'Sitio web',
       addToPlan: 'Agregar al plan',
       addedToPlan: 'En tu plan',
       removeStop: 'Quitar parada',

@@ -288,6 +288,9 @@ export async function ask(
         name: r.name,
         landmarkDescription: r.landmark_description,
         category: r.category,
+        // A phone is spoken only once a local confirmed it; a public listing
+        // is shown on the sheet as public, never read out as fact.
+        ...(r.contact_confirmed_at && r.public_phone ? { phone: r.public_phone } : {}),
       },
     ]),
   );

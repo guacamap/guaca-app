@@ -52,6 +52,11 @@ interface ApiPlace {
   avgRating?: number | null
   ratingCount?: number
   trendBadge?: 'trending' | 'asked_about' | 'fresh' | null
+  public_phone?: string | null
+  public_website?: string | null
+  public_socials?: string[] | null
+  public_address?: string | null
+  contact_confirmed_at?: string | null
 }
 
 interface CandidatePlace {
@@ -60,6 +65,10 @@ interface CandidatePlace {
   category: string
   lat: number
   lon: number
+  public_phone?: string | null
+  public_website?: string | null
+  public_socials?: string[] | null
+  public_address?: string | null
 }
 
 /** What the API says a refused traveller can do next (see plannerService.refusalOptions). */
@@ -1128,6 +1137,27 @@ export function TouristView() {
     )
   }
 
+  /** Phone, website, socials and address from a public listing, labelled as
+   *  such until a local confirmed them. Links only; nothing is asserted. */
+  const renderPublicInfo = (p: { public_phone?: string | null; public_website?: string | null; public_socials?: string[] | null; public_address?: string | null; contact_confirmed_at?: string | null }) => {
+    if (!p.public_phone && !p.public_website && !(p.public_socials?.length) && !p.public_address) return null
+    const socialName = (u: string) => (/instagram/.test(u) ? 'Instagram' : /facebook/.test(u) ? 'Facebook' : /twitter|x\.com/.test(u) ? 'X' : /tiktok/.test(u) ? 'TikTok' : /wa\.me|whatsapp/.test(u) ? 'WhatsApp' : 'Link')
+    const tel = p.public_phone?.replace(/[^\d+]/g, '')
+    return (
+      <div className={`mt-3 rounded-2xl p-3 ${p.contact_confirmed_at ? 'bg-guaca-teal/7' : 'bg-guaca-ink/5'}`}>
+        <p className={`text-[9px] font-black uppercase tracking-[.1em] ${p.contact_confirmed_at ? 'text-guaca-teal' : 'text-guaca-ink/45'}`}>
+          {p.contact_confirmed_at ? t.contactConfirmed : t.publicListing}
+        </p>
+        {p.public_address && <p className="mt-1 text-[11px] font-semibold text-guaca-ink/65">{p.public_address}</p>}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {tel && <a href={`tel:${tel}`} className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-guaca-ink ring-1 ring-guaca-sand hover:bg-guaca-sand-light">📞 {t.callCta} · {p.public_phone}</a>}
+          {p.public_website && <a href={p.public_website} target="_blank" rel="noopener noreferrer" className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-guaca-ink ring-1 ring-guaca-sand hover:bg-guaca-sand-light">🌐 {t.websiteCta}</a>}
+          {(p.public_socials ?? []).slice(0, 3).map((u) => <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-guaca-ink ring-1 ring-guaca-sand hover:bg-guaca-sand-light">{socialName(u)}</a>)}
+        </div>
+      </div>
+    )
+  }
+
   const openPlace = (id: string) => {
     const known = places.find((p) => p.id === id) ?? planPlaces[id]
     if (known) setSelected(known)
@@ -1584,6 +1614,7 @@ export function TouristView() {
             {selected.description && (
               <p className="mt-2 text-[11px] font-medium leading-relaxed text-guaca-ink/60">{selected.description}</p>
             )}
+            {renderPublicInfo(selected)}
             <div className="mt-4 flex items-center gap-3 rounded-2xl bg-guaca-teal/7 p-3">
               <Avatar url={selected.spotter_photo_url} name={selected.spotter_name} className="h-10 w-10" textClassName="text-xs" />
               <div className="min-w-0">
@@ -1745,6 +1776,7 @@ export function TouristView() {
               </button>
             </div>
             <p className="mt-2 text-[11px] font-semibold leading-relaxed text-guaca-ink/60">{t.candidateBody}</p>
+            {renderPublicInfo(selectedCandidate)}
             <Button
               type="button"
               onClick={() => {
