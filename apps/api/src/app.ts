@@ -804,68 +804,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const touristId = await requireTourist(req);
     if (!touristId) return reply.code(401).send({ error: 'login required' });
     const { id } = req.params as { id: string };
-    const qrow = await options.pool.query<{ id: string; area_id: string | null; category: string | null; h3_8: string | null }>(
-      `select id, area_id, intent->>'category' as category, intent->>'h3_8' as h3_8 from questions where id = $1`,
-      [id],
-    );
-    const question = qrow.rows[0];
-    if (!question) return reply.code(404).send({ error: 'question not found' });
-    if (!question.area_id || !question.category || !question.h3_8) {
-      return reply.code(409).send({ status: 'no_intent' });
-    }
-    await options.pool.query(
-      `insert into question_notifications (question_id, tourist_id) values ($1, $2) on conflict do nothing`,
-      [id, touristId],
-    );
-    const { clusterUnanswered, gapAgentOptions } = await import('./gapAgentDeps.js');
-    await clusterUnanswered(options.pool, question.area_id);
-    const gapRow = await options.pool.query<{ id: string; category: string; h3_8: string; question_count: number; distinct_session_count: number; last_asked_at: Date | null }>(
-      `select id, category, h3_8, question_count, distinct_session_count, last_asked_at from gaps
-        where area_id = $1 and category = $2 and h3_8 = $3`,
-      [question.area_id, question.category, question.h3_8],
-    );
-    const gap = gapRow.rows[0];
-    if (!gap) return reply.code(409).send({ status: 'no_gap' });
-
-    const describe = async (missionId?: string) => {
-      const m = await options.pool.query<{ id: string; expires_at: Date; spotter: string }>(
-        `select m.id, m.expires_at, s.name as spotter from missions m join spotters s on s.id = m.spotter_id
-          where m.gap_id = $1 and m.status in ('offered','accepted','submitted') ${missionId ? 'and m.id = $2' : ''}
-          order by m.offered_at desc limit 1`,
-        missionId ? [gap.id, missionId] : [gap.id],
-      );
-      const row = m.rows[0];
-      if (!row) return null;
-      const [first, last] = row.spotter.split(/\s+/);
-      return { missionId: row.id, spotterName: last ? `${first} ${last[0]}.` : first, expiresAt: row.expires_at.toISOString() };
-    };
-    const open = await describe();
-    if (open) return reply.send({ status: 'already_open', ...open });
-
-    const { runGapAgent } = await import('@guaca/agents');
-    const result = await runGapAgent(
-      gapAgentOptions(options.pool, {
-        areaId: question.area_id,
-        dryRun: false,
-        minScore: 0,
-        explicit: true,
-        listGaps: async () => [{
-          id: gap.id, category: gap.category, h3_8: gap.h3_8,
-          questionCount: gap.question_count, distinctSessionCount: gap.distinct_session_count,
-          lastAskedAt: gap.last_asked_at ? gap.last_asked_at.toISOString() : null,
-        }],
-      }),
-    );
-    const done = result.commissioned[0];
-    if (done?.missionId) {
-      const m = await describe(done.missionId);
-      console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'info', event: 'mission.requested_by_tourist', detail: { questionId: id, gapId: gap.id, missionId: done.missionId } }));
-      return reply.send({ status: 'commissioned', ...m });
-    }
-    const why = result.explained.join(' ').toLowerCase();
-    const status = /daily cap/.test(why) ? 'budget' : /spotter/.test(why) ? 'no_spotter' : /approval|reward/.test(why) ? 'needs_approval' : 'declined';
-    console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'info', event: 'mission.request_declined', detail: { questionId: id, gapId: gap.id, status, explained: result.explained } }));
-    return reply.send({ status, detail: result.explained.slice(-1)[0] ?? null });
+    const { requestMission } = await import('./missionRequest.js');
+    const result = await requestMission(options.pool, id, touristId);
+    if (result.status === 'not_found') return reply.code(404).send({ error: 'question not found' });
+    if (result.status === 'no_intent' || result.status === 'no_gap') return reply.code(409).send({ status: result.status });
+    return reply.send(result);
   });
 
   /**
@@ -941,6 +884,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
       language?: string;
       lat?: number;
       lon?: number;
+      /** The last few turns of the thread, oldest first, so Guaca can converse. */
+      history?: Array<{ role: 'user' | 'guaca'; text: string }>;
+      /** The latest refused question in the thread, for "yes, send someone". */
+      lastQuestionId?: string | null;
     };
     if (!body.text) {
       return reply.code(400).send({ error: 'text is required' });
@@ -955,6 +902,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(429).send({ error: 'rate limited — try again soon' });
     }
     const inference = await resolveInference();
+    const history = Array.isArray(body.history)
+      ? body.history
+          .filter((m) => m && (m.role === 'user' || m.role === 'guaca') && typeof m.text === 'string')
+          .slice(-8)
+          .map((m) => ({ role: m.role, text: m.text.slice(0, 400) }))
+      : [];
     const result = await ask(
       options.pool,
       {
@@ -962,6 +915,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
         language: body.language ?? 'en',
         lat: body.lat ?? 10.4716,
         lon: body.lon ?? -68.0056,
+        history,
+        lastQuestionId: typeof body.lastQuestionId === 'string' ? body.lastQuestionId : null,
+        touristId,
       },
       {
         minCandidates: options.minCandidates ?? Number(process.env.PLANNER_MIN_CANDIDATES ?? 3),

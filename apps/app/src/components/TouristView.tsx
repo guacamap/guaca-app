@@ -89,8 +89,10 @@ type AskState =
 interface ChatMsg {
   id: string
   role: 'user' | 'guaca'
-  kind?: 'answer' | 'refusal' | 'error'
+  kind?: 'answer' | 'refusal' | 'error' | 'chat' | 'mission' | 'notify'
   text: string
+  /** A friendly lead-in from the concierge above a grounded answer or refusal. */
+  lead?: string
   placeIds?: string[]
   questionId?: string
   suggestions?: Rec[]
@@ -732,31 +734,29 @@ export function TouristView() {
   )
 
   /** One grounded call for the map box AND the Guaca thread (§7.3). */
-  const askApi = async (
-    text: string,
-  ): Promise<{
-    kind: 'answer' | 'refusal'
+  type AskReply = {
+    kind: 'answer' | 'refusal' | 'chat' | 'mission' | 'notify'
     text: string
+    lead?: string
     placeIds: string[]
     questionId?: string
     suggestions?: Rec[]
     refusal?: RefusalContext
-  } | null> => {
+    mission?: { status: string; spotterName?: string; expiresAt?: string; questionId: string }
+  }
+  const askApi = async (text: string, withThread = false): Promise<AskReply | null> => {
+    // The thread rides along so Guaca can converse; the latest refusal lets
+    // "yes, send someone" mean something.
+    const history = withThread ? thread.slice(-8).map((m) => ({ role: m.role, text: m.text })) : []
+    const lastRefusal = withThread ? [...thread].reverse().find((m) => m.kind === 'refusal' && m.questionId) : undefined
     const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ text, language: lang, lat: center[1], lon: center[0] }),
+      body: JSON.stringify({ text, language: lang, lat: center[1], lon: center[0], history, lastQuestionId: lastRefusal?.questionId ?? null }),
     })
     if (!res.ok) return null
-    return (await res.json()) as {
-      kind: 'answer' | 'refusal'
-      text: string
-      placeIds: string[]
-      questionId?: string
-      suggestions?: Rec[]
-      refusal?: RefusalContext
-    }
+    return (await res.json()) as AskReply
   }
 
   /** The last option on a refusal: ask for a local to be sent, once per question. */
@@ -964,6 +964,16 @@ export function TouristView() {
     try {
       const body = await askApi(text)
       if (!body) return setAskState({ kind: 'error' })
+      if (body.kind === 'chat' || body.kind === 'mission' || body.kind === 'notify') {
+        // A conversation turn belongs in the thread, not the map card.
+        setActiveTab('guaca')
+        setThread((prev) => {
+          const next = [...prev, { id: localId(), role: 'user' as const, text }, { id: localId(), role: 'guaca' as const, kind: body.kind, text: body.text }].slice(-60)
+          saveJson(THREAD_KEY, next)
+          return next
+        })
+        return setAskState({ kind: 'idle' })
+      }
       bumpStats(body.kind === 'refusal')
       if (body.kind === 'answer') {
         setAskState({ kind: 'answer', text: body.text, placeIds: body.placeIds })
@@ -994,22 +1004,32 @@ export function TouristView() {
     })
     let reply: ChatMsg
     try {
-      const body = await askApi(text)
+      const body = await askApi(text, true)
       if (!body) {
         reply = { id: localId(), role: 'guaca', kind: 'error', text: t.askError }
       } else {
-        bumpStats(body.kind === 'refusal')
+        if (body.kind === 'answer' || body.kind === 'refusal') bumpStats(body.kind === 'refusal')
         reply = {
           id: localId(),
           role: 'guaca',
           kind: body.kind,
           text: body.text,
           placeIds: body.placeIds,
+          ...(body.lead ? { lead: body.lead } : {}),
           ...(body.questionId ? { questionId: body.questionId } : {}),
           ...(body.suggestions ? { suggestions: body.suggestions } : {}),
           ...(body.refusal ? { refusal: body.refusal } : {}),
         }
         if (body.kind === 'answer') savePlanFromAnswer(text, body.text, body.placeIds)
+        if (body.kind === 'mission' && body.mission) {
+          const m = body.mission
+          setMissions((prev) => ({ ...prev, [m.questionId]: { status: m.status as MissionState['status'], ...(m.spotterName ? { spotterName: m.spotterName } : {}), ...(m.expiresAt ? { expiresAt: m.expiresAt } : {}) } }))
+          setNotified((prev) => new Set(prev).add(m.questionId))
+        }
+        if (body.kind === 'notify') {
+          const last = [...thread].reverse().find((m) => m.kind === 'refusal' && m.questionId)
+          if (last?.questionId) setNotified((prev) => new Set(prev).add(last.questionId!))
+        }
       }
     } catch {
       reply = { id: localId(), role: 'guaca', kind: 'error', text: t.askError }
@@ -1813,14 +1833,33 @@ export function TouristView() {
               <div key={m.id} className="flex justify-end">
                 <p className="max-w-[80%] rounded-3xl rounded-br-lg bg-guaca-teal px-4 py-2.5 text-[13px] font-bold leading-relaxed text-white shadow-sm">{m.text}</p>
               </div>
+            ) : m.kind === 'chat' || m.kind === 'mission' || m.kind === 'notify' ? (
+              <div key={m.id} className="guaca-card max-w-[92%] rounded-3xl rounded-bl-lg p-4">
+                <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-teal"><Sparkles className="h-3 w-3" /> Guaca</p>
+                <p className="mt-1.5 whitespace-pre-line text-[13px] font-bold leading-relaxed text-guaca-ink">{m.text}</p>
+                {m.kind === 'mission' && (() => {
+                  const last = [...thread].reverse().find((x) => x.kind === 'refusal' && x.questionId)
+                  const st = last?.questionId ? missions[last.questionId] : undefined
+                  if (!st) return null
+                  const hours = st.expiresAt ? Math.max(1, Math.round((new Date(st.expiresAt).getTime() - Date.now()) / 3_600_000)) : 48
+                  const line = st.status === 'commissioned' ? t.refusalMissionSent.replaceAll('{name}', st.spotterName ?? 'A local').replaceAll('{hours}', String(hours))
+                    : st.status === 'already_open' ? t.refusalMissionOpen.replaceAll('{name}', st.spotterName ?? 'a local').replaceAll('{when}', st.expiresAt ? new Date(st.expiresAt).toLocaleDateString() : '')
+                    : st.status === 'budget' || st.status === 'needs_approval' ? t.refusalMissionBudget
+                    : st.status === 'no_spotter' ? t.refusalMissionNoSpotter : t.refusalMissionFailed
+                  return <p className="mt-2 flex items-start gap-1.5 text-[11px] font-black leading-relaxed text-guaca-teal-dark"><Radio className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{line}</span></p>
+                })()}
+                {m.kind === 'notify' && <p className="mt-2 flex items-center gap-1.5 text-[11px] font-black text-guaca-teal-dark"><Check className="h-3.5 w-3.5" /> {t.refusalNotifySaved}</p>}
+              </div>
             ) : m.kind === 'refusal' ? (
               <div key={m.id} className="max-w-[92%] rounded-3xl rounded-bl-lg bg-guaca-ocean-deep p-4 text-white shadow-md">
+                {m.lead && <p className="mb-2 text-[12px] font-bold leading-relaxed text-white/85">{m.lead}</p>}
                 <p className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-mango-light">{t.refusalTitle}</p>
                 <p className="mt-1.5 whitespace-pre-line text-[13px] font-black leading-snug">{m.text}</p>
                 {renderRefusalBody(m.questionId, m.refusal, (text) => void askGuaca(text), true)}
               </div>
             ) : (
               <div key={m.id} className="guaca-card max-w-[92%] rounded-3xl rounded-bl-lg p-4">
+                {m.lead && <p className="mb-2 text-[12px] font-bold leading-relaxed text-guaca-ink/75">{m.lead}</p>}
                 {m.kind === 'answer' && (
                   <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-[.12em] text-guaca-teal">
                     <BadgeCheck className="h-3 w-3" /> {t.answerTitle}

@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 import {
   answerFromCatalog,
+  converse,
   classifiesIntent,
   classifyWithModel,
   extractIntent,
@@ -42,9 +43,14 @@ export interface RefusalContext {
 }
 
 export interface AskResult {
-  kind: 'answer' | 'refusal';
+  /** 'chat', 'mission' and 'notify' are conversation turns: no place is cited. */
+  kind: 'answer' | 'refusal' | 'chat' | 'mission' | 'notify';
   text: string;
   placeIds: string[];
+  /** A friendly sentence from the concierge that precedes a grounded answer or refusal. */
+  lead?: string;
+  /** On kind 'mission': what happened when the traveller asked for a local. */
+  mission?: { status: string; spotterName?: string; expiresAt?: string; questionId: string };
   /** On a refusal: what we understood, what exists nearby, and what to do next. */
   refusal?: RefusalContext;
   /** The persisted question — the demand signal the gap agent later reads. */
@@ -150,6 +156,12 @@ export async function ask(
     lon: number;
     sessionId?: string | null;
     propertyId?: string | null;
+    /** The thread so far, oldest first; empty for a one-shot ask. */
+    history?: ReadonlyArray<{ role: 'user' | 'guaca'; text: string }>;
+    /** The latest refused question in the thread, if the traveller may act on it. */
+    lastQuestionId?: string | null;
+    /** Needed for the mission and notify turns. */
+    touristId?: string;
   },
   opts: { minCandidates: number; inference: import('@guaca/agents').Inference },
 ): Promise<AskResult> {
@@ -210,11 +222,51 @@ export async function ask(
     ]),
   );
 
+  // The conversation turn: a concrete ask the lexicon knows goes straight
+  // through; anything else gets one concierge call that chats, clarifies,
+  // or hands a plain query to the pipeline. It can never cite a place.
+  const byCategoryAll = new Map<string, number>();
+  for (const r of rows) byCategoryAll.set(r.category, (byCategoryAll.get(r.category) ?? 0) + 1);
+  const turn = await converse(opts.inference, {
+    text: input.text,
+    language: input.language,
+    history: input.history ?? [],
+    hasOpenRefusal: !!input.lastQuestionId,
+    coverage: { verifiedNearby: rows.length, byCategory: byCategoryAll },
+    placeNames: rows.map((r) => r.name),
+  });
+  if (turn.mode === 'chat') {
+    return { kind: 'chat', text: turn.reply, placeIds: [] };
+  }
+  if (turn.mode === 'mission' || turn.mode === 'notify') {
+    if (!input.lastQuestionId || !input.touristId) {
+      return { kind: 'chat', text: turn.reply, placeIds: [] };
+    }
+    if (turn.mode === 'notify') {
+      await pool.query(
+        `insert into question_notifications (question_id, tourist_id) values ($1, $2) on conflict do nothing`,
+        [input.lastQuestionId, input.touristId],
+      );
+      return { kind: 'notify', text: turn.reply, placeIds: [] };
+    }
+    const { requestMission } = await import('./missionRequest.js');
+    const m = await requestMission(pool, input.lastQuestionId, input.touristId);
+    return {
+      kind: 'mission', text: turn.reply, placeIds: [],
+      mission: {
+        status: m.status, questionId: input.lastQuestionId,
+        ...('spotterName' in m ? { spotterName: m.spotterName, expiresAt: m.expiresAt } : {}),
+      },
+    };
+  }
+  const askText = turn.askText?.trim() || input.text;
+  const lead = turn.via === 'model' && turn.reply.trim() ? { lead: turn.reply.trim() } : {};
+
   // Intent, coverage, fast path, single-topic filter, guarded model path and
   // the render-boundary re-mint all live in answerFromCatalog, which the
   // benchmark runs on a fixed catalog. Same code, so the score means this.
   const outcome = await answerFromCatalog({
-    text: input.text,
+    text: askText,
     language: input.language,
     lat: input.lat,
     lon: input.lon,
@@ -232,7 +284,7 @@ export async function ask(
     minCandidates: opts.minCandidates,
   });
 
-  const category = outcome.category ?? extractIntent(input.text).category;
+  const category = outcome.category ?? extractIntent(askText).category;
   if (outcome.kind === 'refusal') {
     // The refusal itself is the demand record: the question row written here
     // is what the gap agent clusters on. Unrecorded means never commissioned.
@@ -244,6 +296,7 @@ export async function ask(
       kind: 'refusal',
       text: REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!,
       placeIds: [],
+      ...lead,
       ...(questionId ? { questionId } : {}),
       refusal: {
         reason: outcome.reason,
@@ -264,6 +317,7 @@ export async function ask(
     kind: 'answer',
     text: renderItinerary(outcome.artifact, places, input.language),
     placeIds: ids,
+    ...lead,
     ...(questionId ? { questionId } : {}),
     ...(sugg ? { suggestions: sugg } : {}),
   };

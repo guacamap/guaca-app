@@ -124,6 +124,34 @@ describe('a refused question can be turned into a mission by the traveller', () 
     expect(m.rows[0]!.n).toBe(1);
   });
 
+  it('the thread rides along: history and lastQuestionId are accepted and a concrete ask still answers', async () => {
+    const headers = await authTourist(app, capture.codes, 'guest@test.guaca.live');
+    const res = await app.inject({
+      method: 'POST', url: '/api/ask', headers,
+      payload: {
+        text: 'where can I eat nearby', language: 'en', lat: 10.4716, lon: -68.0056,
+        history: [{ role: 'user', text: 'hola' }, { role: 'guaca', text: 'Hi! What are you after?' }],
+        lastQuestionId: questionId,
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().kind).toBe('answer');
+  });
+
+  it('with no model, a vague turn is not swallowed: it reaches the pipeline and is recorded as demand', async () => {
+    const headers = await authTourist(app, capture.codes, 'guest@test.guaca.live');
+    const before = await pool.query<{ n: number }>(`select count(*)::int as n from questions`);
+    const res = await app.inject({
+      method: 'POST', url: '/api/ask', headers,
+      payload: { text: 'hey, anything fun happening tonight?', language: 'en', lat: 10.4716, lon: -68.0056, history: [] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().kind).toBe('refusal');
+    expect(res.json().refusal.reason).toBe('UNCLEAR_QUESTION');
+    const after = await pool.query<{ n: number }>(`select count(*)::int as n from questions`);
+    expect(after.rows[0]!.n).toBe(before.rows[0]!.n + 1);
+  });
+
   it('a stranger cannot do it', async () => {
     const res = await app.inject({ method: 'POST', url: `/api/questions/${questionId}/mission` });
     expect(res.statusCode).toBe(401);
