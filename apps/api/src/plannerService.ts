@@ -25,19 +25,108 @@ import {
 } from '@guaca/shared';
 import { suggestionsNear } from './suggestionsService.js';
 
+/** A follow-up the client renders as a chip. Never model text: an `ask`
+ *  re-enters the same grounded path with a canonical query. */
+export type RefusalOption =
+  | { kind: 'ask' | 'refine'; label: string; text: string; category?: string }
+  | { kind: 'notify' }
+  | { kind: 'mission' };
+
+export interface RefusalContext {
+  reason: string;
+  /** The category the question was understood as, if any. */
+  category: string | null;
+  coverage: { verifiedNearby: number; inCategory: number };
+  /** Ordered; the mission is always last. */
+  options: RefusalOption[];
+}
+
 export interface AskResult {
   kind: 'answer' | 'refusal';
   text: string;
   placeIds: string[];
+  /** On a refusal: what we understood, what exists nearby, and what to do next. */
+  refusal?: RefusalContext;
   /** The persisted question — the demand signal the gap agent later reads. */
   questionId?: string;
   /** Grounded follow-ups near the ask — deterministic trend picks, never model output. */
   suggestions?: Array<{ placeId: string; name: string; why: 'trending' | 'asked_about' | 'fresh' }>;
 }
 
+/** Canonical queries the lexicon recognises as exactly one category, so a
+ *  chip re-asks through the fast path with nothing invented. */
+const CANONICAL: Record<string, Record<'en' | 'es', string>> = {
+  eat_drink: { en: 'where can I eat nearby', es: 'dónde comer cerca' },
+  beach_water: { en: 'a beach nearby', es: 'una playa cerca' },
+  nature_walk: { en: 'a nature walk nearby', es: 'una caminata en la naturaleza cerca' },
+  culture_history: { en: 'museums and history nearby', es: 'museos e historia cerca' },
+  market_shop: { en: 'a market nearby', es: 'mercado cerca' },
+  services: { en: 'a pharmacy nearby', es: 'una farmacia cerca' },
+  nightlife_music: { en: 'live music nearby', es: 'musica en vivo cerca' },
+};
+const CATEGORY_LABEL: Record<string, Record<'en' | 'es', string>> = {
+  eat_drink: { en: 'places to eat', es: 'lugares para comer' },
+  beach_water: { en: 'beaches', es: 'playas' },
+  nature_walk: { en: 'nature walks', es: 'caminatas' },
+  culture_history: { en: 'culture spots', es: 'sitios de cultura' },
+  market_shop: { en: 'markets', es: 'mercados' },
+  services: { en: 'services', es: 'servicios' },
+  nightlife_music: { en: 'music spots', es: 'sitios con música' },
+};
+
+/**
+ * What a refused traveller can do next, in order. Chips are deterministic:
+ * a re-ask goes back through the grounded pipeline; the model never writes
+ * a chip. The mission is last, the honest end of the road.
+ */
+export function refusalOptions(input: {
+  language: string;
+  reason: string;
+  category: string | null;
+  verifiedNearby: number;
+  inCategory: number;
+  byCategory: ReadonlyMap<string, number>;
+}): RefusalOption[] {
+  const lang: 'en' | 'es' = input.language === 'es' ? 'es' : 'en';
+  const out: RefusalOption[] = [];
+  const unclear = input.reason === 'UNCLEAR_QUESTION';
+  if (!unclear && input.category && input.inCategory > 0 && CANONICAL[input.category]) {
+    const label = CATEGORY_LABEL[input.category]?.[lang] ?? input.category;
+    out.push({
+      kind: 'ask',
+      category: input.category,
+      label: lang === 'es' ? `Ver ${input.inCategory} ${label} verificados` : `Show the ${input.inCategory} verified ${label}`,
+      text: CANONICAL[input.category]![lang],
+    });
+  }
+  if (unclear || input.inCategory === 0) {
+    // What is actually verified nearby, as chips, most covered first.
+    const covered = [...input.byCategory.entries()]
+      .filter(([c, n]) => n > 0 && CANONICAL[c] && c !== input.category)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4);
+    for (const [c, n] of covered) {
+      out.push({ kind: 'refine', category: c, label: `${CATEGORY_LABEL[c]?.[lang] ?? c} (${n})`, text: CANONICAL[c]![lang] });
+    }
+  }
+  if (input.verifiedNearby >= 3) {
+    out.push({
+      kind: 'ask',
+      label: lang === 'es' ? 'Planea mi día con lo verificado' : 'Plan my day with what is verified',
+      text: lang === 'es' ? 'planea mi día: comida, playa y cultura' : 'plan my day: food, beach and culture',
+    });
+  }
+  out.push({ kind: 'notify' });
+  out.push({ kind: 'mission' });
+  return out;
+}
+
+// The headline states only what is true at this moment. Whether a local is
+// sent is the traveller's call now (the last option under the refusal), so
+// the old "we have commissioned a local" promise is gone.
 const REFUSAL_TEXT: Record<string, string> = {
-  es: 'Nadie ha verificado lugares para eso todavía. Ya encargamos a un local que vaya a mirar.',
-  en: 'No one has verified places for that yet — we have commissioned a local to go look.',
+  es: 'Nadie ha verificado lugares para eso todavía.',
+  en: 'No one has verified places for that yet.',
 };
 
 /**
@@ -148,11 +237,23 @@ export async function ask(
     // The refusal itself is the demand record: the question row written here
     // is what the gap agent clusters on. Unrecorded means never commissioned.
     const questionId = await record(false, category, [], outcome.reason);
+    const byCategory = new Map<string, number>();
+    for (const r of rows) byCategory.set(r.category, (byCategory.get(r.category) ?? 0) + 1);
+    const understood = outcome.reason === 'UNCLEAR_QUESTION' ? null : category;
     return {
       kind: 'refusal',
       text: REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!,
       placeIds: [],
       ...(questionId ? { questionId } : {}),
+      refusal: {
+        reason: outcome.reason,
+        category: understood,
+        coverage: { verifiedNearby: rows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0 },
+        options: refusalOptions({
+          language: input.language, reason: outcome.reason, category: understood,
+          verifiedNearby: rows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0, byCategory,
+        }),
+      },
     };
   }
 

@@ -1,36 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ArrowRight,
-  BadgeCheck,
-  Bell,
-  CalendarRange,
-  Check,
-  Clock3,
-  Flag,
-  ChevronDown,
-  Globe,
-  Heart,
-  LogOut,
-  MapPin,
-  MessageCircle,
-  Megaphone,
-  Navigation,
-  Plus,
-  RefreshCcw,
-  Route,
-  Search,
-  Send,
-  Share2,
-  Sparkles,
-  Star,
-  Store,
-  Trash2,
-  TrendingUp,
-  Trophy,
-  UsersRound,
-  UserRound,
-  X,
-} from 'lucide-react'
+import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
 import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
 import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
@@ -93,11 +62,28 @@ interface CandidatePlace {
   lon: number
 }
 
+/** What the API says a refused traveller can do next (see plannerService.refusalOptions). */
+type RefusalOption =
+  | { kind: 'ask' | 'refine'; label: string; text: string; category?: string }
+  | { kind: 'notify' }
+  | { kind: 'mission' }
+interface RefusalContext {
+  reason: string
+  category: string | null
+  coverage: { verifiedNearby: number; inCategory: number }
+  options: RefusalOption[]
+}
+interface MissionState {
+  status: 'sending' | 'commissioned' | 'already_open' | 'budget' | 'no_spotter' | 'needs_approval' | 'declined' | 'failed'
+  spotterName?: string
+  expiresAt?: string
+}
+
 type AskState =
   | { kind: 'idle' }
   | { kind: 'asking' }
   | { kind: 'answer'; text: string; placeIds: string[] }
-  | { kind: 'refusal'; text: string; questionId?: string }
+  | { kind: 'refusal'; text: string; questionId?: string; refusal?: RefusalContext }
   | { kind: 'error' }
 
 interface ChatMsg {
@@ -108,6 +94,7 @@ interface ChatMsg {
   placeIds?: string[]
   questionId?: string
   suggestions?: Rec[]
+  refusal?: RefusalContext
 }
 
 interface SavedPlan {
@@ -753,6 +740,7 @@ export function TouristView() {
     placeIds: string[]
     questionId?: string
     suggestions?: Rec[]
+    refusal?: RefusalContext
   } | null> => {
     const res = await fetch('/api/ask', {
       method: 'POST',
@@ -767,6 +755,23 @@ export function TouristView() {
       placeIds: string[]
       questionId?: string
       suggestions?: Rec[]
+      refusal?: RefusalContext
+    }
+  }
+
+  /** The last option on a refusal: ask for a local to be sent, once per question. */
+  const [missions, setMissions] = useState<Record<string, MissionState>>({})
+  const requestMission = async (questionId: string) => {
+    if (missions[questionId] && missions[questionId]!.status !== 'failed') return
+    setMissions((m) => ({ ...m, [questionId]: { status: 'sending' } }))
+    setNotified((prev) => new Set(prev).add(questionId))
+    try {
+      const res = await fetch(`/api/questions/${questionId}/mission`, { method: 'POST', credentials: 'include' })
+      const body = (await res.json().catch(() => ({}))) as { status?: string; spotterName?: string; expiresAt?: string }
+      const status = (res.ok && body.status) ? body.status : 'failed'
+      setMissions((m) => ({ ...m, [questionId]: { status: status as MissionState['status'], ...(body.spotterName ? { spotterName: body.spotterName } : {}), ...(body.expiresAt ? { expiresAt: body.expiresAt } : {}) } }))
+    } catch {
+      setMissions((m) => ({ ...m, [questionId]: { status: 'failed' } }))
     }
   }
 
@@ -968,6 +973,7 @@ export function TouristView() {
           kind: 'refusal',
           text: body.text,
           ...(body.questionId ? { questionId: body.questionId } : {}),
+          ...(body.refusal ? { refusal: body.refusal } : {}),
         })
       }
     } catch {
@@ -1001,6 +1007,7 @@ export function TouristView() {
           placeIds: body.placeIds,
           ...(body.questionId ? { questionId: body.questionId } : {}),
           ...(body.suggestions ? { suggestions: body.suggestions } : {}),
+          ...(body.refusal ? { refusal: body.refusal } : {}),
         }
         if (body.kind === 'answer') savePlanFromAnswer(text, body.text, body.placeIds)
       }
@@ -1013,6 +1020,75 @@ export function TouristView() {
       return next
     })
     setGuacaBusy(false)
+  }
+
+  /** Everything under a refusal's headline: honest coverage, the chips, the watch, and the local as the last option. */
+  const renderRefusalBody = (questionId: string | undefined, ctx: RefusalContext | undefined, onAsk: (text: string) => void, compact: boolean) => {
+    const label = (c: string | null) => (c ? (t.categoryLabels[c] ?? c).toLowerCase() : '')
+    const fill = (s: string, vars: Record<string, string | number>) => Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), s)
+    const mission = questionId ? missions[questionId] : undefined
+    const chips = (ctx?.options ?? []).filter((o): o is Extract<RefusalOption, { kind: 'ask' | 'refine' }> => o.kind === 'ask' || o.kind === 'refine')
+    const hasNotify = (ctx?.options ?? []).some((o) => o.kind === 'notify')
+    const hasMission = (ctx?.options ?? []).some((o) => o.kind === 'mission')
+    const hours = mission?.expiresAt ? Math.max(1, Math.round((new Date(mission.expiresAt).getTime() - Date.now()) / 3_600_000)) : 48
+    const missionLine = !mission ? null
+      : mission.status === 'sending' ? t.refusalMissionSending
+      : mission.status === 'commissioned' ? fill(t.refusalMissionSent, { name: mission.spotterName ?? 'A local', hours })
+      : mission.status === 'already_open' ? fill(t.refusalMissionOpen, { name: mission.spotterName ?? 'a local', when: mission.expiresAt ? new Date(mission.expiresAt).toLocaleDateString() : '' })
+      : mission.status === 'budget' || mission.status === 'needs_approval' ? t.refusalMissionBudget
+      : mission.status === 'no_spotter' ? t.refusalMissionNoSpotter
+      : t.refusalMissionFailed
+    const txt = compact ? 'text-[10.5px]' : 'text-[11px]'
+    return (
+      <>
+        {ctx && (
+          <p className={`mt-2 ${txt} font-bold leading-relaxed text-white/70`}>
+            {ctx.reason === 'UNCLEAR_QUESTION'
+              ? t.refusalUnclear
+              : ctx.coverage.inCategory > 0
+                ? fill(t.refusalCoverage, { n: ctx.coverage.verifiedNearby, c: ctx.coverage.inCategory, category: label(ctx.category) })
+                : fill(t.refusalCoverageNone, { n: ctx.coverage.verifiedNearby, category: label(ctx.category) })}
+          </p>
+        )}
+        {!ctx && <p className={`mt-2 ${txt} font-bold leading-relaxed text-white/65`}>{t.refusalNote}</p>}
+        {chips.length > 0 && (
+          <div className="mt-3">
+            {ctx?.reason !== 'UNCLEAR_QUESTION' && <p className={`${txt} font-black text-white/85`}>{t.refusalOffer}</p>}
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {chips.map((o) => (
+                <button key={o.label} type="button" onClick={() => onAsk(o.text)} className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-black text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {questionId && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {hasNotify && !mission && (notified.has(questionId) ? (
+              <p className="flex items-center gap-1.5 text-[11px] font-black text-guaca-mango-light">
+                <Check className="h-3.5 w-3.5" /> {t.refusalNotifySaved}
+              </p>
+            ) : (
+              <button type="button" onClick={() => notifyMe(questionId)} className="flex items-center gap-1.5 rounded-full bg-guaca-mango px-3 py-2 text-[11px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light">
+                <Bell className="h-3.5 w-3.5" /> {t.refusalNotify}
+              </button>
+            ))}
+            {hasMission && !mission && (
+              <button type="button" onClick={() => void requestMission(questionId)} className="flex items-center gap-1.5 rounded-full border border-guaca-coral/80 bg-guaca-coral/20 px-3 py-2 text-[11px] font-black text-white hover:bg-guaca-coral/35">
+                <Radio className="h-3.5 w-3.5 text-guaca-coral" /> {t.refusalMission}
+              </button>
+            )}
+          </div>
+        )}
+        {missionLine && (
+          <p className={`mt-3 flex items-start gap-1.5 ${txt} font-black leading-relaxed ${mission?.status === 'commissioned' || mission?.status === 'already_open' ? 'text-guaca-mango-light' : 'text-white/80'}`}>
+            {mission?.status === 'sending' ? <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" /> : <Radio className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+            <span>{missionLine}</span>
+          </p>
+        )}
+      </>
+    )
   }
 
   const openPlace = (id: string) => {
@@ -1555,18 +1631,7 @@ export function TouristView() {
                 </button>
               </div>
               <p className="mt-2 text-[15px] font-black leading-snug">{askState.text}</p>
-              <p className="mt-2 text-[11px] font-bold leading-relaxed text-white/65">{t.refusalNote}</p>
-              {askState.questionId && (
-                notified.has(askState.questionId) ? (
-                  <p className="mt-3 flex items-center gap-1.5 text-[11px] font-black text-guaca-mango-light">
-                    <Check className="h-3.5 w-3.5" /> {t.refusalNotifySaved}
-                  </p>
-                ) : (
-                  <Button type="button" onClick={() => notifyMe(askState.questionId!)} className="mt-3 h-10 w-full rounded-xl bg-guaca-mango text-[11px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light">
-                    <Bell className="mr-1.5 h-3.5 w-3.5" /> {t.refusalNotify}
-                  </Button>
-                )
-              )}
+              {renderRefusalBody(askState.questionId, askState.refusal, (text) => { setAskState({ kind: 'idle' }); setActiveTab('guaca'); void askGuaca(text) }, false)}
             </div>
           )}
 
@@ -1670,18 +1735,7 @@ export function TouristView() {
               <div key={m.id} className="max-w-[92%] rounded-3xl rounded-bl-lg bg-guaca-ocean-deep p-4 text-white shadow-md">
                 <p className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-mango-light">{t.refusalTitle}</p>
                 <p className="mt-1.5 whitespace-pre-line text-[13px] font-black leading-snug">{m.text}</p>
-                <p className="mt-1.5 text-[10px] font-bold leading-relaxed text-white/65">{t.refusalNote}</p>
-                {m.questionId && (
-                  notified.has(m.questionId) ? (
-                    <p className="mt-2.5 flex items-center gap-1.5 text-[10px] font-black text-guaca-mango-light">
-                      <Check className="h-3 w-3" /> {t.refusalNotifySaved}
-                    </p>
-                  ) : (
-                    <button type="button" onClick={() => notifyMe(m.questionId!)} className="mt-2.5 flex items-center gap-1.5 rounded-full bg-guaca-mango px-3 py-2 text-[10px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light">
-                      <Bell className="h-3 w-3" /> {t.refusalNotify}
-                    </button>
-                  )
-                )}
+                {renderRefusalBody(m.questionId, m.refusal, (text) => void askGuaca(text), true)}
               </div>
             ) : (
               <div key={m.id} className="guaca-card max-w-[92%] rounded-3xl rounded-bl-lg p-4">

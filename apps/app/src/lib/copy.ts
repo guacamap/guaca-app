@@ -219,6 +219,17 @@ export interface AppCopy {
     askAboutPlace: string
     refusalNotify: string
     refusalNotifySaved: string
+    refusalCoverage: string
+    refusalCoverageNone: string
+    refusalOffer: string
+    refusalUnclear: string
+    refusalMission: string
+    refusalMissionSending: string
+    refusalMissionSent: string
+    refusalMissionOpen: string
+    refusalMissionBudget: string
+    refusalMissionNoSpotter: string
+    refusalMissionFailed: string
     addToPlan: string
     addedToPlan: string
     removeStop: string
@@ -513,6 +524,17 @@ export const appCopy: Record<Lang, AppCopy> = {
       askAboutPlace: 'Tell me about {name} — is it still open and worth visiting?',
       refusalNotify: 'Tell me when it’s verified',
       refusalNotifySaved: 'We’ll email you when a local verifies it',
+      refusalCoverage: 'Locals have verified {n} places within 5 km, {c} of them {category}. Nothing matching this has been checked yet.',
+      refusalCoverageNone: 'Locals have verified {n} places within 5 km, none of them {category} yet.',
+      refusalOffer: 'Want one of these instead?',
+      refusalUnclear: 'I did not catch what kind of place you are after. Here is what locals have verified nearby:',
+      refusalMission: 'Send a local to check',
+      refusalMissionSending: 'Finding a local…',
+      refusalMissionSent: '{name} has been sent. Expect an answer within {hours} h; we’ll email you.',
+      refusalMissionOpen: 'A local is already on it ({name}, until {when}). We’ll email you.',
+      refusalMissionBudget: 'Today’s missions are all assigned. Your question stays in line; we’ll email you.',
+      refusalMissionNoSpotter: 'No Spotter covers this zone yet. Your question is saved; we’ll email you when one does.',
+      refusalMissionFailed: 'Could not send a local right now. Your question is saved.',
       addToPlan: 'Add to plan',
       addedToPlan: 'In your plan',
       removeStop: 'Remove stop',
@@ -525,6 +547,8 @@ export const appCopy: Record<Lang, AppCopy> = {
         culture_history: 'Culture',
         market_shop: 'Markets',
         services: 'Services',
+        nightlife_music: 'Music & nightlife',
+        practical: 'Practical',
       },
       allCategories: 'All',
       postsTitle: 'What locals say',
@@ -812,6 +836,17 @@ export const appCopy: Record<Lang, AppCopy> = {
       askAboutPlace: 'Cuéntame de {name} — ¿sigue abierto y vale la pena?',
       refusalNotify: 'Avísame cuando esté verificado',
       refusalNotifySaved: 'Te enviaremos un correo cuando un local lo verifique',
+      refusalCoverage: 'Locales han verificado {n} lugares a menos de 5 km, {c} de ellos {category}. Nada que coincida con esto ha sido revisado aún.',
+      refusalCoverageNone: 'Locales han verificado {n} lugares a menos de 5 km, ninguno de {category} todavía.',
+      refusalOffer: '¿Prefieres alguno de estos?',
+      refusalUnclear: 'No entendí qué tipo de lugar buscas. Esto es lo que los locales han verificado cerca:',
+      refusalMission: 'Enviar a un local a revisar',
+      refusalMissionSending: 'Buscando un local…',
+      refusalMissionSent: '{name} ya fue enviado. Espera una respuesta en {hours} h; te avisamos por correo.',
+      refusalMissionOpen: 'Un local ya está en eso ({name}, hasta {when}). Te avisamos por correo.',
+      refusalMissionBudget: 'Las misiones de hoy ya están asignadas. Tu pregunta sigue en fila; te avisamos por correo.',
+      refusalMissionNoSpotter: 'Ningún Spotter cubre esta zona todavía. Guardamos tu pregunta; te avisamos cuando haya uno.',
+      refusalMissionFailed: 'No pudimos enviar a un local ahora. Tu pregunta quedó guardada.',
       addToPlan: 'Agregar al plan',
       addedToPlan: 'En tu plan',
       removeStop: 'Quitar parada',
@@ -824,6 +859,8 @@ export const appCopy: Record<Lang, AppCopy> = {
         culture_history: 'Cultura',
         market_shop: 'Mercados',
         services: 'Servicios',
+        nightlife_music: 'Música y vida nocturna',
+        practical: 'Prácticos',
       },
       allCategories: 'Todo',
       postsTitle: 'Lo que dice la gente',
