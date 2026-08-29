@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { MailPlus, ShieldCheck } from 'lucide-react'
-import { Button, GuacaLogo, Input, useLanguage } from '@guaca/ui'
+import { Compass, MailPlus } from 'lucide-react'
+import { Button, Input, useLanguage } from '@guaca/ui'
 import { appCopy, loadAttribution } from '../lib/copy'
+import { GateCard } from './GateCard'
+import { GLASS, GLASS_INPUT } from './JoinScene'
 
 type Step = 'checking' | 'email' | 'code' | 'authed'
 
@@ -104,82 +106,70 @@ export function TouristGate({ children }: { children: ReactNode }) {
     }
   }
 
+  const g = GLASS.teal
   return (
-    <div className="flex min-h-full flex-1 flex-col items-center justify-center gap-6 p-7">
-      <GuacaLogo className="h-14" />
-      <div className="w-full rounded-3xl guaca-card p-6">
-        <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.1em] text-guaca-teal">
-          <ShieldCheck className="h-4 w-4" /> {t.title}
-        </p>
-        <p className="mt-2 text-sm font-medium leading-6 text-guaca-ink/60">{t.lede}</p>
-
-        {step === 'email' && (
-          <form onSubmit={requestCode} className="mt-5 space-y-3">
-            <label className="block text-xs font-black text-guaca-ink/70" htmlFor="gate-email">
-              {t.emailLabel}
-            </label>
-            <Input
-              id="gate-email"
-              type="email"
-              required
-              autoComplete="email"
-              inputMode="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ana@example.com"
-            />
-            <Button type="submit" disabled={busy} className="h-12 w-full rounded-xl bg-guaca-teal font-black text-white hover:bg-guaca-teal-dark">
-              <MailPlus className="mr-2 h-4 w-4" /> {t.emailCta}
+    <GateCard tone="teal" icon={Compass} title={t.title} lede={t.lede} error={error}>
+      {step === 'email' && (
+        <form onSubmit={requestCode} className="mt-5 space-y-3">
+          <label className="block text-[12px] font-black uppercase tracking-[.08em] text-white/70" htmlFor="gate-email">
+            {t.emailLabel}
+          </label>
+          <Input
+            id="gate-email"
+            type="email"
+            required
+            autoComplete="email"
+            inputMode="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="ana@example.com"
+            className={`${GLASS_INPUT} ${g.ring}`}
+          />
+          <Button type="submit" disabled={busy} className={`h-12 w-full rounded-xl text-[15px] font-black text-white ${g.button}`}>
+            <MailPlus className="mr-2 h-4 w-4" /> {t.emailCta}
+          </Button>
+          {process.env.NODE_ENV !== 'production' && (
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void devBypass()} className="h-11 w-full rounded-xl border border-dashed border-guaca-mango bg-guaca-mango/15 text-xs font-black text-guaca-mango-light hover:bg-guaca-mango/25">
+              {t.devBypassCta}
             </Button>
-            {process.env.NODE_ENV !== 'production' && (
-              <Button type="button" variant="ghost" disabled={busy} onClick={() => void devBypass()} className="h-11 w-full rounded-xl border border-dashed border-guaca-mango bg-guaca-mango/10 text-xs font-black text-guaca-mango-dark hover:bg-guaca-mango/20">
-                {t.devBypassCta}
-              </Button>
-            )}
-          </form>
-        )}
+          )}
+        </form>
+      )}
 
-        {step === 'code' && (
-          <form onSubmit={verify} className="mt-5 space-y-3">
-            <p className="text-xs font-bold text-guaca-ink/55">
-              {t.codeLede} <span className="text-guaca-ink">{email}</span>
-            </p>
-            {process.env.NODE_ENV !== 'production' && (
-              <p className="text-xs font-bold text-guaca-mango-dark">{t.devCodeHint}</p>
-            )}
-            <label className="block text-xs font-black text-guaca-ink/70" htmlFor="gate-code">
-              {t.codeLabel}
-            </label>
-            <Input
-              id="gate-code"
-              required
-              inputMode="numeric"
-              pattern="\d{6}"
-              maxLength={6}
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              className="text-center text-xl font-black tracking-[.4em]"
-            />
-            <Button type="submit" disabled={busy || code.length !== 6} className="h-12 w-full rounded-xl bg-guaca-teal font-black text-white hover:bg-guaca-teal-dark">
-              {t.codeCta}
-            </Button>
-            <button
-              type="button"
-              onClick={() => { setStep('email'); setCode(''); setError(null) }}
-              className="w-full py-2 text-xs font-bold text-guaca-teal underline-offset-2 hover:underline"
-            >
-              {t.resend}
-            </button>
-          </form>
-        )}
-
-        {error && (
-          <p role="alert" className="mt-3 rounded-xl bg-guaca-coral/10 px-3 py-2 text-xs font-bold text-guaca-coral-dark">
-            {error}
+      {step === 'code' && (
+        <form onSubmit={verify} className="mt-5 space-y-3">
+          <p className="text-[13px] font-semibold text-white/75">
+            {t.codeLede} <span className="font-black text-white">{email}</span>
           </p>
-        )}
-      </div>
-    </div>
+          {process.env.NODE_ENV !== 'production' && (
+            <p className="text-xs font-bold text-guaca-mango-light">{t.devCodeHint}</p>
+          )}
+          <label className="block text-[12px] font-black uppercase tracking-[.08em] text-white/70" htmlFor="gate-code">
+            {t.codeLabel}
+          </label>
+          <Input
+            id="gate-code"
+            required
+            inputMode="numeric"
+            pattern="\d{6}"
+            maxLength={6}
+            autoComplete="one-time-code"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            className={`${GLASS_INPUT} ${g.ring} h-14 text-center text-[24px] font-black tracking-[.45em]`}
+          />
+          <Button type="submit" disabled={busy || code.length !== 6} className={`h-12 w-full rounded-xl text-[15px] font-black text-white ${g.button}`}>
+            {t.codeCta}
+          </Button>
+          <button
+            type="button"
+            onClick={() => { setStep('email'); setCode(''); setError(null) }}
+            className="w-full rounded py-2 text-[13px] font-bold text-white/80 underline-offset-2 hover:text-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          >
+            {t.resend}
+          </button>
+        </form>
+      )}
+    </GateCard>
   )
 }

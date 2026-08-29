@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { ArrowRight, Compass, Palmtree, Store, Trophy } from 'lucide-react'
 import { InstallApp } from './InstallApp'
-import { GuacaLogo } from '@guaca/ui'
-import { PalmFrondLeft, PalmFrondRight } from '@guaca/ui'
+import { JoinBrand, JoinScene, Wave } from './JoinScene'
 
 type Role = 'tourist' | 'spotter'
 
@@ -53,43 +52,13 @@ const roles = [
   },
 ]
 
-/** The little "~~~" beside the heading. */
-function Wave({ className = '' }: { className?: string }) {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 28 8" className={`h-2 w-7 text-guaca-teal ${className}`} fill="none">
-      <path d="M1 5c2.5-4 5-4 7.5 0s5 4 7.5 0 5-4 7.5 0 3 3 3.5 1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
   const [hoveredRole, setHoveredRole] = useState<Role | null>(null)
 
   return (
-    <div className="relative flex h-full min-h-screen flex-col overflow-hidden bg-guaca-ocean-deep text-white sm:min-h-full">
-      {/* The Caribbean from above, true geography: portrait crop on phones,
-          landscape from md up. Both keep the open sea in the middle so the
-          cards sit on calm water. */}
-      <div className="absolute inset-0 bg-[url('/assets/join-caribbean-phone.webp')] bg-cover bg-center md:hidden" />
-      <div className="absolute inset-0 hidden bg-[url('/assets/join-caribbean-wide.webp')] bg-cover bg-center md:block" />
-      {/* Light enough that the painted foliage and the macaw at the bottom
-          stay visible; the footer links sit on the darker band. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-guaca-sea/20 via-guaca-ocean/35 to-guaca-ocean-deep/60" />
-      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-guaca-ocean-deep/70" />
-
-      {/* Palm frond corners */}
-      <PalmFrondLeft className="pointer-events-none absolute left-[-10px] top-[-10px] h-44 w-32 opacity-80" />
-      <PalmFrondRight className="pointer-events-none absolute right-[-10px] top-[-10px] h-44 w-32 opacity-80" />
-
-      <div className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col px-6 pb-7 pt-16 sm:pt-20 md:max-w-[52rem] md:pt-8">
-        {/* Brand hero */}
-        <div className="flex flex-col items-center">
-          <GuacaLogo variant="reversed" className="h-24 drop-shadow-[0_7px_18px_rgba(0,0,0,0.4)] md:h-24" />
-          <p className="mt-2 text-[13px] font-semibold text-white/92 drop-shadow md:text-[14px]">
-            Live map. Real info. Local rewards.
-          </p>
-          <Wave className="mt-3" />
-        </div>
+    <JoinScene>
+      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-6 pb-7 pt-16 sm:pt-20 md:max-w-[52rem] md:pt-8">
+        <JoinBrand />
 
         {/* Choice: stacked glass cards on a phone; on a wider screen the two
             roles sit square, side by side, inside one glass panel with the
@@ -187,6 +156,6 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
           </p>
         </div>
       </div>
-    </div>
+    </JoinScene>
   )
 }
