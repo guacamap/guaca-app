@@ -503,6 +503,30 @@ spotter
  * team confirms by hand. Over the API (inference lives there), same
  * OPERATOR_TOKEN as every other mutating command.
  */
+const candidates = program.command('candidates').description('unverified places from open data — never tourist-visible as fact');
+candidates
+  .command('overture <geojson>')
+  .description('enrich or add candidates from an Overture Maps places GeoJSON (overturemaps download --type=place)')
+  .requiredOption('--area <areaId>')
+  .option('--apply', 'actually write; without it this is a preview')
+  .option('--radius <m>', 'match radius in metres for an existing place with the same name', '120')
+  .action(async (file: string, opts: { area: string; apply?: boolean; radius: string }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const { readFile } = await import('node:fs/promises');
+    const raw = JSON.parse(await readFile(file, 'utf8')) as { features?: unknown[] };
+    const features = (raw.features ?? []) as import('@guaca/db').OvertureFeature[];
+    const { importOverture } = await import('@guaca/db');
+    const result = await withPool((pool) => importOverture(pool, opts.area, features, { apply: !!opts.apply, matchRadiusM: Number(opts.radius) }));
+    const { preview, ...summary } = result;
+    if (!json) {
+      for (const row of preview.filter((r) => r.action !== 'skip').slice(0, 40)) {
+        process.stderr.write(`  ${row.action.padEnd(7)} ${row.name}${row.target ? `  →  ${row.target}` : ''}\n`);
+      }
+    }
+    process.stdout.write(render({ ...summary, features: features.length }, { json }) + '\n');
+    if (!opts.apply) process.stdout.write('preview only — re-run with --apply to write\n');
+  });
+
 const steward = program.command('steward').description('AI candidate drafts — team review');
 steward
   .command('enrich')

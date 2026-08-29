@@ -71,3 +71,5 @@ export type { AreaSummaryRow } from './zoneDemand.js';
 export type { ZoneDemandRow } from './zoneDemand.js';
 export { createTrip, listTrips, tripById, tripBySlug, deleteTrip } from './tripsDb.js';
 export type { CreateTripInput } from './tripsDb.js';
+export { importOverture, categoryForOverture, nameSimilarity, normaliseName } from './seed/overtureImport.js';
+export type { OvertureFeature, OvertureImportResult } from './seed/overtureImport.js';
