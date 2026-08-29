@@ -94,7 +94,7 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
         {/* Choice: stacked glass cards on a phone; on a wider screen the two
             roles sit square, side by side, inside one glass panel with the
             business row beneath. */}
-        <div className="mt-6 md:rounded-[30px] md:border md:border-white/20 md:bg-[rgba(16,64,82,0.42)] md:p-6 md:shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_30px_60px_-30px_rgba(0,0,0,0.7)] md:backdrop-blur-2xl">
+        <div className="mt-6 md:rounded-[30px] md:border md:border-white/25 md:bg-[rgba(60,140,160,0.16)] md:p-6 md:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_30px_60px_-30px_rgba(0,0,0,0.6)] md:backdrop-blur-xl">
           <h1 className="mb-4 flex items-center justify-center gap-3 text-center text-[17px] font-extrabold tracking-[-.01em] text-white drop-shadow md:mb-5 md:text-[22px]">
             <Wave /> How do you want to join? <Wave />
           </h1>
@@ -112,7 +112,7 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
                   onMouseLeave={() => setHoveredRole(null)}
                   onFocus={() => setHoveredRole(role.id)}
                   onBlur={() => setHoveredRole(null)}
-                  className={`group flex w-full items-center gap-4 rounded-[22px] border-[1.5px] bg-[rgba(14,58,76,0.48)] p-4 text-left backdrop-blur-xl transition-[transform,border-color,background-color] duration-150 ease-out hover:bg-[rgba(14,58,76,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:flex-col md:items-center md:gap-3 md:px-6 md:py-6 md:text-center ${role.tone.border} ${role.tone.borderHover} ${role.tone.glow} ${active ? '-translate-y-0.5' : ''}`}
+                  className={`group flex w-full items-center gap-4 rounded-[22px] border-[1.5px] bg-[rgba(40,110,130,0.26)] p-4 text-left backdrop-blur-lg transition-[transform,border-color,background-color] duration-150 ease-out hover:bg-[rgba(40,110,130,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:flex-col md:items-center md:gap-3 md:px-6 md:py-6 md:text-center ${role.tone.border} ${role.tone.borderHover} ${role.tone.glow} ${active ? '-translate-y-0.5' : ''}`}
                 >
                   <span className="grid h-[68px] w-[68px] shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.18),0_0_0_7px_rgba(255,255,255,0.06)] md:h-[92px] md:w-[92px] md:shadow-[0_0_0_5px_rgba(255,255,255,0.18),0_0_0_9px_rgba(255,255,255,0.06)]">
                     <Icon aria-hidden="true" className={`h-8 w-8 md:h-12 md:w-12 ${role.tone.text}`} strokeWidth={1.9} />
@@ -132,7 +132,7 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
             {/* Businesses are not an in-app role: this hands off to the site. */}
             <a
               href={BUSINESS_URL}
-              className="group flex w-full items-center gap-4 rounded-[22px] border-[1.5px] border-guaca-teal/60 bg-[rgba(14,58,76,0.48)] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-xl transition-[transform,border-color,background-color] duration-150 ease-out hover:-translate-y-0.5 hover:border-guaca-teal hover:bg-[rgba(14,58,76,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:col-span-2 md:px-5 md:py-4"
+              className="group flex w-full items-center gap-4 rounded-[22px] border-[1.5px] border-guaca-teal/60 bg-[rgba(40,110,130,0.26)] p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] backdrop-blur-lg transition-[transform,border-color,background-color] duration-150 ease-out hover:-translate-y-0.5 hover:border-guaca-teal hover:bg-[rgba(40,110,130,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 md:col-span-2 md:px-5 md:py-4"
             >
               <span className="grid h-[68px] w-[68px] shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.18),0_0_0_7px_rgba(255,255,255,0.06)] md:h-16 md:w-16">
                 <Store aria-hidden="true" className="h-8 w-8 text-guaca-teal md:h-7 md:w-7" strokeWidth={1.9} />
