@@ -2168,6 +2168,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
       lat?: number;
       lon?: number;
       missionId?: string;
+      /** Promote this open-data candidate instead of a fresh row. */
+      candidateId?: string;
     };
     if (!body.name || !body.category || !body.landmarkDescription ||
         typeof body.lat !== 'number' || typeof body.lon !== 'number') {
@@ -2213,6 +2215,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       h3_8: geo.rows[0]!.h3_8,
       spotterId,
       areaId,
+      ...(body.candidateId ? { candidateId: body.candidateId } : {}),
     });
     if (!result.ok || !result.placeId) {
       return reply.code(409).send({ error: result.reason ?? 'submission rejected' });
