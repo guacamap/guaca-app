@@ -89,6 +89,12 @@ export interface AppCopy {
     freeCta: string
     freeTitle: string
     freeLede: string
+    close: string
+    candidatesLegend: string
+    candidateTitle: string
+    candidateBody: string
+    candidateCta: string
+    candidatePublic: string
     categoryLabel: string
     nameLabel: string
     landmarkLabel: string
@@ -362,6 +368,12 @@ export const appCopy: Record<Lang, AppCopy> = {
       freeCta: 'Verify a place here',
       freeTitle: 'A place you found',
       freeLede: 'Not from a mission — you are here and it is worth being on the map. Same checks, same second local.',
+      close: 'Close',
+      candidatesLegend: 'Candidates',
+      candidateTitle: 'Known to open data, not verified',
+      candidateBody: 'Public sources have this listed. Stand here, check it is real, and put it on the map properly.',
+      candidateCta: 'Verify this place',
+      candidatePublic: 'Public listing',
       categoryLabel: 'What kind of place is it?',
       nameLabel: 'Name, exactly as the sign shows',
       landmarkLabel: 'How to find it',
@@ -689,6 +701,12 @@ export const appCopy: Record<Lang, AppCopy> = {
       freeCta: 'Verificar un lugar aquí',
       freeTitle: 'Un lugar que encontraste',
       freeLede: 'No viene de una misión — estás aquí y merece estar en el mapa. Las mismas comprobaciones, el mismo segundo local.',
+      close: 'Cerrar',
+      candidatesLegend: 'Candidatos',
+      candidateTitle: 'Conocido por datos públicos, sin verificar',
+      candidateBody: 'Fuentes públicas lo tienen registrado. Ve, comprueba que es real, y ponlo en el mapa correctamente.',
+      candidateCta: 'Verificar este lugar',
+      candidatePublic: 'Listado público',
       categoryLabel: '¿Qué tipo de lugar es?',
       nameLabel: 'Nombre, tal como aparece en el letrero',
       landmarkLabel: 'Cómo encontrarlo',

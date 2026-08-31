@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ArrowRight, BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Compass, Crosshair, Map as MapIcon, MapPin, Trophy } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Camera, CircleDollarSign, ClipboardCheck, Compass, Crosshair, Map as MapIcon, MapPin, Trophy, X } from 'lucide-react'
 import { Avatar, Button, GuacaLogo, GuacaMap, Input, useLanguage, type Lang } from '@guaca/ui'
 import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 import { photoToBase64 } from '../lib/image'
 import { InstallApp } from './InstallApp'
+
+// ~6.5 km — the walkable pilot zone; matches the tourist map's candidate query.
+const CANDIDATE_BBOX_HALF_DEG = 0.06
 
 interface Mission {
   id: string
@@ -13,6 +16,18 @@ interface Mission {
   rewardMinor: number
   currency: string
   status: string
+}
+
+interface CandidatePlace {
+  id: string
+  name: string
+  category: string
+  lat: number
+  lon: number
+  public_phone?: string | null
+  public_website?: string | null
+  public_socials?: string[] | null
+  public_address?: string | null
 }
 
 interface PendingConfirmation {
@@ -139,11 +154,13 @@ export function SpotterView() {
   const [tab, setTab] = useState<'missions' | 'map' | 'confirm' | 'earnings'>('missions')
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [mapCenter, setMapCenter] = useState<[number, number]>([-68.0056, 10.4716])
+  const [candidates, setCandidates] = useState<CandidatePlace[]>([])
+  const [selectedCandidate, setSelectedCandidate] = useState<CandidatePlace | null>(null)
   const [missions, setMissions] = useState<Mission[]>([])
   const [pending, setPending] = useState<PendingConfirmation[]>([])
   const [earnings, setEarnings] = useState<Earning[]>([])
   // 'free' = a place the spotter found themselves, with no mission behind it.
-  const [capture, setCapture] = useState<Mission | 'free' | null>(null)
+  const [capture, setCapture] = useState<Mission | 'free' | 'candidate' | null>(null)
   const [banner, setBanner] = useState<{ kind: 'error' | 'info'; text: string } | null>(null)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
   const [geoNote, setGeoNote] = useState(false)
@@ -343,6 +360,23 @@ export function SpotterView() {
     }
   }, [tab, loadMissions, loadPending, loadEarnings, loadOpportunities, loadProfile])
 
+  // The open-data backdrop, same as the tourist map: candidates as dots,
+  // never pins.
+  const loadCandidates = useCallback(() => {
+    const [lon, lat] = mapCenter
+    const bbox = [lon - CANDIDATE_BBOX_HALF_DEG, lat - CANDIDATE_BBOX_HALF_DEG, lon + CANDIDATE_BBOX_HALF_DEG, lat + CANDIDATE_BBOX_HALF_DEG].join(',')
+    fetch(`/api/places/candidates?bbox=${bbox}`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { candidates: [] }))
+      .then((d: { candidates: CandidatePlace[] }) => setCandidates(d.candidates ?? []))
+      .catch(() => {})
+  }, [mapCenter])
+  // Reruns whenever the visible centre moves — including the moment
+  // geolocation resolves above — so a spotter always sees what is nearby,
+  // not just what was near the pilot's default point.
+  useEffect(() => {
+    if (tab === 'map') loadCandidates()
+  }, [tab, loadCandidates])
+
   const accept = (missionId: string) =>
     withBusy(missionId, async () => {
       try {
@@ -393,10 +427,13 @@ export function SpotterView() {
   if (capture) {
     return (
       <CaptureFlow
-        mission={capture === 'free' ? null : capture}
+        mission={capture === 'free' || capture === 'candidate' ? null : capture}
+        candidate={capture === 'candidate' ? selectedCandidate : null}
         onDone={() => {
           setCapture(null)
+          setSelectedCandidate(null)
           loadMissions()
+          loadCandidates()
         }}
       />
     )
@@ -427,11 +464,22 @@ export function SpotterView() {
                 asks: o.question_count,
                 category: o.category,
               }))}
+              dots={candidates.map((c) => ({
+                id: c.id,
+                lat: c.lat,
+                lng: c.lon,
+                label: c.name,
+                category: c.category,
+              }))}
               onPinClick={() => setTab('confirm')}
               onGapClick={(id) => {
                 const m = missions.find((x) => x.id === id)
                 if (m) setCapture(m)
                 else setTab('missions')
+              }}
+              onDotClick={(id) => {
+                const c = candidates.find((x) => x.id === id)
+                if (c) setSelectedCandidate(c)
               }}
               showUserLocation
               mapStyle="streets"
@@ -448,6 +496,9 @@ export function SpotterView() {
               <span className="flex items-center gap-1.5 rounded-full bg-guaca-sand-light/92 px-3 py-1.5 text-[10px] font-black text-guaca-teal shadow-md">
                 <span className="h-2 w-2 rounded-full bg-guaca-teal" /> {t.legendConfirm} ({pending.length})
               </span>
+              <span className="flex items-center gap-1.5 rounded-full bg-guaca-sand-light/92 px-3 py-1.5 text-[10px] font-black text-guaca-ink/70 shadow-md">
+                <span className="h-2 w-2 rounded-full bg-guaca-ink/45" /> {t.candidatesLegend} ({candidates.length})
+              </span>
             </div>
           </div>
           <div className="absolute inset-x-4 bottom-4 z-[600] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[440px]">
@@ -463,6 +514,51 @@ export function SpotterView() {
           {opportunities.length === 0 && pending.length === 0 && (
             <div className="absolute bottom-[76px] left-4 right-4 z-[450] lg:bottom-[120px] lg:left-auto lg:right-6 lg:w-[440px]">
               <p className="guaca-card rounded-[24px] p-4 text-center text-[11px] font-semibold text-guaca-ink/55">{t.mapEmpty}</p>
+            </div>
+          )}
+
+          {/* A candidate dot — known to open data, unknown to us. Tapping it
+              starts the same submission a "free" find would, just pre-filled
+              with whatever a public listing already says. */}
+          {selectedCandidate && (
+            <div className="absolute inset-x-4 bottom-4 z-[700] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[440px]">
+              <div className="guaca-card rounded-[30px] p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="inline-flex items-center gap-1.5 rounded-full bg-guaca-ink/6 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-guaca-ink/55">
+                      <MapIcon className="h-3 w-3" /> {t.candidateTitle}
+                    </p>
+                    <h3 className="mt-2 truncate text-lg font-black leading-tight text-guaca-ink">{selectedCandidate.name}</h3>
+                    <p className="text-[11px] font-bold text-guaca-ink/50">{categoryLabel(selectedCandidate.category, lang)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={t.close}
+                    onClick={() => setSelectedCandidate(null)}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] font-semibold leading-relaxed text-guaca-ink/60">{t.candidateBody}</p>
+                {(selectedCandidate.public_phone || selectedCandidate.public_website || selectedCandidate.public_address || selectedCandidate.public_socials?.length) && (
+                  <div className="mt-3 rounded-2xl bg-guaca-ink/5 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-[.1em] text-guaca-ink/45">{t.candidatePublic}</p>
+                    {selectedCandidate.public_address && <p className="mt-1 text-[11px] font-semibold text-guaca-ink/65">{selectedCandidate.public_address}</p>}
+                    <div className="mt-1.5 flex flex-wrap gap-1 text-[10.5px] font-bold text-guaca-ink/55">
+                      {selectedCandidate.public_phone && <span>📞 {selectedCandidate.public_phone}</span>}
+                      {selectedCandidate.public_website && <span className="truncate">🌐 {selectedCandidate.public_website.replace(/^https?:\/\//, '')}</span>}
+                    </div>
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  onClick={() => setCapture('candidate')}
+                  className="mt-3 h-11 w-full rounded-xl bg-guaca-coral text-[12px] font-black text-white hover:bg-guaca-coral-dark"
+                >
+                  <BadgeCheck className="mr-1.5 h-4 w-4" /> {t.candidateCta}
+                </Button>
+              </div>
             </div>
           )}
         </>
@@ -835,15 +931,18 @@ export function SpotterView() {
   )
 }
 
-function CaptureFlow({ mission, onDone }: { mission: Mission | null; onDone: () => void }) {
+function CaptureFlow({ mission, candidate, onDone }: { mission: Mission | null; candidate?: CandidatePlace | null; onDone: () => void }) {
   const { lang } = useLanguage()
   const t = appCopy[lang].spotter
-  const [name, setName] = useState('')
-  const [landmark, setLandmark] = useState('')
+  // A candidate carries a name and a public address already; still typed
+  // into an editable field, never submitted untouched — a spotter can (and
+  // should) correct what public data got wrong.
+  const [name, setName] = useState(candidate?.name ?? '')
+  const [landmark, setLandmark] = useState(candidate?.public_address ?? '')
   const [coords, setCoords] = useState<{ lat: number; lon: number; accuracy: number } | null>(null)
   const [photos, setPhotos] = useState<(File | null)[]>([null, null, null])
   // A free submission has no brief, so the spotter states the category.
-  const [category, setCategory] = useState<string>(mission?.targetCategory ?? 'eat_drink')
+  const [category, setCategory] = useState<string>(mission?.targetCategory ?? candidate?.category ?? 'eat_drink')
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<Verdict | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -888,6 +987,7 @@ function CaptureFlow({ mission, onDone }: { mission: Mission | null; onDone: () 
               lat: coords.lat,
               lon: coords.lon,
               ...(mission ? { missionId: mission.id } : {}),
+              ...(candidate ? { candidateId: candidate.id } : {}),
             }),
           }),
         )
@@ -964,14 +1064,16 @@ function CaptureFlow({ mission, onDone }: { mission: Mission | null; onDone: () 
   return (
     <div className="h-full min-h-dvh overflow-y-auto bg-guaca-sand-light px-5 pb-16 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-teal to-guaca-ocean p-6 text-white shadow-xl">
-        <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">{mission ? categoryLabel(mission.targetCategory, lang) : t.freeTitle}</p>
+        <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">
+          {mission ? categoryLabel(mission.targetCategory, lang) : candidate ? categoryLabel(candidate.category, lang) : t.freeTitle}
+        </p>
         <h1 className="mt-2 text-2xl font-black tracking-[-.03em]">{t.captureTitle}</h1>
-        <p className="mt-2 text-sm font-semibold text-white/85">{mission ? mission.brief : t.freeLede}</p>
+        <p className="mt-2 text-sm font-semibold text-white/85">{mission ? mission.brief : candidate ? t.candidateBody : t.freeLede}</p>
       </div>
 
       <form onSubmit={submit} className="mt-5 space-y-4">
         <div>
-          {!mission && (
+          {!mission && !candidate && (
             <div className="mb-3">
               <p className="mb-2 text-xs font-black text-guaca-ink/70">{t.categoryLabel}</p>
               <div className="flex flex-wrap gap-1.5">
