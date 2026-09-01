@@ -28,6 +28,7 @@ export interface OvertureFeature {
     socials?: string[] | null;
     addresses?: Array<{ freeform?: string | null; locality?: string | null }> | null;
     confidence?: number | null;
+    brand?: { names?: { primary?: string | null } | null } | null;
   };
   geometry?: { type: string; coordinates: [number, number] } | null;
 }
@@ -42,6 +43,29 @@ export function categoryForOverture(primary: string | null | undefined, alternat
   const keys = [primary ?? '', ...(alternate ?? [])].map((k) => k.toLowerCase());
   for (const k of keys) for (const [re, cat] of CATEGORY) if (re.test(k)) return cat;
   return null;
+}
+
+/** "mexican_restaurant" -> "Mexican restaurant". Overture and Foursquare
+ *  both use this snake_case style; readable is enough, it is a label, not
+ *  prose written for the sentence it sits in. */
+export function humanizeCategory(raw: string): string {
+  const words = raw.replace(/_/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * The most specific descriptor Overture offers: an alternate category is
+ * usually finer-grained than the primary one ("mexican_restaurant" next to
+ * "restaurant"); a brand name, when present, is worth more than either.
+ * Never the same string as the taxonomy bucket the place was filed under —
+ * that would just repeat the category label back at the reader.
+ */
+export function subcategoryFor(p: OvertureFeature['properties']): string | null {
+  const specific = p.categories?.alternate?.[0] ?? p.categories?.primary ?? null;
+  const label = specific ? humanizeCategory(specific) : null;
+  const brand = p.brand?.names?.primary?.trim() || null;
+  if (brand && label) return `${brand} · ${label}`;
+  return brand ?? label;
 }
 
 /** Lower-case, no accents, no punctuation: "Café Colonial" and "cafe colonial" are one name. */
@@ -80,6 +104,7 @@ export async function importOverture(
     const socials = (p.socials ?? []).filter((u) => typeof u === 'string');
     const address = p.addresses?.[0]?.freeform ?? null;
     const overtureId = p.id ?? null;
+    const subcategory = subcategoryFor(p);
 
     // Match: same name within the radius, verified or candidate, any source.
     const near = await pool.query<{ id: string; name: string; dist: number; overture_id: string | null }>(
@@ -98,24 +123,41 @@ export async function importOverture(
            public_phone = coalesce($2, public_phone), public_website = coalesce($3, public_website),
            public_socials = case when jsonb_array_length($4::jsonb) > 0 then $4::jsonb else public_socials end,
            public_address = coalesce($5, public_address), public_source = 'overture', public_confidence = $6,
+           public_subcategory = coalesce($8, public_subcategory),
            public_refreshed_at = now(), overture_id = coalesce($7, overture_id), updated_at = now()
          where id = $1`,
-        [match.id, phone, website, JSON.stringify(socials), address, p.confidence ?? null, overtureId],
+        [match.id, phone, website, JSON.stringify(socials), address, p.confidence ?? null, overtureId, subcategory],
       );
       continue;
     }
-    out.inserted++; out.preview.push({ name, action: 'insert' });
-    if (!opts.apply) continue;
-    await pool.query(
+    out.preview.push({ name, action: 'insert' });
+    if (!opts.apply) { out.inserted++; continue; }
+    const ins = await pool.query<{ id: string; inserted: boolean }>(
       `insert into places
          (area_id, name, category, landmark_description, location, h3_8, source, verification_status,
-          public_phone, public_website, public_socials, public_address, public_source, public_confidence, public_refreshed_at, overture_id)
+          public_phone, public_website, public_socials, public_address, public_source, public_confidence, public_subcategory, public_refreshed_at, overture_id)
        select $1, $2, $3, $4, ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography, h3_lat_lng_to_cell(point($5, $6), 8)::text,
-              'overture_candidate', 'candidate', $7, $8, $9::jsonb, $10, 'overture', $11, now(), $12
+              'overture_candidate', 'candidate', $7, $8, $9::jsonb, $10, 'overture', $11, $13, now(), $12
         where ST_Covers((select geom from areas where id = $1), ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography)
-        on conflict (overture_id) where overture_id is not null do nothing`,
-      [areaId, name, category, address ? `Cerca de ${address}` : 'Listado público (Overture Maps)', lon, lat, phone, website, JSON.stringify(socials), address, p.confidence ?? null, overtureId],
+        -- A re-run refreshes public metadata on a row it already created —
+        -- never name/category/verification_status, so a candidate a spotter
+        -- has since promoted is untouched even if it is matched again here.
+        on conflict (overture_id) where overture_id is not null do update set
+          public_phone = coalesce(excluded.public_phone, places.public_phone),
+          public_website = coalesce(excluded.public_website, places.public_website),
+          public_socials = case when jsonb_array_length(excluded.public_socials) > 0 then excluded.public_socials else places.public_socials end,
+          public_address = coalesce(excluded.public_address, places.public_address),
+          public_subcategory = coalesce(excluded.public_subcategory, places.public_subcategory),
+          public_confidence = coalesce(excluded.public_confidence, places.public_confidence),
+          public_refreshed_at = now()
+        returning id, (xmax = 0) as inserted`,
+      [areaId, name, category, address ? `Cerca de ${address}` : 'Listado público (Overture Maps)', lon, lat, phone, website, JSON.stringify(socials), address, p.confidence ?? null, overtureId, subcategory],
     );
+    // Three outcomes: a genuine new row (xmax = 0), a refresh of a row
+    // this importer already created for the same overture_id (matched by
+    // the unique index, not counted as new), or zero rows because the
+    // WHERE ST_Covers clause found the point outside the area polygon.
+    if (ins.rows[0]?.inserted) out.inserted++;
   }
   return out;
 }

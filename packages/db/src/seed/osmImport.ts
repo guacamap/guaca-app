@@ -59,6 +59,25 @@ function landmarkDescriptionFor(tags: OsmTag[]): string {
   return street ? `Cerca de ${street}` : 'Punto en OpenStreetMap';
 }
 
+/**
+ * OSM contributors sometimes write a `description` tag by hand, or set
+ * `cuisine`/`brand` — all more specific than the one bucket
+ * TAG_TO_CATEGORY files a place under, and all discarded until now even
+ * though every import already reads the tag list they live in.
+ */
+export function subcategoryForOsmTags(tags: OsmTag[]): string | null {
+  const get = (key: string) => tags.find((t) => t['@_k'] === key)?.['@_v']?.trim() || null;
+  const description = get('description');
+  if (description) return description;
+  const brand = get('brand');
+  const cuisine = get('cuisine');
+  const cuisineLabel = cuisine
+    ? cuisine.split(';').map((c) => c.trim()).filter(Boolean).map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(', ')
+    : null;
+  if (brand && cuisineLabel) return `${brand} · ${cuisineLabel}`;
+  return brand ?? cuisineLabel;
+}
+
 interface OsmTag {
   '@_k'?: string;
   '@_v'?: string;
@@ -179,11 +198,11 @@ export async function importOsmCandidates(
       const r = await pool.query(
         `insert into places
            (area_id, name, category, landmark_description, location, h3_8,
-            source, verification_status, tags, osm_type, osm_id)
+            source, verification_status, tags, osm_type, osm_id, public_source, public_subcategory)
          select $1, $2, $3, $4,
                 ST_SetSRID(ST_MakePoint($5, $6), 4326)::geography,
                 h3_lat_lng_to_cell(point($5, $6), 8)::text,
-                'osm_candidate', 'candidate', $7, $8, $9
+                'osm_candidate', 'candidate', $7, $8, $9, 'osm', $10
          where ST_Contains(
            (select geom::geometry from areas where id = $1),
            ST_SetSRID(ST_MakePoint($5, $6), 4326)
@@ -191,8 +210,12 @@ export async function importOsmCandidates(
            (select geom::geometry from areas where id = $1),
            ST_SetSRID(ST_MakePoint($5, $6), 4326)
          )
-         on conflict (osm_type, osm_id) where osm_type is not null do nothing
-         returning id`,
+         -- A re-run refreshes the public subcategory on a row it already
+         -- created — never name/category/verification_status, so a
+         -- candidate a spotter has since promoted is untouched.
+         on conflict (osm_type, osm_id) where osm_type is not null do update set
+           public_subcategory = coalesce(excluded.public_subcategory, places.public_subcategory)
+         returning id, (xmax = 0) as inserted`,
         [
           areaId,
           name,
@@ -203,9 +226,10 @@ export async function importOsmCandidates(
           name.split(' '),
           osmType,
           osmId,
+          subcategoryForOsmTags(tags),
         ],
       );
-      if (r.rows.length > 0) inserted += 1;
+      if (r.rows[0]?.inserted) inserted += 1;
     }
   }
   return { inserted };

@@ -36,6 +36,7 @@ export const PlaceRowSchema = z.object({
   public_socials: z.array(z.string()).nullable().optional(),
   public_address: z.string().nullable().optional(),
   public_source: z.string().nullable().optional(),
+  public_subcategory: z.string().nullable().optional(),
   contact_confirmed_at: z
     .union([z.string(), z.date()])
     .nullable()
