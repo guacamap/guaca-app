@@ -28,6 +28,7 @@ interface CandidatePlace {
   public_website?: string | null
   public_socials?: string[] | null
   public_address?: string | null
+  public_subcategory?: string | null
 }
 
 interface PendingConfirmation {
@@ -529,7 +530,10 @@ export function SpotterView() {
                       <MapIcon className="h-3 w-3" /> {t.candidateTitle}
                     </p>
                     <h3 className="mt-2 truncate text-lg font-black leading-tight text-guaca-ink">{selectedCandidate.name}</h3>
-                    <p className="text-[11px] font-bold text-guaca-ink/50">{categoryLabel(selectedCandidate.category, lang)}</p>
+                    <p className="text-[11px] font-bold text-guaca-ink/50">
+                      {categoryLabel(selectedCandidate.category, lang)}
+                      {selectedCandidate.public_subcategory ? ` · ${selectedCandidate.public_subcategory}` : ''}
+                    </p>
                   </div>
                   <button
                     type="button"
