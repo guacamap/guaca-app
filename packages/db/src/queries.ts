@@ -22,7 +22,7 @@ export async function findVerifiedNear(
        p.created_by_spotter_id, p.confirmed_by_spotter_id,
        p.verified_at, p.rejection_reason,
        s.name as spotter_name, s.photo_url as spotter_photo_url,
-       p.public_phone, p.public_website, p.public_socials, p.public_address, p.public_source, p.contact_confirmed_at,
+       p.public_phone, p.public_website, p.public_socials, p.public_address, p.public_source, p.public_subcategory, p.contact_confirmed_at,
        ST_Distance(p.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) as dist_m
      from places p
      left join spotters s on s.id = p.created_by_spotter_id
