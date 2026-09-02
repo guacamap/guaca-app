@@ -1,3 +1,4 @@
+import { tierWords, type PlaceTier } from '@guaca/shared';
 import type { PlanArtifact } from '../guard/assertGrounded.js';
 
 /**
@@ -10,6 +11,11 @@ export interface RenderPlace {
   category: string;
   /** Only when a local confirmed it in person; public listing data never rides here. */
   phone?: string | null;
+  /** Tiered honesty; absent renders as verified, which is what every caller before tiers meant. */
+  tier?: PlaceTier;
+  corroboration?: number;
+  verifiedAt?: string | null;
+  spotterName?: string | null;
 }
 
 /**
@@ -32,13 +38,13 @@ interface Template {
 const TEMPLATES: Record<string, Template> = {
   en: {
     header: 'Here is your plan:',
-    footer: 'Witnessed by local spotters.',
+    footer: 'Every stop says how much is known about it.',
     stop: (name, start, reason) => `${start} — ${name} (${reason})`,
     day: (n) => `Day ${n}`,
   },
   es: {
     header: 'Este es tu plan:',
-    footer: 'Verificado por locales.',
+    footer: 'Cada parada dice cuánto se sabe de ella.',
     stop: (name, start, reason) => `${start} — ${name} (${reason})`,
     day: (n) => `Día ${n}`,
   },
@@ -66,6 +72,7 @@ export function renderItinerary(
   // A day header only appears when the plan actually spans days.
   const multiDay = artifact.stops.some((s) => s.dayIndex > 0);
   const lines = [t.header];
+  let unverified = false;
   const days = [...new Set(artifact.stops.map((s) => s.dayIndex))].sort((a, b) => a - b);
   for (const day of days) {
     if (multiDay) {
@@ -82,9 +89,15 @@ export function renderItinerary(
           `renderItinerary: no verified DB row for placeId ${stop.placeId}`,
         );
       }
-      lines.push(t.stop(place.name, fmt(stop.startMin), stop.reasonCode) + (place.phone ? ` · tel ${place.phone}` : ''));
+      const tier = place.tier ?? 'verified';
+      lines.push(
+        t.stop(place.name, fmt(stop.startMin), stop.reasonCode) +
+          (place.phone ? ` · tel ${place.phone}` : '') +
+          ` · ${tierWords(tier, lang, { corroboration: place.corroboration, verifiedAt: place.verifiedAt ?? null, spotter: place.spotterName ?? null })}`,
+      );
+      if (tier !== 'verified') unverified = true;
     }
   }
-  lines.push(t.footer);
+  lines.push(unverified ? (lang === 'es' ? 'Las paradas sin verificar vienen de mapas abiertos; un local puede confirmarlas.' : 'Unverified stops come from open maps; a local can confirm them.') : t.footer);
   return lines.join('\n');
 }

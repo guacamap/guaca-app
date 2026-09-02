@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import type { PlaceTier } from '@guaca/shared';
 
 /** Branded place id — never serialised into a model prompt. */
 export type PlaceId = string & { readonly __brand: 'PlaceId' };
@@ -9,12 +10,19 @@ export interface CatalogRow {
   category: string;
   verificationStatus: string;
   witnessCount: number;
+  /** Tiered honesty: a corroborated or listed open-data row may enter when the caller says so. */
+  tier?: PlaceTier;
+  corroboration?: number;
+  subcategory?: string | null;
 }
 
 export interface CatalogEntry {
   placeId: PlaceId;
   name: string;
   category: string;
+  tier: PlaceTier;
+  corroboration: number;
+  subcategory: string | null;
   /** ref as emitted to the model — small integers only, 1..N */
   ref: number;
 }
@@ -37,12 +45,18 @@ export class Catalog {
   static build(rows: readonly CatalogRow[]): Catalog {
     const entries: CatalogEntry[] = [];
     for (const row of rows) {
-      if (row.verificationStatus !== 'verified') continue;
-      if (row.witnessCount < 2) continue;
+      const verified = row.verificationStatus === 'verified' && row.witnessCount >= 2;
+      // A row enters verified, or explicitly tiered by the caller (an open
+      // dataset row the retrieval chose to offer). Anything else has no ref.
+      const tier: PlaceTier | null = verified ? 'verified' : row.tier === 'corroborated' || row.tier === 'listed' ? row.tier : null;
+      if (!tier) continue;
       entries.push({
         placeId: row.id as PlaceId,
         name: row.name,
         category: row.category,
+        tier,
+        corroboration: row.corroboration ?? 0,
+        subcategory: row.subcategory ?? null,
         ref: entries.length + 1,
       });
     }
@@ -54,6 +68,13 @@ export class Catalog {
 
   get size(): number {
     return this.entries.length;
+  }
+
+  /** The listing the planner reads: one line per ref, names included, ids never. */
+  listing(): string {
+    return this.entries
+      .map((e) => `${e.ref}: ${e.name} [${e.category}${e.subcategory ? `, ${e.subcategory}` : ''}] (${e.tier}${e.tier === 'corroborated' ? ` by ${e.corroboration} open maps` : ''})`)
+      .join('\n');
   }
 
   /** All refs in ascending order. */

@@ -1,3 +1,4 @@
+import type { PlaceTier } from '@guaca/shared';
 import { Catalog } from '../catalog/catalog.js';
 import { MAX_STOPS_PER_DAY, MAX_STOPS_TOTAL, PlanDraft } from './planDraft.js';
 
@@ -8,6 +9,9 @@ export interface PlaceRowForGuard {
   category: string;
   verificationStatus: string;
   witnessCount: number;
+  tier?: PlaceTier;
+  corroboration?: number;
+  subcategory?: string | null;
 }
 
 /**

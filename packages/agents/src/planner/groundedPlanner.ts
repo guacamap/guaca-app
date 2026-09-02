@@ -88,10 +88,15 @@ export async function runGroundedPlanner(
   // it almost never does. The rule is stated here in the model's own units.
   const timing =
     'startMin is minutes after midnight and durationMin is how long the stop lasts. Within a day, order stops by startMin, never overlap them, and leave at least 15 minutes between one stop ending and the next starting. Keep every stop between 07:00 (420) and 22:00 (1320).';
+  // The tiers, in the model's units: prefer what a local stood in front of,
+  // fill from what several open maps agree on, reach for a single listing
+  // only when nothing better fits the ask.
+  const tiers = 'Each entry carries a tier: verified (a local stood there), corroborated (several open maps agree), listed (one open map). Prefer verified, then corroborated, and use listed only when nothing better matches the ask.';
   const instruction =
-    days === 1
-      ? `You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. ${timing} Never invent places.`
-      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day; do not repeat a place within the same day. ${timing} Never invent places.`;
+    (days === 1
+      ? `You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. ${timing} Never invent places. ${tiers}`
+      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day; do not repeat a place within the same day. ${timing} Never invent places. ${tiers}`) +
+    `\n\nCatalog:\n${catalog.listing()}`;
 
   try {
     const res = await options.inference.json<z.infer<typeof requestSchema>>({

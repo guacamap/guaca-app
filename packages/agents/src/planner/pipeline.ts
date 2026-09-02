@@ -1,3 +1,5 @@
+import type { PlaceTier } from '@guaca/shared';
+import { TIER_RANK } from '@guaca/shared';
 import {
   groundFromVerifiedRows,
   GuardViolation,
@@ -23,6 +25,10 @@ export interface CatalogPlace {
   lon: number;
   verificationStatus: string;
   witnessCount: number;
+  /** Tiered honesty; absent means the row is offered as verified (the benchmark fixture). */
+  tier?: PlaceTier;
+  corroboration?: number;
+  subcategory?: string | null;
 }
 
 export type AnswerPath = 'fast' | 'model';
@@ -104,7 +110,7 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
   if (days === 1) {
     const fastPathPlaces: FastPathPlace[] = options.places.map((p) => ({
       id: p.id, name: p.name, category: p.category, landmarkDescription: p.landmarkDescription ?? '',
-      lat: p.lat, lon: p.lon, openAt: 0, closeAt: 1440,
+      lat: p.lat, lon: p.lon, openAt: 0, closeAt: 1440, tierRank: TIER_RANK[p.tier ?? 'verified'],
     }));
     const fast = await answerDeterministic({
       text: options.text, language: options.language, lat: options.lat, lon: options.lon,
@@ -139,6 +145,7 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
     rows: catalogRows.map((p) => ({
       id: p.id, name: p.name, category: p.category,
       verificationStatus: p.verificationStatus, witnessCount: p.witnessCount,
+      ...(p.tier ? { tier: p.tier } : {}), corroboration: p.corroboration ?? 0, subcategory: p.subcategory ?? null,
     })),
     inference: options.inference,
     onGap: () => undefined,

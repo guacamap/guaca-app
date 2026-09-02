@@ -11,6 +11,8 @@ export interface FastPathPlace {
   /** Minutes since midnight. */
   openAt: number;
   closeAt: number;
+  /** 0 verified, 1 corroborated, 2 listed; absent means verified. */
+  tierRank?: number;
 }
 
 export interface FastPathStop {
@@ -67,8 +69,10 @@ export function greedyRoute(options: RouteOptions): FastPathStop[] {
   // coordinate — the bug version always walked you from the town centre.
   const originLat = options.lat ?? 10.4716;
   const originLon = options.lon ?? -68.0056;
+  // What a local stood in front of comes first; among equals, the nearest.
   const sorted = [...open].sort(
     (a, b) =>
+      (a.tierRank ?? 0) - (b.tierRank ?? 0) ||
       distanceM(a.lat, a.lon, originLat, originLon) -
       distanceM(b.lat, b.lon, originLat, originLon),
   );
