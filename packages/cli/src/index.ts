@@ -527,6 +527,28 @@ candidates
     if (!opts.apply) process.stdout.write('preview only — re-run with --apply to write\n');
   });
 
+candidates
+  .command('foursquare <jsonl>')
+  .description('link or add candidates from Foursquare OS Places rows (JSON lines, one place per line)')
+  .requiredOption('--area <areaId>')
+  .option('--apply', 'actually write; without it this is a preview')
+  .option('--radius <m>', 'match radius in metres for an existing place with the same name', '120')
+  .action(async (file: string, opts: { area: string; apply?: boolean; radius: string }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const { readFile } = await import('node:fs/promises');
+    const rows = (await readFile(file, 'utf8')).split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l) as import('@guaca/db').FoursquareRow);
+    const { importFoursquare } = await import('@guaca/db');
+    const result = await withPool((pool) => importFoursquare(pool, opts.area, rows, { apply: !!opts.apply, matchRadiusM: Number(opts.radius) }));
+    const { preview, ...summary } = result;
+    if (!json) {
+      for (const row of preview.filter((r) => r.action !== 'skip').slice(0, 40)) {
+        process.stderr.write(`  ${row.action.padEnd(7)} ${row.name}${row.target ? `  →  ${row.target}` : ''}\n`);
+      }
+    }
+    process.stdout.write(render({ ...summary, rows: rows.length }, { json }) + '\n');
+    if (!opts.apply) process.stdout.write('preview only — re-run with --apply to write\n');
+  });
+
 const steward = program.command('steward').description('AI candidate drafts — team review');
 steward
   .command('enrich')
