@@ -17,4 +17,6 @@ export {
 export type { CaribbeanCountry, CaribbeanCity, CountryCoverageStatus } from './caribbean.js';
 export { TAXONOMY, TAXONOMY_BY_CATEGORY, targetDensityFor } from './taxonomy.js';
 export type { TaxonomyEntry } from './taxonomy.js';
+export { tierOf, tierWords, TIER_RANK } from './tiers.js';
+export type { PlaceTier } from './tiers.js';
 export type { LogLine } from './log.js';
