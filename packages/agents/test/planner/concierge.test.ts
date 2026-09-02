@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { converse } from '../../src/planner/concierge.js';
+import { converse, narrateRefusal } from '../../src/planner/concierge.js';
 import type { Inference, JsonRequest, JsonResult } from '../../src/inference/types.js';
 
 class Scripted implements Inference {
@@ -23,11 +23,16 @@ const base = {
 };
 
 describe('the concierge turn', () => {
-  it('a concrete ask the lexicon knows never reaches the model', async () => {
-    const model = new Scripted({ mode: 'chat', reply: 'should not be used' });
-    const t = await converse(model, { ...base, text: 'where can I eat nearby' });
+  it('a concrete ask goes through the model, which hands it to the map', async () => {
+    const model = new Scripted({ mode: 'ask', reply: 'Let me see what locals have verified.', askText: 'where can I eat nearby', category: 'eat_drink' });
+    const t = await converse(model, { ...base, text: 'Hi! where can I eat nearby' });
+    expect(t).toMatchObject({ mode: 'ask', askText: 'where can I eat nearby', category: 'eat_drink', via: 'model' });
+    expect(model.calls).toBe(1);
+  });
+
+  it('with the provider down a concrete ask still reaches the map through the lexicon', async () => {
+    const t = await converse(new Down(), { ...base, text: 'where can I eat nearby' });
     expect(t).toMatchObject({ mode: 'ask', askText: 'where can I eat nearby', via: 'lexicon' });
-    expect(model.calls).toBe(0);
   });
 
   it('a greeting is a chat turn written by the model', async () => {
@@ -62,5 +67,23 @@ describe('the concierge turn', () => {
     expect(t.via).toBe('fallback');
     expect(t.mode).toBe('ask');
     expect(t.askText).toBe('hey there, anything fun tonight?');
+  });
+});
+
+describe('the refusal in Guaca\'s voice', () => {
+  const input = {
+    text: 'I need a private beach', language: 'en', reason: 'INSUFFICIENT_COVERAGE', category: 'beach_water',
+    coverage: { verifiedNearby: 3, inCategory: 0 }, placeNames: ['Playa Blanca', 'Café Colonial'],
+  };
+  it('returns the model sentence when it names nothing', async () => {
+    const r = await narrateRefusal(new Scripted({ reply: 'No local has verified a beach here yet. I can send one to look, or tell you when it lands.' }), input);
+    expect(r).toMatch(/send one/);
+  });
+  it('drops a sentence that names a verified place', async () => {
+    const r = await narrateRefusal(new Scripted({ reply: 'Nothing verified, but Playa Blanca is close.' }), input);
+    expect(r).toBeNull();
+  });
+  it('is null when the provider is down, so the fixed line is used', async () => {
+    expect(await narrateRefusal(new Down(), input)).toBeNull();
   });
 });
