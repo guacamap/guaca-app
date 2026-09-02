@@ -122,6 +122,10 @@ describe('the refusal in Guaca\'s voice', () => {
     const r = await narrateRefusal(new Scripted({ reply: 'There is a trail by the old lighthouse.' }, () => 'Some walks around.'), input);
     expect(r).toBeNull();
   });
+  it('a bare "hola!" counts as Spanish', async () => {
+    const t = await converse(new Scripted({ mode: 'chat', reply: 'Hola, ¿qué tal?' }, () => ''), { ...base, text: 'hola!', language: 'en' });
+    expect(t.reply).toMatch(/Cuéntame/);
+  });
   it('the fixed line follows the language the traveller writes, not the UI', async () => {
     const t = await converse(new Scripted({ mode: 'notify', reply: 'Te aviso en media hora.' }, () => ''), { ...base, text: 'sí, avísame cuando alguien lo revise', language: 'en' });
     expect(t.via).toBe('guard');
