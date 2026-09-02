@@ -553,7 +553,7 @@ export function SpotterView() {
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] font-semibold leading-relaxed text-guaca-ink/60">{t.candidateBody}</p>
-                {(selectedCandidate.public_phone || selectedCandidate.public_website || selectedCandidate.public_address || selectedCandidate.public_socials?.length) && (
+                {(selectedCandidate.public_phone || selectedCandidate.public_website || selectedCandidate.public_address || (selectedCandidate.public_socials?.length ?? 0) > 0) && (
                   <div className="mt-3 rounded-2xl bg-guaca-ink/5 p-3">
                     <p className="text-[9px] font-black uppercase tracking-[.1em] text-guaca-ink/45">{t.candidatePublic}</p>
                     {selectedCandidate.public_address && <p className="mt-1 text-[11px] font-semibold text-guaca-ink/65">{selectedCandidate.public_address}</p>}
