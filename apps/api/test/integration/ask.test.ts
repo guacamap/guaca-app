@@ -149,6 +149,12 @@ describe('POST /api/ask', () => {
     expect(body.placeIds[0]).toBe('00000000-0000-4000-8000-0000000000e1');
     expect(body.text).toMatch(/2 open maps agree it exists/);
     expect(body.text).toMatch(/Unverified stops come from open maps/);
+    // The used open-data stops are now demand: unanswered questions at their
+    // own points, which is what the gap agent clusters into missions.
+    const demand = await pool.query<{ raw_text: string; refusal_reason: string }>(
+      `select raw_text, refusal_reason from questions where refusal_reason = 'UNVERIFIED_STOP_USED' order by raw_text`,
+    );
+    expect(demand.rows.map((r) => r.raw_text)).toEqual(['Confirm: Playa Blanca (2 open maps)', 'Confirm: Playa Escondida (1 open maps)']);
     await pool.query(`delete from places where id in ('00000000-0000-4000-8000-0000000000e1','00000000-0000-4000-8000-0000000000e2')`);
     await app.close();
   });

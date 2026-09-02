@@ -43,6 +43,37 @@ export async function areaAt(pool: Pool, lat: number, lon: number): Promise<Area
   return r.rows[0] ?? null;
 }
 
+/**
+ * A plan that leaned on an open-data stop is demand for a local to stand
+ * there. Each such stop becomes an unanswered question at its own point,
+ * in its own category, so the gap agent clusters it and can commission the
+ * check. Never blocks the answer; the traveller has their plan already.
+ */
+async function recordUnverifiedStops(
+  pool: Pool,
+  input: { language: string; sessionId?: string | null; propertyId?: string | null },
+  stops: ReadonlyArray<{ id: string; name: string; category: string; lat: number; lon: number; corroboration?: number }>,
+): Promise<void> {
+  for (const s of stops.slice(0, 4)) {
+    try {
+      await recordQuestion(pool, {
+        rawText: `${input.language === 'es' ? 'Confirmar' : 'Confirm'}: ${s.name} (${s.corroboration ?? 1} ${input.language === 'es' ? 'mapas abiertos' : 'open maps'})`,
+        language: input.language,
+        category: s.category as ReturnType<typeof extractIntent>['category'],
+        lat: s.lat,
+        lon: s.lon,
+        answered: false,
+        answerPlaceIds: [],
+        refusalReason: 'UNVERIFIED_STOP_USED',
+        sessionId: input.sessionId ?? null,
+        propertyId: input.propertyId ?? null,
+      });
+    } catch {
+      // Bookkeeping only.
+    }
+  }
+}
+
 /** The town in one line for the concierge: its name and, when fetched, what kind of place it is. */
 export function aboutLine(area: AreaRow, lang: string): string {
   const about = (lang === 'es' ? area.about_es : area.about_en) ?? area.about_en ?? area.about_es;
@@ -435,6 +466,7 @@ export async function ask(
 
   const ids = outcome.placeIds;
   const questionId = await record(true, category, ids, null);
+  await recordUnverifiedStops(pool, input, rows.filter((r) => ids.includes(r.id) && tierFor(r) !== 'verified'));
   const sugg = await followUps(ids);
   return {
     kind: 'answer',
@@ -621,6 +653,7 @@ export async function planTrip(
     verifiedIds,
   );
   const ids = [...artifact.placeIds];
+  await recordUnverifiedStops(pool, input, rows.filter((r) => ids.includes(r.id) && tierFor(r) !== 'verified'));
 
   const places = new Map(
     rows.map((r) => [
