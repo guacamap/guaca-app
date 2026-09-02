@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, ChevronRight, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Palmtree, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Sun, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
 import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
-import { CARIBBEAN_COUNTRIES } from '@guaca/shared'
+import { CARIBBEAN_COUNTRIES, TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 import { InstallApp } from './InstallApp'
 
@@ -217,14 +217,13 @@ function mediaPlatform(url: string): string {
   return 'Video'
 }
 
-const CATEGORY_GLYPH: Record<string, { emoji: string; color: string }> = {
-  eat_drink: { emoji: '🍽️', color: '#E8735A' },
-  beach_water: { emoji: '🏖️', color: '#0D8B8B' },
-  nature_walk: { emoji: '🥾', color: '#2D8B4E' },
-  culture_history: { emoji: '🏛️', color: '#0C4A5C' },
-  market_shop: { emoji: '🛍️', color: '#D4A853' },
-  services: { emoji: '🔧', color: '#2D4A50' },
-}
+// One taxonomy, drawn from everywhere a category needs a mark — a pin, a
+// candidate dot on the map, a filter chip — instead of three local copies
+// silently drifting apart (this one was missing nightlife_music and
+// practical until it started reading from @guaca/shared).
+const CATEGORY_GLYPH: Record<string, { emoji: string; color: string }> = Object.fromEntries(
+  TAXONOMY.map((t) => [t.category, { emoji: t.emoji, color: t.color }]),
+)
 
 function initials(name: string | null): string {
   if (!name) return '·'

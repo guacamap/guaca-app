@@ -140,6 +140,10 @@ function categoryLabel(category: string, lang: Lang): string {
   return entry ? (lang === 'es' ? entry.labelEs : entry.labelEn) : category
 }
 
+function categoryEmoji(category: string): string {
+  return TAXONOMY.find((t) => t.category === category)?.emoji ?? '📍'
+}
+
 /** An expired session goes back through the gate — never a fake empty list. */
 function guard401(r: Response): Response {
   if (r.status === 401) {
@@ -531,7 +535,7 @@ export function SpotterView() {
                     </p>
                     <h3 className="mt-2 truncate text-lg font-black leading-tight text-guaca-ink">{selectedCandidate.name}</h3>
                     <p className="text-[11px] font-bold text-guaca-ink/50">
-                      {categoryLabel(selectedCandidate.category, lang)}
+                      {categoryEmoji(selectedCandidate.category)} {categoryLabel(selectedCandidate.category, lang)}
                       {selectedCandidate.public_subcategory ? ` · ${selectedCandidate.public_subcategory}` : ''}
                     </p>
                   </div>
@@ -1069,7 +1073,9 @@ function CaptureFlow({ mission, candidate, onDone }: { mission: Mission | null; 
     <div className="h-full min-h-dvh overflow-y-auto bg-guaca-sand-light px-5 pb-16 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
       <div className="rounded-[32px] bg-gradient-to-br from-guaca-teal to-guaca-ocean p-6 text-white shadow-xl">
         <p className="text-[10px] font-black uppercase tracking-[.1em] text-white/70">
-          {mission ? categoryLabel(mission.targetCategory, lang) : candidate ? categoryLabel(candidate.category, lang) : t.freeTitle}
+          {mission ? `${categoryEmoji(mission.targetCategory)} ${categoryLabel(mission.targetCategory, lang)}`
+            : candidate ? `${categoryEmoji(candidate.category)} ${categoryLabel(candidate.category, lang)}`
+            : t.freeTitle}
         </p>
         <h1 className="mt-2 text-2xl font-black tracking-[-.03em]">{t.captureTitle}</h1>
         <p className="mt-2 text-sm font-semibold text-white/85">{mission ? mission.brief : candidate ? t.candidateBody : t.freeLede}</p>
@@ -1089,7 +1095,7 @@ function CaptureFlow({ mission, candidate, onDone }: { mission: Mission | null; 
                     aria-pressed={category === entry.category}
                     className={`rounded-full px-3 py-1.5 text-[11px] font-black ${category === entry.category ? 'bg-guaca-coral text-white' : 'bg-guaca-ink/6 text-guaca-ink/60'}`}
                   >
-                    {lang === 'es' ? entry.labelEs : entry.labelEn}
+                    {entry.emoji} {lang === 'es' ? entry.labelEs : entry.labelEn}
                   </button>
                 ))}
               </div>
