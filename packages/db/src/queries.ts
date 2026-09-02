@@ -37,8 +37,50 @@ export async function findVerifiedNear(
   return res.rows.map((r) => PlaceRowSchema.parse(r));
 }
 
+/**
+ * Tiered honesty: what Guaca may plan with, verified first. Verified rows
+ * (two locals) come first, then open-data candidates by how many datasets
+ * agree, nearest first within a tier. Pending and provisional rows are a
+ * spotter's work in progress and stay out until confirmed.
+ */
+export async function findPlannableNear(
+  pool: Pool,
+  lat: number,
+  lon: number,
+  radiusM: number,
+  category?: string,
+  opts: { limit?: number } = {},
+) {
+  const res = await pool.query(
+    `select
+       p.id, p.area_id, p.name, p.category, p.description,
+       p.landmark_description,
+       ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon,
+       p.h3_8, p.open_hours, p.price_band, p.tags, p.source,
+       p.verification_status, p.witness_count, p.corroboration,
+       p.created_by_spotter_id, p.confirmed_by_spotter_id,
+       p.verified_at, p.rejection_reason,
+       s.name as spotter_name, s.photo_url as spotter_photo_url,
+       p.public_phone, p.public_website, p.public_socials, p.public_address, p.public_source, p.public_subcategory, p.contact_confirmed_at,
+       ST_Distance(p.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) as dist_m
+     from places p
+     left join spotters s on s.id = p.created_by_spotter_id
+     where ((p.verification_status = 'verified' and p.witness_count >= 2)
+            or (p.verification_status = 'candidate' and p.corroboration >= 1))
+       and ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography, $3)
+       and ($4::text is null or p.category = $4)
+     order by
+       case when p.verification_status = 'verified' then 0 when p.corroboration >= 2 then 1 else 2 end asc,
+       p.corroboration desc, dist_m asc
+     limit $5`,
+    [lat, lon, radiusM, category ?? null, opts.limit ?? 120],
+  );
+  return res.rows.map((r) => PlaceRowSchema.parse(r));
+}
+
 export const q = {
   places: {
     findVerifiedNear,
+    findPlannableNear,
   },
 };

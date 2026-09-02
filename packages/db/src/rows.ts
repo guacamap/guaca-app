@@ -18,6 +18,7 @@ export const PlaceRowSchema = z.object({
   source: z.enum(['spotter', 'business', 'osm_candidate', 'overture_candidate', 'foursquare_candidate', 'wikidata_candidate']),
   verification_status: VerificationStatus,
   witness_count: z.number().int().min(0),
+  corroboration: z.number().int().min(0).optional().default(0),
   created_by_spotter_id: z.string().uuid().nullable(),
   confirmed_by_spotter_id: z.string().uuid().nullable(),
   // pg returns timestamptz as Date; normalise to an ISO string either way.
