@@ -30,17 +30,23 @@ import {
 import { suggestionsNear } from './suggestionsService.js';
 import { contextLine, type AreaContext, type ContextProvider } from './context.js';
 
-export interface AreaRow { id: string; slug: string; name: string; country: string; timezone: string; lat: number; lon: number }
+export interface AreaRow { id: string; slug: string; name: string; country: string; timezone: string; lat: number; lon: number; about_en?: string | null; about_es?: string | null }
 
 /** The area a point falls in, with its centroid; null outside every area. */
 export async function areaAt(pool: Pool, lat: number, lon: number): Promise<AreaRow | null> {
   const r = await pool.query<AreaRow>(
-    `select id, slug, name, country, timezone,
+    `select id, slug, name, country, timezone, about_en, about_es,
             ST_Y(ST_Centroid(geom::geometry)) as lat, ST_X(ST_Centroid(geom::geometry)) as lon
        from areas where ST_Covers(geom, ST_SetSRID(ST_MakePoint($2, $1), 4326)::geography) limit 1`,
     [lat, lon],
   );
   return r.rows[0] ?? null;
+}
+
+/** The town in one line for the concierge: its name and, when fetched, what kind of place it is. */
+export function aboutLine(area: AreaRow, lang: string): string {
+  const about = (lang === 'es' ? area.about_es : area.about_en) ?? area.about_en ?? area.about_es;
+  return about ? `${area.name}: ${about}` : area.name;
 }
 
 /** Context for an area (or, outside every area, for the point itself). Never throws. */
@@ -321,6 +327,7 @@ export async function ask(
     coverage: { verifiedNearby: verifiedRows.length, byCategory: byCategoryAll },
     placeNames: rows.map((r) => r.name),
     ...(ctx ? { now: contextLine(ctx) } : {}),
+    ...(area ? { about: aboutLine(area, lang) } : {}),
   });
   if (turn.mode === 'chat') {
     return { kind: 'chat', text: turn.reply, placeIds: [], ...withCtx };
@@ -403,6 +410,7 @@ export async function ask(
       coverage: { verifiedNearby: verifiedRows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0 },
       placeNames: rows.map((r) => r.name),
       ...(ctx ? { now: contextLine(ctx) } : {}),
+      ...(area ? { about: aboutLine(area, lang) } : {}),
     });
     return {
       kind: 'refusal',

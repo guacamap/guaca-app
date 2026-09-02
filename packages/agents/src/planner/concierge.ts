@@ -33,6 +33,8 @@ export interface ConciergeInput {
   placeNames: readonly string[];
   /** One line of facts about right now (time, weather, sea, sunset, holiday, rates, alert). */
   now?: string;
+  /** The town: its name and what kind of place it is, for flavour, never for citing. */
+  about?: string;
 }
 
 /**
@@ -210,7 +212,8 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
         `Verified coverage nearby (only to set expectations, never to name anything): ${input.coverage.verifiedNearby} places` +
         (coverage ? ` (${coverage})` : '') +
         '. Categories: ' + CATEGORY_VALUES.join(', ') + '.' +
-        (input.now ? ` Right now: ${input.now}. Weave these in only when natural, the way a local mentions the sea or the heat.` : ''),
+        (input.now ? ` Right now: ${input.now}. Weave these in only when natural, the way a local mentions the sea or the heat.` : '') +
+        (input.about ? ` Where you both are: ${input.about}. Use it to sound like you live here; still never name or recommend a specific place from it.` : ''),
       user: (transcript ? `Conversation so far:\n${transcript}\n\n` : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
@@ -257,6 +260,7 @@ export interface RefusalNarrationInput {
   coverage: { verifiedNearby: number; inCategory: number };
   placeNames: readonly string[];
   now?: string;
+  about?: string;
 }
 
 /**
@@ -281,7 +285,8 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
         (input.reason === 'UNCLEAR_QUESTION'
           ? 'Actually you did not understand what they want: skip the refusal and ask one short friendly question. '
           : `What they want: ${categoryWords(input.category, lang)}. Verified nearby: ${input.coverage.verifiedNearby} places, ${input.coverage.inCategory} in that category (mention a number only if it helps). `) +
-        (input.now ? `Right now: ${input.now}. ` : ''),
+        (input.now ? `Right now: ${input.now}. ` : '') +
+        (input.about ? `Where you both are: ${input.about}. Background only; never name a place from it. ` : ''),
       user:
         (input.history?.length
           ? 'Conversation so far:\n' + input.history.slice(-8).map((m) => `${m.role === 'user' ? 'Traveller' : 'Guaca'}: ${m.text.slice(0, 240)}`).join('\n') + '\n\n'
