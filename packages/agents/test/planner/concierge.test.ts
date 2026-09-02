@@ -124,7 +124,7 @@ describe('the refusal in Guaca\'s voice', () => {
   });
   it('a bare "hola!" counts as Spanish', async () => {
     const t = await converse(new Scripted({ mode: 'chat', reply: 'Hola, ¿qué tal?' }, () => ''), { ...base, text: 'hola!', language: 'en' });
-    expect(t.reply).toMatch(/Cuéntame/);
+    expect(t.reply).toMatch(/revisar/);
   });
   it('the fixed line follows the language the traveller writes, not the UI', async () => {
     const t = await converse(new Scripted({ mode: 'notify', reply: 'Te aviso en media hora.' }, () => ''), { ...base, text: 'sí, avísame cuando alguien lo revise', language: 'en' });
