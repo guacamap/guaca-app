@@ -549,6 +549,18 @@ candidates
     if (!opts.apply) process.stdout.write('preview only — re-run with --apply to write\n');
   });
 
+const areas = program.command('areas').description('the towns Guaca stands in');
+areas
+  .command('about')
+  .description('fetch each area\'s Wikipedia summary (EN+ES) so the concierge knows the town')
+  .option('--only-missing', 'skip areas that already have one')
+  .action(async (opts: { onlyMissing?: boolean }, command) => {
+    const json = rootJson(command.parent as { parent: Command | null });
+    const { refreshAreaAbout } = await import('@guaca/db');
+    const r = await withPool((pool) => refreshAreaAbout(pool, { onlyMissing: !!opts.onlyMissing }));
+    process.stdout.write(render(r, { json }) + '\n');
+  });
+
 const steward = program.command('steward').description('AI candidate drafts — team review');
 steward
   .command('enrich')
