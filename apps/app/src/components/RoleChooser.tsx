@@ -144,16 +144,6 @@ export function RoleChooser({ onChoose, onLogin }: RoleChooserProps) {
               Log in
             </button>
           </p>
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-[13px] text-white/80">
-            <Store aria-hidden="true" className="h-3.5 w-3.5" />
-            <span>A business?</span>
-            <a
-              href={BUSINESS_URL}
-              className="rounded font-bold text-guaca-teal underline decoration-guaca-teal/60 underline-offset-2 hover:decoration-guaca-teal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            >
-              Register on guaca.live
-            </a>
-          </p>
         </div>
       </div>
     </JoinScene>
