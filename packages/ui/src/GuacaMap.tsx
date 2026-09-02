@@ -522,7 +522,13 @@ export function GuacaMap({
       pitch: 0,
       bearing: 0,
       projection: 'mercator',
-      attributionControl: true,
+      // Attribution is added separately below, in its own corner: sharing
+      // bottom-right with the navigation control made its text overlap
+      // whatever UI sat just above that corner (the coverage card, on a
+      // wide screen) once the control's own CSS offset moved it up to
+      // clear that UI — the offset moved the zoom buttons, not the
+      // attribution strip stacked below them, so it stayed on the seam.
+      attributionControl: false,
       maxZoom: 19,
       // The Caribbean is the product: the map must zoom out to the whole
       // basin (and past it) — country coverage markers live at low zoom.
@@ -530,6 +536,7 @@ export function GuacaMap({
     })
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'top-right')
 
     let geolocate: mapboxgl.GeolocateControl | null = null
     if (showUserLocation) {
@@ -860,12 +867,15 @@ export function GuacaMapTreasure({
       pitch: 0,
       bearing: 0,
       projection: 'mercator',
-      attributionControl: true,
+      // Same reason as the main map: its own corner, never sharing one
+      // that a card's CSS offset was tuned for the navigation control alone.
+      attributionControl: false,
       maxZoom: 19,
       minZoom: 12,
     })
 
     map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right')
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'top-right')
 
     map.on('load', () => {
       const layers = map.getStyle().layers
