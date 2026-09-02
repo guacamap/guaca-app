@@ -10,6 +10,9 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/agents/package.json packages/agents/
 COPY packages/db/package.json packages/db/
 COPY packages/cli/package.json packages/cli/
+# ui is not shipped, but its manifest is: the lockfile records its workspace
+# link to shared, and pnpm only wires the links when the workspace matches.
+COPY packages/ui/package.json packages/ui/
 COPY apps/api/package.json apps/api/
 RUN pnpm install --frozen-lockfile
 COPY packages/shared packages/shared
