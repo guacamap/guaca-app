@@ -74,6 +74,18 @@ async function recordUnverifiedStops(
   }
 }
 
+/** Minutes past midnight in the town's own timezone; the server clock is UTC and means nothing to a traveller. */
+export function localNowMin(timezone: string | undefined, at: Date = new Date()): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: timezone ?? 'UTC', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(at);
+    const h = Number(parts.find((p) => p.type === 'hour')?.value ?? 0) % 24;
+    const m = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+    return h * 60 + m;
+  } catch {
+    return at.getUTCHours() * 60 + at.getUTCMinutes();
+  }
+}
+
 /** The town in one line for the concierge: its name and, when fetched, what kind of place it is. */
 export function aboutLine(area: AreaRow, lang: string): string {
   const about = (lang === 'es' ? area.about_es : area.about_en) ?? area.about_en ?? area.about_es;
@@ -410,6 +422,7 @@ export async function ask(
     })),
     inference: opts.inference,
     minCandidates: opts.minCandidates,
+    nowMin: localNowMin(area?.timezone),
   });
 
   // The concierge asked a question but chose 'ask', and the pipeline could

@@ -19,6 +19,8 @@ export interface GroundedPlannerOptions {
   days?: number;
   /** Called with the violation code when the guard refuses — logs the gap. */
   onGap: (reason: string) => Promise<void> | void;
+  /** Minutes past midnight, local to the town; a single-day plan starts after it. */
+  nowMin?: number;
 }
 
 export type GroundedOutcome =
@@ -91,11 +93,15 @@ export async function runGroundedPlanner(
   // The tiers, in the model's units: prefer what a local stood in front of,
   // fill from what several open maps agree on, reach for a single listing
   // only when nothing better fits the ask.
+  const clock = options.nowMin !== undefined && days === 1
+    ? ` It is now ${String(Math.floor(options.nowMin / 60)).padStart(2, '0')}:${String(options.nowMin % 60).padStart(2, '0')} local time: the first stop starts after now, and if less than two hours of the day remain, plan one or two stops only.`
+    : '';
   const tiers = 'Each entry carries a tier: verified (a local stood there), corroborated (several open maps agree), listed (one open map). Prefer verified, then corroborated, and use listed only when nothing better matches the ask.';
   const instruction =
     (days === 1
       ? `You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. ${timing} Never invent places. ${tiers}`
       : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day; do not repeat a place within the same day. ${timing} Never invent places. ${tiers}`) +
+    clock +
     `\n\nCatalog:\n${catalog.listing()}`;
 
   try {

@@ -149,6 +149,7 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
     })),
     inference: options.inference,
     onGap: () => undefined,
+    ...(options.nowMin !== undefined ? { nowMin: options.nowMin } : {}),
   });
 
   if (outcome.kind === 'PlanArtifact') {
