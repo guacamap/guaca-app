@@ -142,7 +142,7 @@ describe('POST /api/ask', () => {
     expect(res.statusCode).toBe(200); // not an error status
     const body = res.json() as { kind: string; text: string; placeIds: string[] };
     expect(body.kind).toBe('refusal');
-    expect(body.text).toContain('No one has verified');
+    expect(body.text).toMatch(/Nobody has stood in front/);
     expect(body.placeIds).toHaveLength(0);
     await app.close();
   });

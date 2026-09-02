@@ -110,7 +110,7 @@ async function withoutPointing(inference: Inference, reply: string, placeNames: 
  * The traveller's language from the message itself; the UI setting is only
  * the tie-break. A Spanish message in an English UI gets Spanish back.
  */
-function guessLang(text: string, fallback: 'en' | 'es'): 'en' | 'es' {
+export function guessLang(text: string, fallback: 'en' | 'es'): 'en' | 'es' {
   const t = ` ${text.toLowerCase().replace(/[^\p{L}\s]/gu, ' ')} `;
   if (/[¿¡ñ]|[áéíóú]/.test(text)) return 'es';
   const es = (t.match(/ (el|la|los|las|que|para|con|una|uno|hola|quiero|necesito|busco|donde|dónde|algo|cerca|vamos|dale|si|sí|gracias|manda|avísame|avisame) /g) ?? []).length;

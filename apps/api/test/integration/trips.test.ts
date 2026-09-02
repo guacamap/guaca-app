@@ -179,7 +179,7 @@ describe('trips — POST /api/plan, /api/trips, /api/t/:slug', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json() as { kind: string; text: string; placeIds: string[]; questionId?: string };
     expect(body.kind).toBe('refusal');
-    expect(body.text).toContain('No one has verified');
+    expect(body.text).toMatch(/Nobody has stood in front/);
     expect(body.questionId).toBeTruthy();
     await app.close();
   });

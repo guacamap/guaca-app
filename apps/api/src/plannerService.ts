@@ -3,6 +3,7 @@ import {
   answerFromCatalog,
   converse,
   narrateRefusal,
+  guessLang,
   classifiesIntent,
   classifyWithModel,
   extractIntent,
@@ -190,8 +191,8 @@ export function refusalOptions(input: {
 // sent is the traveller's call now (the last option under the refusal), so
 // the old "we have commissioned a local" promise is gone.
 const REFUSAL_TEXT: Record<string, string> = {
-  es: 'Nadie ha verificado lugares para eso todavía.',
-  en: 'No one has verified places for that yet.',
+  es: 'Nadie ha estado frente a algo así por aquí todavía, así que no voy a adivinar. Puedo mandar a un vecino a revisar, o avisarte cuando esté verificado.',
+  en: 'Nobody has stood in front of anything like that here yet, so I will not guess. I can send a local to check, or tell you when it is verified.',
 };
 
 /**
@@ -393,7 +394,7 @@ export async function ask(
     });
     return {
       kind: 'refusal',
-      text: narrated ?? (REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!),
+      text: narrated ?? REFUSAL_TEXT[guessLang(input.text, input.language === 'es' ? 'es' : 'en')]!,
       placeIds: [],
       ...(narrated ? {} : lead),
       ...withNotes,
