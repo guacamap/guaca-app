@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PlaceCategory } from '@guaca/shared';
+import { PlaceCategory, TAXONOMY_BY_CATEGORY } from '@guaca/shared';
 import { lexicalSweep, normaliseForSweep } from '../guard/lexicalSweep.js';
 import { detectInjection } from '../inference/injection.js';
 import type { Inference } from '../inference/types.js';
@@ -123,6 +123,13 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
   }
 }
 
+/** The category in the traveller's words, never the slug the map uses. */
+function categoryWords(category: string | null, lang: 'en' | 'es'): string {
+  const entry = category ? TAXONOMY_BY_CATEGORY.get(category as PlaceCategory) : undefined;
+  if (!entry) return lang === 'es' ? 'algo concreto' : 'something specific';
+  return (lang === 'es' ? entry.labelEs : entry.labelEn).toLowerCase();
+}
+
 export const RefusalNarrationSchema = z.object({
   /** Two sentences at most. Honest about the gap, warm, no place names. */
   reply: z.string().min(1).max(320),
@@ -159,7 +166,7 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
         'Hard rules: never name, invent, describe or suggest any place, business, beach or event; never guess what exists; never apologise more than once; no lists, no emoji. ' +
         (input.reason === 'UNCLEAR_QUESTION'
           ? 'You did not understand what they want: ask one short friendly question instead of refusing. '
-          : `What they want: ${input.category ?? 'unknown'}. Verified nearby: ${input.coverage.verifiedNearby} places, ${input.coverage.inCategory} in that category (mention the number only if it helps set expectations). `) +
+          : `What they want: ${categoryWords(input.category, lang)}. Verified nearby: ${input.coverage.verifiedNearby} places, ${input.coverage.inCategory} in that category (mention the number only if it helps set expectations). `) +
         (input.now ? `Right now: ${input.now}. Mention a fact from this only if it is useful to them.` : ''),
       user: `Traveller asked: ${input.text}`,
       untrusted: input.text,
