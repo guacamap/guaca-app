@@ -76,4 +76,5 @@ export type { OvertureFeature, OvertureImportResult } from './seed/overtureImpor
 export { importFoursquare, categoryForFoursquare } from './seed/foursquareImport.js';
 export type { FoursquareRow, FoursquareImportResult } from './seed/foursquareImport.js';
 export { recordSource } from './seed/placeSources.js';
+export { fetchAreaAbout, refreshAreaAbout } from './seed/areaAbout.js';
 export type { PlaceSource, SourceRecord } from './seed/placeSources.js';
