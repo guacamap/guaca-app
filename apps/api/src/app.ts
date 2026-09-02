@@ -2365,13 +2365,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
          p.public_phone, p.public_website, p.public_socials, p.public_address, p.public_source, p.public_subcategory, p.contact_confirmed_at,
          ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon,
          p.h3_8, p.open_hours, p.price_band, p.tags, p.source,
-         p.verification_status, p.witness_count,
+         p.verification_status, p.witness_count, p.corroboration,
          p.created_by_spotter_id, p.confirmed_by_spotter_id,
          p.verified_at, p.rejection_reason,
          s.name as spotter_name, s.photo_url as spotter_photo_url
        from places p
        left join spotters s on s.id = p.created_by_spotter_id
-       where p.id = $1 and p.verification_status = 'verified'`,
+       -- A candidate is public already (the map draws it); a plan may cite
+       -- one with its tier, so the sheet must be able to open it. Pending,
+       -- provisional and rejected rows stay private to the spotter flow.
+       where p.id = $1 and p.verification_status in ('verified', 'candidate')`,
       [id],
     );
     if (res.rows.length === 0) {
