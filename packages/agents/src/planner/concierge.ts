@@ -80,8 +80,8 @@ async function pointsAtSomething(inference: Inference, reply: string): Promise<b
       purpose: 'concierge-guard',
       maxOutputTokens: 30,
       system:
-        'You are a strict editor for a service that must never suggest places it has not verified. Read the message and answer true if it mentions, describes, hints at or suggests ANY specific place, spot, beach, trail, road, landmark, building, neighbourhood, business, dish, event or route (named or not, real or not), or promises when something will happen (minutes, hours, tonight). ' +
-        'Greetings, weather, sea, sun, feelings, questions about the traveller, and offers to send a local or to notify them are fine: answer false for those. Answer with the JSON only.',
+        'You are a strict editor for a service that must never suggest places it has not verified. Read the message and answer true if it mentions, describes, hints at, suggests, or claims the existence of ANY place, spot, beach, trail, walk, road, landmark, building, neighbourhood, business, dish, event or route, whether named or not, specific or vague ("a couple of easy walks around", "a trail by the lighthouse", "some spots by the water" all count), or promises a duration (in half an hour, in minutes, tonight). ' +
+        'Greetings, weather, sea, sun, feelings, questions about the traveller, saying that nothing is verified yet, and offers to send a local or to let them know when something is verified are fine: answer false for those. Answer with the JSON only.',
       user: reply,
       untrusted: reply,
     });
@@ -129,6 +129,11 @@ const FALLBACK: Record<'en' | 'es', string> = {
 const SWEPT: Record<'en' | 'es', string> = {
   en: 'Let me check what locals have actually verified for that.',
   es: 'Déjame revisar lo que los locales han verificado para eso.',
+};
+/** When the editor empties a mission or notify reply, the confirmation still has to land. */
+const SWEPT_BY_MODE: Record<'mission' | 'notify', Record<'en' | 'es', string>> = {
+  mission: { en: 'Done, I am sending a local to check. I will tell you what they find.', es: 'Listo, mando a un vecino a revisar. Te cuento lo que encuentre.' },
+  notify: { en: 'Done, I will tell you the moment a local verifies it.', es: 'Listo, te aviso en cuanto un vecino lo verifique.' },
 };
 
 /**
@@ -181,7 +186,8 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
     const kept = await withoutPointing(inference, withoutNamingSentences(turn.reply, input.placeNames));
     if (kept.length === 0) {
       // Every sentence named something. The line goes; the intent survives.
-      return { ...turn, reply: SWEPT[lang], via: 'guard' };
+      const line = turn.mode === 'mission' || turn.mode === 'notify' ? SWEPT_BY_MODE[turn.mode][lang] : SWEPT[lang];
+      return { ...turn, reply: line, via: 'guard' };
     }
     turn.reply = turn.mode === 'chat' ? oneQuestionOnly(kept) : kept;
     if (turn.mode === 'ask' && !turn.askText?.trim()) turn.askText = input.text;
