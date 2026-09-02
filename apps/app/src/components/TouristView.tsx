@@ -84,6 +84,8 @@ interface RefusalContext {
   category: string | null
   coverage: { verifiedNearby: number; inCategory: number }
   options: RefusalOption[]
+  /** Guaca said it in its own words: show it as a message, not a notice. */
+  spoken?: boolean
 }
 interface MissionState {
   status: 'sending' | 'commissioned' | 'already_open' | 'budget' | 'no_spotter' | 'needs_approval' | 'declined' | 'failed'
@@ -1071,7 +1073,8 @@ export function TouristView() {
   }
 
   /** Everything under a refusal's headline: honest coverage, the chips, the watch, and the local as the last option. */
-  const renderRefusalBody = (questionId: string | undefined, ctx: RefusalContext | undefined, onAsk: (text: string) => void, compact: boolean) => {
+  const renderRefusalBody = (questionId: string | undefined, ctx: RefusalContext | undefined, onAsk: (text: string) => void, compact: boolean, tone: 'dark' | 'light' = 'dark') => {
+    const light = tone === 'light'
     const label = (c: string | null) => (c ? (t.categoryLabels[c] ?? c).toLowerCase() : '')
     const fill = (s: string, vars: Record<string, string | number>) => Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), s)
     const mission = questionId ? missions[questionId] : undefined
@@ -1089,7 +1092,7 @@ export function TouristView() {
     const txt = compact ? 'text-[10.5px]' : 'text-[11px]'
     return (
       <>
-        {ctx && (
+        {ctx && !ctx.spoken && (
           <p className={`mt-2 ${txt} font-bold leading-relaxed text-white/70`}>
             {ctx.reason === 'UNCLEAR_QUESTION'
               ? t.refusalUnclear
@@ -1101,10 +1104,12 @@ export function TouristView() {
         {!ctx && <p className={`mt-2 ${txt} font-bold leading-relaxed text-white/65`}>{t.refusalNote}</p>}
         {chips.length > 0 && (
           <div className="mt-3">
-            {ctx?.reason !== 'UNCLEAR_QUESTION' && <p className={`${txt} font-black text-white/85`}>{t.refusalOffer}</p>}
+            {ctx?.reason !== 'UNCLEAR_QUESTION' && !ctx?.spoken && <p className={`${txt} font-black text-white/85`}>{t.refusalOffer}</p>}
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {chips.map((o) => (
-                <button key={o.label} type="button" onClick={() => onAsk(o.text)} className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-black text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+                <button key={o.label} type="button" onClick={() => onAsk(o.text)} className={light
+                  ? 'rounded-full bg-guaca-teal/8 px-3 py-1.5 text-[11px] font-black text-guaca-teal hover:bg-guaca-teal/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guaca-teal/50'
+                  : 'rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-black text-white hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70'}>
                   {o.label}
                 </button>
               ))}
@@ -1114,23 +1119,27 @@ export function TouristView() {
         {questionId && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {hasNotify && !mission && (notified.has(questionId) ? (
-              <p className="flex items-center gap-1.5 text-[11px] font-black text-guaca-mango-light">
+              <p className={`flex items-center gap-1.5 text-[11px] font-black ${light ? 'text-guaca-teal-dark' : 'text-guaca-mango-light'}`}>
                 <Check className="h-3.5 w-3.5" /> {t.refusalNotifySaved}
               </p>
             ) : (
-              <button type="button" onClick={() => notifyMe(questionId)} className="flex items-center gap-1.5 rounded-full bg-guaca-mango px-3 py-2 text-[11px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light">
+              <button type="button" onClick={() => notifyMe(questionId)} className={light
+                ? 'flex items-center gap-1.5 rounded-full bg-guaca-teal/8 px-3 py-2 text-[11px] font-black text-guaca-teal hover:bg-guaca-teal/15'
+                : 'flex items-center gap-1.5 rounded-full bg-guaca-mango px-3 py-2 text-[11px] font-black text-guaca-ocean-deep hover:bg-guaca-mango-light'}>
                 <Bell className="h-3.5 w-3.5" /> {t.refusalNotify}
               </button>
             ))}
             {hasMission && !mission && (
-              <button type="button" onClick={() => void requestMission(questionId)} className="flex items-center gap-1.5 rounded-full border border-guaca-coral/80 bg-guaca-coral/20 px-3 py-2 text-[11px] font-black text-white hover:bg-guaca-coral/35">
+              <button type="button" onClick={() => void requestMission(questionId)} className={light
+                ? 'flex items-center gap-1.5 rounded-full bg-guaca-coral/10 px-3 py-2 text-[11px] font-black text-guaca-coral-dark hover:bg-guaca-coral/20'
+                : 'flex items-center gap-1.5 rounded-full border border-guaca-coral/80 bg-guaca-coral/20 px-3 py-2 text-[11px] font-black text-white hover:bg-guaca-coral/35'}>
                 <Radio className="h-3.5 w-3.5 text-guaca-coral" /> {t.refusalMission}
               </button>
             )}
           </div>
         )}
         {missionLine && (
-          <p className={`mt-3 flex items-start gap-1.5 ${txt} font-black leading-relaxed ${mission?.status === 'commissioned' || mission?.status === 'already_open' ? 'text-guaca-mango-light' : 'text-white/80'}`}>
+          <p className={`mt-3 flex items-start gap-1.5 ${txt} font-black leading-relaxed ${light ? 'text-guaca-teal-dark' : mission?.status === 'commissioned' || mission?.status === 'already_open' ? 'text-guaca-mango-light' : 'text-white/80'}`}>
             {mission?.status === 'sending' ? <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" /> : <Radio className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
             <span>{missionLine}</span>
           </p>
@@ -1929,6 +1938,12 @@ export function TouristView() {
                   return <p className="mt-2 flex items-start gap-1.5 text-[11px] font-black leading-relaxed text-guaca-teal-dark"><Radio className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>{line}</span></p>
                 })()}
                 {m.kind === 'notify' && <p className="mt-2 flex items-center gap-1.5 text-[11px] font-black text-guaca-teal-dark"><Check className="h-3.5 w-3.5" /> {t.refusalNotifySaved}</p>}
+              </div>
+            ) : m.kind === 'refusal' && m.refusal?.spoken ? (
+              <div key={m.id} className="guaca-card max-w-[92%] rounded-3xl rounded-bl-lg p-4">
+                {m.notes?.map((n) => <p key={n} className="mb-1.5 flex items-start gap-1.5 text-[11px] font-bold leading-snug text-guaca-mango-dark"><Sun className="mt-0.5 h-3.5 w-3.5 shrink-0" />{n}</p>)}
+                <p className="whitespace-pre-line text-[13px] font-bold leading-relaxed text-guaca-ink">{m.text}</p>
+                {renderRefusalBody(m.questionId, m.refusal, (text) => void askGuaca(text), true, 'light')}
               </div>
             ) : m.kind === 'refusal' ? (
               <div key={m.id} className="max-w-[92%] rounded-3xl rounded-bl-lg bg-guaca-ocean-deep p-4 text-white shadow-md">

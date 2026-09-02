@@ -93,6 +93,8 @@ export interface RefusalContext {
   coverage: { verifiedNearby: number; inCategory: number };
   /** Ordered; the mission is always last. */
   options: RefusalOption[];
+  /** True when `text` is Guaca's own sentence, so the client shows it as a message, not a notice. */
+  spoken?: boolean;
 }
 
 export interface AskResult {
@@ -382,6 +384,7 @@ export async function ask(
     const narrated = await narrateRefusal(opts.inference, {
       text: input.text,
       language: input.language,
+      history: input.history ?? [],
       reason: outcome.reason,
       category: understood,
       coverage: { verifiedNearby: rows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0 },
@@ -400,6 +403,7 @@ export async function ask(
         reason: outcome.reason,
         category: understood,
         coverage: { verifiedNearby: rows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0 },
+        ...(narrated ? { spoken: true } : {}),
         options: refusalOptions({
           language: input.language, reason: outcome.reason, category: understood,
           verifiedNearby: rows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0, byCategory,
