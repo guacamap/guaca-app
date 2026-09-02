@@ -1262,7 +1262,7 @@ export function TouristView() {
     if (!now) return null
     const fill = (str: string, vars: Record<string, string | number>) => Object.entries(vars).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), str)
     const bits: string[] = []
-    if (now.weather) bits.push(`${Math.round(now.weather.tempC)}°C${now.weather.rainPct >= 40 ? ` · ${now.weather.rainPct}% ☔` : ''}${now.weather.uv >= 8 ? ` · UV ${Math.round(now.weather.uv)}` : ''}`)
+    if (now.weather) bits.push(`${Math.round(now.weather.tempC)}°C${now.weather.rainPct >= 40 ? ` · ☔ ${fill(t.nowRain, { pct: now.weather.rainPct })}` : ''}${now.weather.uv >= 8 ? ` · UV ${Math.round(now.weather.uv)}` : ''}`)
     if (now.sea) bits.push(t.nowSea[now.sea.state])
     if (now.sun) bits.push(fill(t.nowSunset, { time: now.sun.sunset }))
     if (now.holiday) bits.push(fill(t.nowHoliday, { name: now.holiday.localName }))
@@ -1864,7 +1864,7 @@ export function TouristView() {
 
   const renderGuaca = () => (
     <div className="flex h-full flex-col bg-guaca-sand-light lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
-      <div className="shrink-0 bg-gradient-to-br from-guaca-teal to-guaca-ocean px-5 pb-4 pt-12 text-white lg:rounded-b-[28px]">
+      <div className="shrink-0 bg-gradient-to-br from-guaca-teal to-guaca-ocean px-5 pb-4 pt-12 text-white lg:mt-12 lg:rounded-[32px] lg:p-6 lg:shadow-xl">
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-white/80">
           <Sparkles className="h-3.5 w-3.5" /> {t.guacaTitle}
         </p>

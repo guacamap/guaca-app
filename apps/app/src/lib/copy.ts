@@ -248,6 +248,7 @@ export interface AppCopy {
     coverageTitle: string
     coverageBody: string
     nowSunset: string
+    nowRain: string
     nowHoliday: string
     nowSea: Record<'calm' | 'moderate' | 'rough', string>
     nowRates: string
@@ -578,6 +579,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       coverageTitle: 'Coverage grows locally',
       coverageBody: 'Verified places appear as Spotters confirm them on the ground.',
       nowSunset: 'sunset {time}',
+      nowRain: '{pct}% rain',
       nowHoliday: 'holiday: {name}',
       nowSea: { calm: 'calm sea', moderate: 'some waves', rough: 'rough sea' },
       nowRates: '1 USD = {official} {currency} official · {parallel} parallel',
@@ -915,6 +917,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       coverageTitle: 'La cobertura crece localmente',
       coverageBody: 'Los lugares verificados aparecen cuando los Spotters los confirman en el terreno.',
       nowSunset: 'atardecer {time}',
+      nowRain: '{pct}% lluvia',
       nowHoliday: 'feriado: {name}',
       nowSea: { calm: 'mar en calma', moderate: 'algo de oleaje', rough: 'mar picado' },
       nowRates: '1 USD = {official} {currency} oficial · {parallel} paralelo',
