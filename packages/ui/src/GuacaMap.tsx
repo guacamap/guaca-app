@@ -138,7 +138,19 @@ interface GuacaMapProps {
   fallbackImage?: string
 }
 
+import { TAXONOMY } from '@guaca/shared'
+
 const DOTS_SOURCE = 'guaca-dots'
+
+/** ['match', ['get','category'], cat1, color1, cat2, color2, ..., fallback] —
+ *  built once from the one taxonomy definition, so a dot, a pin and a
+ *  category chip are always the same colour for the same category. */
+const DOT_COLOR_EXPR: mapboxgl.ExpressionSpecification = [
+  'match',
+  ['get', 'category'],
+  ...TAXONOMY.flatMap((t) => [t.category, t.color]),
+  '#0C4A5C',
+]
 const HEAT_SOURCE = 'guaca-heat'
 
 /** mapbox-gl's own GeoJSON input type — avoids a @types/geojson dependency. */
@@ -234,8 +246,8 @@ function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[],
       source: DOTS_SOURCE,
       paint: {
         'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
-        'circle-color': '#0C4A5C',
-        'circle-opacity': 0.55,
+        'circle-color': DOT_COLOR_EXPR,
+        'circle-opacity': 0.7,
         'circle-stroke-width': 1,
         'circle-stroke-color': '#ffffff',
         'circle-stroke-opacity': 0.7,

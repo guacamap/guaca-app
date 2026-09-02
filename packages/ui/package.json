@@ -13,6 +13,7 @@
     "test:unit": "echo 'no ui unit tests yet' && exit 0"
   },
   "dependencies": {
+    "@guaca/shared": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
     "mapbox-gl": "^3.28.1",
