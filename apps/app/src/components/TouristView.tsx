@@ -4,6 +4,7 @@ import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoSt
 import { CARIBBEAN_COUNTRIES, TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 import { InstallApp } from './InstallApp'
+import { RailArt } from './RailArt'
 
 /** Puerto Cabello — the pilot area; also the geolocation fallback. */
 const PILOT_CENTER: [number, number] = [-68.0056, 10.4716]
@@ -2528,10 +2529,7 @@ export function TouristView() {
             return <Button key={tab.id} type="button" variant="ghost" onClick={() => setActiveTab(tab.id)} aria-label={tab.label} aria-current={active ? 'page' : undefined} className={`h-14 min-w-16 flex-col gap-1 rounded-2xl px-3 text-[10px] font-bold hover:bg-transparent lg:h-[76px] lg:w-[88px] lg:text-[13px] ${active ? 'text-guaca-teal lg:bg-guaca-teal/10' : 'text-guaca-ink/42 lg:hover:bg-guaca-sand'}`}><Icon className={`h-5 w-5 lg:h-7 lg:w-7 ${active ? 'fill-guaca-teal/10' : ''}`} />{tab.label}</Button>
           })}
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-56 overflow-hidden lg:block" aria-hidden="true">
-          <Palmtree className="absolute left-3 top-2 h-24 w-24 text-guaca-teal/60" strokeWidth={1.4} />
-          <svg viewBox="0 0 112 90" className="absolute inset-x-0 bottom-0 w-full text-guaca-teal/25" fill="currentColor"><path d="M0 40c18-12 36-12 56 0s38 12 56 0v50H0z"/><path d="M0 62c18-12 36-12 56 0s38 12 56 0v28H0z" opacity=".6"/></svg>
-        </div>
+        <RailArt />
       </div>
     </div>
   )

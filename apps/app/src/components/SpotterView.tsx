@@ -5,6 +5,7 @@ import { TAXONOMY } from '@guaca/shared'
 import { appCopy } from '../lib/copy'
 import { photoToBase64 } from '../lib/image'
 import { InstallApp } from './InstallApp'
+import { RailArt } from './RailArt'
 
 // ~6.5 km — the walkable pilot zone; matches the tourist map's candidate query.
 const CANDIDATE_BBOX_HALF_DEG = 0.06
@@ -915,7 +916,7 @@ export function SpotterView() {
       )}
       </div>
 
-      <div className="z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:w-24 lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
+      <div className="relative z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:w-24 lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
         <div className="flex items-center justify-around lg:flex-col lg:justify-start lg:gap-5">
           {(
             [
@@ -934,6 +935,7 @@ export function SpotterView() {
             )
           })}
         </div>
+        <RailArt />
       </div>
     </div>
   )
