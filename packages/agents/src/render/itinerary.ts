@@ -32,21 +32,27 @@ interface Template {
   stop: (name: string, start: string, reason: string) => string;
   day: (n: number) => string;
   header: string;
+  headerTomorrow: string;
   footer: string;
+  reasons: Record<string, string>;
 }
 
 const TEMPLATES: Record<string, Template> = {
   en: {
     header: 'Here is your plan:',
+    headerTomorrow: 'Here is your plan for tomorrow:',
     footer: 'Every stop says how much is known about it.',
     stop: (name, start, reason) => `${start} — ${name} (${reason})`,
     day: (n) => `Day ${n}`,
+    reasons: { NEAREST: 'closest to you', OPEN_NOW: 'open now', MATCHES_TOPIC: 'what you asked for', BEST_RATED: 'a favourite', AVOID_CLOSED: 'fits the timing', SEQUENCE_FIT: 'on the way' },
   },
   es: {
     header: 'Este es tu plan:',
+    headerTomorrow: 'Este es tu plan para mañana:',
     footer: 'Cada parada dice cuánto se sabe de ella.',
     stop: (name, start, reason) => `${start} — ${name} (${reason})`,
     day: (n) => `Día ${n}`,
+    reasons: { NEAREST: 'lo más cerca', OPEN_NOW: 'abierto ahora', MATCHES_TOPIC: 'lo que pediste', BEST_RATED: 'un favorito', AVOID_CLOSED: 'encaja en el horario', SEQUENCE_FIT: 'de camino' },
   },
 };
 
@@ -66,12 +72,13 @@ export function renderItinerary(
   artifact: PlanArtifact,
   places: ReadonlyMap<string, RenderPlace>,
   lang: string,
+  opts: { tomorrow?: boolean } = {},
 ): string {
   const t = TEMPLATES[lang] ?? TEMPLATES.en!;
   // Single-day plans render exactly as they always have — no day header.
   // A day header only appears when the plan actually spans days.
   const multiDay = artifact.stops.some((s) => s.dayIndex > 0);
-  const lines = [t.header];
+  const lines = [opts.tomorrow && !multiDay ? t.headerTomorrow : t.header];
   let unverified = false;
   const days = [...new Set(artifact.stops.map((s) => s.dayIndex))].sort((a, b) => a - b);
   for (const day of days) {
@@ -91,7 +98,7 @@ export function renderItinerary(
       }
       const tier = place.tier ?? 'verified';
       lines.push(
-        t.stop(place.name, fmt(stop.startMin), stop.reasonCode) +
+        t.stop(place.name, fmt(stop.startMin), t.reasons[stop.reasonCode] ?? stop.reasonCode) +
           (place.phone ? ` · tel ${place.phone}` : '') +
           ` · ${tierWords(tier, lang, { corroboration: place.corroboration ?? 0, verifiedAt: place.verifiedAt ?? null, spotter: place.spotterName ?? null })}`,
       );

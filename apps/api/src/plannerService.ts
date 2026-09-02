@@ -397,6 +397,9 @@ export async function ask(
     };
   }
   const askText = turn.askText?.trim() || input.text;
+  const nowMin = localNowMin(area?.timezone);
+  const planForTomorrow = nowMin >= 17 * 60 && /plan|day|día|dia|itinerar/i.test(askText);
+  const spoken = guessLang(input.text, lang);
   const lead = turn.via === 'model' && turn.reply.trim() ? { lead: turn.reply.trim() } : {};
 
   // Intent, coverage, fast path, single-topic filter, guarded model path and
@@ -422,7 +425,9 @@ export async function ask(
     })),
     inference: opts.inference,
     minCandidates: opts.minCandidates,
-    nowMin: localNowMin(area?.timezone),
+    // After 17:00 "plan my day" means tomorrow: a whole day from the
+    // morning, said so in the header. Before that, the day left from now.
+    nowMin: planForTomorrow ? 8 * 60 : nowMin,
   });
 
   // The concierge asked a question but chose 'ask', and the pipeline could
@@ -483,7 +488,7 @@ export async function ask(
   const sugg = await followUps(ids);
   return {
     kind: 'answer',
-    text: renderItinerary(outcome.artifact, places, input.language),
+    text: renderItinerary(outcome.artifact, places, spoken, { tomorrow: planForTomorrow }),
     placeIds: ids,
     ...lead,
     ...withNotes,
