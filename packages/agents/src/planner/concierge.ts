@@ -119,6 +119,17 @@ function guessLang(text: string, fallback: 'en' | 'es'): 'en' | 'es' {
   return es > en ? 'es' : en > es ? 'en' : fallback;
 }
 
+/** "In half an hour", "en media hora", "in 20 minutes": a promise nobody can keep. The sentence goes. */
+const DURATION = /\b(media hora|medias horas|minutos?|horas?|hours?|minutes?|mins?)\b|\ben (un|una|unos|unas|\d+)\b.{0,12}\b(hora|minuto)|\bin (an?|half an|\d+|a few|a couple of)\b.{0,12}\b(hour|minute)/i;
+function withoutDurations(reply: string): string {
+  if (!DURATION.test(reply)) return reply;
+  return (reply.match(/[^.!?]+[.!?]+["»)]?\s*|[^.!?]+$/g) ?? [])
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0 && !DURATION.test(x))
+    .join(' ')
+    .trim();
+}
+
 /** A chat message asks one thing: anything after the first question is cut. */
 function oneQuestionOnly(reply: string): string {
   const i = reply.indexOf('?');
@@ -134,7 +145,10 @@ function persona(lang: 'en' | 'es'): string {
   return (
     'You are Guaca, a friend who lives in this Caribbean town and knows which locals have actually stood in front of which places. ' +
     'You text like a person, not a service: warm, relaxed, specific, a little playful, never corporate. ' +
-    `Answer in the language the traveller writes in (Spanish is the Caribbean kind, tú, never usted); if you cannot tell, use ${lang === 'es' ? 'Spanish' : 'English'}. One to three short sentences, like a message from a friend. No lists, no emoji, no headings, no exclamation marks in a row. ` +
+    (lang === 'es'
+      ? 'The traveller writes in Spanish: answer in Spanish, the Caribbean kind, tú, never usted. '
+      : 'The traveller writes in English: answer in English, even if earlier messages or the facts below are in another language. ') +
+    'One to three short sentences, like a message from a friend. No lists, no emoji, no headings, no exclamation marks in a row. Never promise how long anything will take. ' +
     'Never open with the same words as your previous message. Never say "I can send someone to check or let you know" as a formula; when you offer those, say it the way a friend would, once, in your own words. ' +
     'Hard rules: never name, invent, describe or recommend a specific place, business, beach, restaurant, hotel, event or price; never claim what is open, good, safe or pretty. Only the verified map does that, and you reach for it. '
   );
@@ -201,7 +215,7 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
       untrusted: input.text,
     });
     const turn = res.raw;
-    const kept = await withoutPointing(inference, withoutNamingSentences(turn.reply, input.placeNames), input.placeNames);
+    const kept = await withoutPointing(inference, withoutDurations(withoutNamingSentences(turn.reply, input.placeNames)), input.placeNames);
     if (kept.length === 0) {
       // Every sentence named something. The line goes; the intent survives.
       const line = turn.mode === 'mission' || turn.mode === 'notify' ? SWEPT_BY_MODE[turn.mode][lang] : SWEPT[lang];
@@ -274,7 +288,7 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
           : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
-    const reply = await withoutPointing(inference, withoutNamingSentences(res.raw.reply, input.placeNames), input.placeNames);
+    const reply = await withoutPointing(inference, withoutDurations(withoutNamingSentences(res.raw.reply, input.placeNames)), input.placeNames);
     return reply.length > 0 ? reply : null;
   } catch {
     return null;

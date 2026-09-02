@@ -114,6 +114,10 @@ describe('the refusal in Guaca\'s voice', () => {
     );
     expect(r).toBe('Nobody has verified that yet. Want me to send a local?');
   });
+  it('a promised duration is cut before the editor even looks', async () => {
+    const r = await narrateRefusal(new Scripted({ reply: 'Nobody has verified that yet. I can send a local and tell you in half an hour. Want that?' }), input);
+    expect(r).toBe('Nobody has verified that yet. Want that?');
+  });
   it('a cleaned message that still points at something is dropped', async () => {
     const r = await narrateRefusal(new Scripted({ reply: 'There is a trail by the old lighthouse.' }, () => 'Some walks around.'), input);
     expect(r).toBeNull();
