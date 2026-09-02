@@ -59,6 +59,8 @@ interface ApiPlace {
   public_address?: string | null
   public_subcategory?: string | null
   contact_confirmed_at?: string | null
+  verification_status?: string
+  corroboration?: number
 }
 
 interface CandidatePlace {
@@ -539,10 +541,12 @@ export function TouristView() {
       .catch(() => {})
   }, [activeTab])
 
-  // Resolve plan stops that are outside the current map bbox.
+  // Resolve plan stops outside the current map bbox, and every place an
+  // answer in the thread cites: a plan may name an open-data place the
+  // verified layer does not carry, and its chip still has to open.
   useEffect(() => {
-    if (!plan) return
-    for (const id of plan.placeIds) {
+    const wanted = new Set<string>([...(plan?.placeIds ?? []), ...thread.flatMap((m) => m.placeIds ?? [])])
+    for (const id of wanted) {
       if (places.some((p) => p.id === id) || planPlaces[id]) continue
       fetch(`/api/places/${id}`, { credentials: 'include' })
         .then((r) => (r.ok ? r.json() : null))
@@ -551,7 +555,7 @@ export function TouristView() {
         })
         .catch(() => {})
     }
-  }, [plan, places, planPlaces])
+  }, [plan, thread, places, planPlaces])
 
   const pins = useMemo(
     () =>
@@ -1627,6 +1631,16 @@ export function TouristView() {
               <p className="mt-2 text-[11px] font-medium leading-relaxed text-guaca-ink/60">{selected.description}</p>
             )}
             {renderPublicInfo(selected)}
+            {selected.verification_status === 'candidate' ? (
+              <div className="mt-4 rounded-2xl bg-guaca-ink/5 p-3">
+                <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[.1em] text-guaca-ink/55">
+                  <Globe className="h-3.5 w-3.5" /> {t.candidateTitle}
+                </p>
+                <p className="mt-1 text-[12px] font-bold text-guaca-ink/70">
+                  {(selected.corroboration ?? 0) >= 2 ? t.tierCorroborated.replaceAll('{n}', String(selected.corroboration)) : t.tierListed}
+                </p>
+              </div>
+            ) : (
             <div className="mt-4 flex items-center gap-3 rounded-2xl bg-guaca-teal/7 p-3">
               <Avatar url={selected.spotter_photo_url} name={selected.spotter_name} className="h-10 w-10" textClassName="text-xs" />
               <div className="min-w-0">
@@ -1643,6 +1657,7 @@ export function TouristView() {
                 </p>
               </div>
             </div>
+            )}
 
             {/* Actions: navigate, ask, share, doubt — tourists can only
                 ask and doubt; nothing here publishes content. */}

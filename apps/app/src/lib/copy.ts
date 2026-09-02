@@ -288,6 +288,8 @@ export interface AppCopy {
     favEmpty: string
     candidateTitle: string
     candidateBody: string
+    tierCorroborated: string
+    tierListed: string
     candidateCta: string
     candidateAsk: string
     offline: string
@@ -627,6 +629,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       favTitle: 'Saved places',
       favEmpty: 'Tap ♥ on any place to keep it here.',
       candidateTitle: 'Not verified yet',
+      tierCorroborated: '{n} open maps agree this exists. Nobody from Guaca has stood here yet.',
+      tierListed: 'Listed once in open data, unconfirmed.',
       candidateBody: 'This spot is on OpenStreetMap, but no local has physically checked it. Ask Guaca and your question can send a paid Spotter.',
       candidateCta: 'Ask Guaca about it',
       candidateAsk: 'Is {name} open and worth visiting?',
@@ -965,6 +969,8 @@ export const appCopy: Record<Lang, AppCopy> = {
       favTitle: 'Lugares guardados',
       favEmpty: 'Toca ♥ en cualquier lugar para tenerlo aquí.',
       candidateTitle: 'Aún sin verificar',
+      tierCorroborated: '{n} mapas abiertos coinciden en que existe. Nadie de Guaca ha estado aquí todavía.',
+      tierListed: 'Listado una vez en datos abiertos, sin confirmar.',
       candidateBody: 'Este punto está en OpenStreetMap, pero ningún local lo ha comprobado físicamente. Pregúntale a Guaca y tu pregunta puede enviar a un Spotter pagado.',
       candidateCta: 'Pregúntale a Guaca',
       candidateAsk: '¿{name} está abierto y vale la pena?',
