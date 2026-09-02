@@ -93,7 +93,7 @@ export function renderItinerary(
       lines.push(
         t.stop(place.name, fmt(stop.startMin), stop.reasonCode) +
           (place.phone ? ` · tel ${place.phone}` : '') +
-          ` · ${tierWords(tier, lang, { corroboration: place.corroboration, verifiedAt: place.verifiedAt ?? null, spotter: place.spotterName ?? null })}`,
+          ` · ${tierWords(tier, lang, { corroboration: place.corroboration ?? 0, verifiedAt: place.verifiedAt ?? null, spotter: place.spotterName ?? null })}`,
       );
       if (tier !== 'verified') unverified = true;
     }
