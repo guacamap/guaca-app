@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 import {
   answerFromCatalog,
   converse,
+  narrateRefusal,
   classifiesIntent,
   classifyWithModel,
   extractIntent,
@@ -376,11 +377,22 @@ export async function ask(
     const byCategory = new Map<string, number>();
     for (const r of rows) byCategory.set(r.category, (byCategory.get(r.category) ?? 0) + 1);
     const understood = outcome.reason === 'UNCLEAR_QUESTION' ? null : category;
+    // Guaca says the refusal itself; the fixed line only when the model is
+    // down or named something. The lead sentence would double up, so it goes.
+    const narrated = await narrateRefusal(opts.inference, {
+      text: input.text,
+      language: input.language,
+      reason: outcome.reason,
+      category: understood,
+      coverage: { verifiedNearby: rows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0 },
+      placeNames: rows.map((r) => r.name),
+      ...(ctx ? { now: contextLine(ctx) } : {}),
+    });
     return {
       kind: 'refusal',
-      text: REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!,
+      text: narrated ?? (REFUSAL_TEXT[input.language] ?? REFUSAL_TEXT.en!),
       placeIds: [],
-      ...lead,
+      ...(narrated ? {} : lead),
       ...withNotes,
       ...withCtx,
       ...(questionId ? { questionId } : {}),

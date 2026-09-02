@@ -76,7 +76,7 @@ describe('POST /api/ask', () => {
     await app.close();
   });
 
-  it('answers a covered question from verified data (fast path, zero model calls)', async () => {
+  it('answers a covered question from verified data (fast path, no planner call)', async () => {
     const fake = new FakeInference({});
     const cap = captureSender();
     const app = buildApp({ pool, inference: fake, minCandidates: 1, emailSender: cap.sender });
@@ -92,8 +92,9 @@ describe('POST /api/ask', () => {
     expect(body.kind).toBe('answer');
     expect(body.text).toContain('Arepera La Guacamaya');
     expect(body.placeIds).toContain('00000000-0000-4000-8000-0000000000d1');
-    // The fast path served the answer without touching the model.
-    expect(fake.calls).toHaveLength(0);
+    // Guaca takes the turn (one concierge call), then the fast path serves
+    // the answer itself without a planner call: the places came from the map.
+    expect(fake.calls.map((c) => c.purpose)).toEqual(['concierge']);
     await app.close();
   });
 
@@ -101,7 +102,7 @@ describe('POST /api/ask', () => {
     // The DB holds one verified eat_drink place; the question is nightlife.
     // The old model path offered the whole catalog and answered with an
     // arepera. Now: catalog filtered to nightlife = empty → honest refusal,
-    // zero inference calls, demand recorded for the gap agent.
+    // no planner call, demand recorded for the gap agent.
     const fake = new FakeInference({});
     const cap = captureSender();
     const app = buildApp({ pool, inference: fake, minCandidates: 1, emailSender: cap.sender });
@@ -117,7 +118,9 @@ describe('POST /api/ask', () => {
     expect(body.kind).toBe('refusal');
     expect(body.placeIds).toHaveLength(0);
     expect(body.questionId).toBeTruthy();
-    expect(fake.calls).toHaveLength(0); // refused before any token was spent
+    // The concierge takes the turn and then says the refusal in its own
+    // words; no planner call was ever made, so nothing could cite the arepera.
+    expect(fake.calls.map((c) => c.purpose)).toEqual(['concierge', 'concierge']);
     await app.close();
   });
 
