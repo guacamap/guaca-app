@@ -50,6 +50,26 @@ function namesAnything(reply: string, placeNames: readonly string[]): boolean {
 }
 
 /**
+ * Keep what can be kept: the sentences that name nothing survive, the ones
+ * that do are dropped. Empty when nothing survives, and the caller falls
+ * back. "Caribbean Sea" in a sweep hit should not cost the whole message.
+ */
+function withoutNamingSentences(reply: string, placeNames: readonly string[]): string {
+  if (!namesAnything(reply, placeNames)) return reply.trim();
+  const kept = (reply.match(/[^.!?]+[.!?]+["»)]?\s*|[^.!?]+$/g) ?? [])
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0 && !namesAnything(x, placeNames));
+  return kept.join(' ').trim();
+}
+
+/** A chat message asks one thing: anything after the first question is cut. */
+function oneQuestionOnly(reply: string): string {
+  const i = reply.indexOf('?');
+  if (i < 0 || reply.indexOf('?', i + 1) < 0) return reply;
+  return reply.slice(0, i + 1).trim();
+}
+
+/**
  * Who Guaca is, in every call. The rules that keep it honest come after
  * this in each prompt; this is the voice.
  */
@@ -119,12 +139,14 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
       untrusted: input.text,
     });
     const turn = res.raw;
-    if (namesAnything(turn.reply, input.placeNames)) {
-      // It named a place. The sentence goes; the intent (if any) survives.
+    const kept = withoutNamingSentences(turn.reply, input.placeNames);
+    if (kept.length === 0) {
+      // Every sentence named something. The line goes; the intent survives.
       return { ...turn, reply: SWEPT[lang], via: 'guard' };
     }
+    turn.reply = turn.mode === 'chat' ? oneQuestionOnly(kept) : kept;
     if (turn.mode === 'ask' && !turn.askText?.trim()) turn.askText = input.text;
-    return { ...turn, via: 'model' };
+    return { ...turn, via: kept === res.raw.reply.trim() ? 'model' : 'guard' };
   } catch {
     // Provider down: the lexicon decides. A concrete ask still reaches the
     // pipeline, which refuses honestly and records the demand; anything else
@@ -189,9 +211,8 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
           : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
-    const reply = res.raw.reply.trim();
-    if (!reply || namesAnything(reply, input.placeNames)) return null;
-    return reply;
+    const reply = withoutNamingSentences(res.raw.reply, input.placeNames);
+    return reply.length > 0 ? reply : null;
   } catch {
     return null;
   }
