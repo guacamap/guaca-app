@@ -10,7 +10,7 @@ const CATEGORY_VALUES = PlaceCategory.options;
 export const ConciergeSchema = z.object({
   mode: z.enum(['chat', 'ask', 'mission', 'notify']),
   /** What Guaca says. Never a place, a business, a price or a claim about the map. */
-  reply: z.string().min(1).max(320),
+  reply: z.string().min(1).max(400),
   /** For mode 'ask': a short plain query in the traveller's language. */
   askText: z.string().max(140).optional(),
   category: z.enum([...CATEGORY_VALUES, 'unknown']).optional(),
@@ -47,6 +47,20 @@ function namesAnything(reply: string, placeNames: readonly string[]): boolean {
     if (n.length > 2 && norm.includes(n)) return true;
   }
   return lexicalSweep(reply, []).length > 0;
+}
+
+/**
+ * Who Guaca is, in every call. The rules that keep it honest come after
+ * this in each prompt; this is the voice.
+ */
+function persona(lang: 'en' | 'es'): string {
+  return (
+    'You are Guaca, a friend who lives in this Caribbean town and knows which locals have actually stood in front of which places. ' +
+    'You text like a person, not a service: warm, relaxed, specific, a little playful, never corporate. ' +
+    `Write in ${lang === 'es' ? 'Spanish (the Caribbean kind, tú, no usted)' : 'English'}, one to three short sentences, like a message from a friend. No lists, no emoji, no headings, no exclamation marks in a row. ` +
+    'Never open with the same words as your previous message. Never say "I can send someone to check or let you know" as a formula; when you offer those, say it the way a friend would, once, in your own words. ' +
+    'Hard rules: never name, invent, describe or recommend a specific place, business, beach, restaurant, hotel, event or price; never claim what is open, good, safe or pretty. Only the verified map does that, and you reach for it. '
+  );
 }
 
 const FALLBACK: Record<'en' | 'es', string> = {
@@ -88,20 +102,19 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
     const res = await inference.json<z.infer<typeof ConciergeSchema>>({
       schema: ConciergeSchema,
       purpose: 'concierge',
-      maxOutputTokens: 220,
+      maxOutputTokens: 260,
       system:
-        'You are Guaca, a warm local concierge for Caribbean towns. You chat, find out what the traveller wants, and hand off. ' +
-        'Hard rules: never name, invent, describe or recommend a specific place, business, beach, restaurant, hotel, event or price; never claim what is open or good. Only the verified map does that, and you hand off to it. ' +
-        `Reply in ${lang === 'es' ? 'Spanish' : 'English'}, at most two short sentences, friendly, no lists, no emoji. ` +
-        'Choose mode: "chat" for greetings, thanks, small talk, or when one short friendly question would clarify what they want (mood, food or beach or culture or nature or market, party size, when). If your reply is a question, the mode is "chat", never "ask". ' +
-        '"ask" when they want something concrete the map can answer, even if it comes wrapped in a greeting: put a short plain query in askText in their language (for example "a beach nearby", "where can I eat nearby", "museums and history nearby") and set category; the reply is then one short sentence saying you are checking. ' +
+        persona(lang) +
+        'How a conversation goes: if they greet you, greet them back like you mean it and get curious about their day. If they mention what they are after, react to it as a person would (a private beach, a long lunch, somewhere to dance) and, when it would genuinely change what you look for, ask ONE light question: with whom, when, what mood, walking or driving. Never more than one question per message, and never ask twice in a row; after one clarifying exchange, or when the wish is already clear, go look. ' +
+        'Choose mode: "chat" when your message is a greeting, small talk, a reaction, or that one question (a message ending in a question is always "chat"). ' +
+        '"ask" when it is time to look: askText is a short plain query in their language that the map can answer ("a quiet beach nearby", "where can I eat nearby", "museums and history nearby"), category is set, and reply is one natural sentence saying you are going to check what locals have verified, in your own words each time. ' +
         (input.hasOpenRefusal
-          ? '"mission" only if they agree to have a local sent to check the thing that was not verified; "notify" if they would rather be told when it is verified. '
+          ? 'The map had nothing for their last wish. If they now agree to have a local sent to check, mode is "mission" and reply confirms it warmly; if they would rather be told when it is verified, mode is "notify". Otherwise keep talking. '
           : '') +
-        `Verified coverage nearby (use only to set expectations, never to name anything): ${input.coverage.verifiedNearby} places` +
+        `Verified coverage nearby (only to set expectations, never to name anything): ${input.coverage.verifiedNearby} places` +
         (coverage ? ` (${coverage})` : '') +
         '. Categories: ' + CATEGORY_VALUES.join(', ') + '.' +
-        (input.now ? ` Right now: ${input.now}. You may mention these facts (heat, rain, sea, sunset, holiday, exchange rate) when they help; a local would.` : ''),
+        (input.now ? ` Right now: ${input.now}. Weave these in only when natural, the way a local mentions the sea or the heat.` : ''),
       user: (transcript ? `Conversation so far:\n${transcript}\n\n` : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
@@ -132,12 +145,14 @@ function categoryWords(category: string | null, lang: 'en' | 'es'): string {
 
 export const RefusalNarrationSchema = z.object({
   /** Two sentences at most. Honest about the gap, warm, no place names. */
-  reply: z.string().min(1).max(320),
+  reply: z.string().min(1).max(400),
 });
 
 export interface RefusalNarrationInput {
   text: string;
   language: string;
+  /** The last few turns, oldest first, so the refusal continues the thread. */
+  history?: ReadonlyArray<{ role: 'user' | 'guaca'; text: string }>;
   reason: string;
   category: string | null;
   coverage: { verifiedNearby: number; inCategory: number };
@@ -159,16 +174,19 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
     const res = await inference.json<z.infer<typeof RefusalNarrationSchema>>({
       schema: RefusalNarrationSchema,
       purpose: 'concierge',
-      maxOutputTokens: 160,
+      maxOutputTokens: 220,
       system:
-        'You are Guaca, a warm local concierge for Caribbean towns. The verified map has nothing for what the traveller just asked. ' +
-        'Write at most two short sentences in ' + (lang === 'es' ? 'Spanish' : 'English') + ': say plainly that no local has verified that yet, and that you can send a local to check or let them know when it is verified. ' +
-        'Hard rules: never name, invent, describe or suggest any place, business, beach or event; never guess what exists; never apologise more than once; no lists, no emoji. ' +
+        persona(lang) +
+        'The verified map has nothing for what they just asked. Tell them straight, as a friend would: nobody has actually stood in front of that yet, so you will not guess. ' +
+        'Then, in your own words, offer what you can do: a local can be sent to go and check, or you can tell them the moment it is verified. If it fits, add one light question or one useful fact from right now instead. ' +
         (input.reason === 'UNCLEAR_QUESTION'
-          ? 'You did not understand what they want: ask one short friendly question instead of refusing. '
-          : `What they want: ${categoryWords(input.category, lang)}. Verified nearby: ${input.coverage.verifiedNearby} places, ${input.coverage.inCategory} in that category (mention the number only if it helps set expectations). `) +
-        (input.now ? `Right now: ${input.now}. Mention a fact from this only if it is useful to them.` : ''),
-      user: `Traveller asked: ${input.text}`,
+          ? 'Actually you did not understand what they want: skip the refusal and ask one short friendly question. '
+          : `What they want: ${categoryWords(input.category, lang)}. Verified nearby: ${input.coverage.verifiedNearby} places, ${input.coverage.inCategory} in that category (mention a number only if it helps). `) +
+        (input.now ? `Right now: ${input.now}. ` : ''),
+      user:
+        (input.history?.length
+          ? 'Conversation so far:\n' + input.history.slice(-8).map((m) => `${m.role === 'user' ? 'Traveller' : 'Guaca'}: ${m.text.slice(0, 240)}`).join('\n') + '\n\n'
+          : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
     const reply = res.raw.reply.trim();
