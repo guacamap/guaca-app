@@ -73,6 +73,7 @@ export interface AppCopy {
     legalPrivacy: string
     legalTerms: string
     mapEmpty: string
+    mapEmptyCandidates: string
     legendMissions: string
     legendConfirm: string
     missionsTitle: string
@@ -91,6 +92,9 @@ export interface AppCopy {
     freeLede: string
     close: string
     candidatesLegend: string
+    candidatesNudgeTitle: (n: number) => string
+    candidatesNudgeBody: string
+    candidatesNudgeCta: string
     candidateTitle: string
     candidateBody: string
     candidateCta: string
@@ -352,6 +356,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       tabEarnings: 'Profile',
       mapLede: 'Your earning opportunities, where you are.',
       mapEmpty: 'No opportunities near you right now — they appear when travellers ask about unverified places.',
+      mapEmptyCandidates: 'No missions yet. Tap any small badge: open data knows the place, and you can be the first to verify it.',
       legendMissions: 'Missions',
       legendConfirm: 'To confirm',
       missionsTitle: 'Your missions',
@@ -370,6 +375,9 @@ export const appCopy: Record<Lang, AppCopy> = {
       freeLede: 'Not from a mission — you are here and it is worth being on the map. Same checks, same second local.',
       close: 'Close',
       candidatesLegend: 'Candidates',
+      candidatesNudgeTitle: (n) => `${n} places near you are still unverified`,
+      candidatesNudgeBody: 'Open data knows they exist. Nobody has stood in front of them yet. Every one you verify earns points.',
+      candidatesNudgeCta: 'Open the map',
       candidateTitle: 'Known to open data, not verified',
       candidateBody: 'Public sources have this listed. Stand here, check it is real, and put it on the map properly.',
       candidateCta: 'Verify this place',
@@ -683,6 +691,7 @@ export const appCopy: Record<Lang, AppCopy> = {
       tabMap: 'Mapa',
       mapLede: 'Tus oportunidades de ganar, donde estás.',
       mapEmpty: 'No hay oportunidades cerca por ahora — aparecen cuando los viajeros preguntan por lugares sin verificar.',
+      mapEmptyCandidates: 'Sin misiones todavía. Toca cualquier insignia pequeña: los datos abiertos conocen el lugar y tú puedes ser quien lo verifique primero.',
       legendMissions: 'Misiones',
       legendConfirm: 'Por confirmar',
       tabConfirm: 'Confirmar',
@@ -703,6 +712,9 @@ export const appCopy: Record<Lang, AppCopy> = {
       freeLede: 'No viene de una misión — estás aquí y merece estar en el mapa. Las mismas comprobaciones, el mismo segundo local.',
       close: 'Cerrar',
       candidatesLegend: 'Candidatos',
+      candidatesNudgeTitle: (n) => `${n} lugares cerca de ti siguen sin verificar`,
+      candidatesNudgeBody: 'Los datos abiertos saben que existen. Nadie ha estado frente a ellos todavía. Cada uno que verifiques suma puntos.',
+      candidatesNudgeCta: 'Abrir el mapa',
       candidateTitle: 'Conocido por datos públicos, sin verificar',
       candidateBody: 'Fuentes públicas lo tienen registrado. Ve, comprueba que es real, y ponlo en el mapa correctamente.',
       candidateCta: 'Verificar este lugar',

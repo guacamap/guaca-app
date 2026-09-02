@@ -356,15 +356,17 @@ export function SpotterView() {
     if (tab === 'map') {
       loadOpportunities()
       loadPending()
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => setMapCenter([pos.coords.longitude, pos.coords.latitude]),
-          () => {},
-          { timeout: 3000, maximumAge: 300_000 },
-        )
-      }
     }
   }, [tab, loadMissions, loadPending, loadEarnings, loadOpportunities, loadProfile])
+
+  useEffect(() => {
+    if (!('geolocation' in navigator)) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setMapCenter([pos.coords.longitude, pos.coords.latitude]),
+      () => {},
+      { timeout: 3000, maximumAge: 300_000 },
+    )
+  }, [])
 
   // The open-data backdrop, same as the tourist map: candidates as dots,
   // never pins.
@@ -378,10 +380,11 @@ export function SpotterView() {
   }, [mapCenter])
   // Reruns whenever the visible centre moves — including the moment
   // geolocation resolves above — so a spotter always sees what is nearby,
-  // not just what was near the pilot's default point.
+  // not just what was near the pilot's default point. Loaded on every tab
+  // because the missions screen counts them when there is nothing else to do.
   useEffect(() => {
-    if (tab === 'map') loadCandidates()
-  }, [tab, loadCandidates])
+    loadCandidates()
+  }, [loadCandidates])
 
   const accept = (missionId: string) =>
     withBusy(missionId, async () => {
@@ -450,7 +453,7 @@ export function SpotterView() {
       <div className="relative min-h-0 flex-1 lg:order-2">
       {tab === 'map' && (
         <>
-          <div className="absolute inset-0 z-0">
+          <div className="spotter-map absolute inset-0 z-0">
             <GuacaMap
               pins={pending.map((p) => ({
                 id: p.id,
@@ -507,7 +510,7 @@ export function SpotterView() {
               </span>
             </div>
           </div>
-          <div className="absolute inset-x-4 bottom-4 z-[600] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[440px]">
+          <div className="absolute inset-x-4 bottom-4 z-[600] lg:inset-x-auto lg:bottom-6 lg:right-[72px] lg:w-[440px]">
             <Button
               type="button"
               onClick={() => setCapture('free')}
@@ -518,8 +521,8 @@ export function SpotterView() {
           </div>
 
           {opportunities.length === 0 && pending.length === 0 && (
-            <div className="absolute bottom-[76px] left-4 right-4 z-[450] lg:bottom-[120px] lg:left-auto lg:right-6 lg:w-[440px]">
-              <p className="guaca-card rounded-[24px] p-4 text-center text-[11px] font-semibold text-guaca-ink/55">{t.mapEmpty}</p>
+            <div className="absolute bottom-[96px] left-4 right-4 z-[450] lg:bottom-[120px] lg:left-auto lg:right-[72px] lg:w-[440px]">
+              <p className="guaca-card rounded-[24px] p-4 text-center text-[11px] font-semibold text-guaca-ink/55">{candidates.length > 0 ? t.mapEmptyCandidates : t.mapEmpty}</p>
             </div>
           )}
 
@@ -527,7 +530,7 @@ export function SpotterView() {
               starts the same submission a "free" find would, just pre-filled
               with whatever a public listing already says. */}
           {selectedCandidate && (
-            <div className="absolute inset-x-4 bottom-4 z-[700] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[440px]">
+            <div className="absolute inset-x-4 bottom-4 z-[700] lg:inset-x-auto lg:bottom-6 lg:right-[72px] lg:w-[440px]">
               <div className="guaca-card rounded-[30px] p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -573,7 +576,7 @@ export function SpotterView() {
         </>
       )}
       {tab !== 'map' && (
-      <div className="h-full overflow-y-auto px-5 pb-8 pt-12">
+      <div className="h-full overflow-y-auto px-5 pb-8 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
         <div className="rounded-[32px] bg-gradient-to-br from-guaca-coral to-guaca-sunset p-6 text-white shadow-xl">
           <div className="flex items-center justify-between">
             <GuacaLogo variant="reversed" className="h-10" />
@@ -605,6 +608,26 @@ export function SpotterView() {
 
         {tab === 'missions' && (
           <div className="mt-5 space-y-3">
+            {missions.length === 0 && candidates.length > 0 && (
+              <div className="rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-guaca-sand/75">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-guaca-teal/10 text-guaca-teal">
+                    <MapIcon aria-hidden="true" className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-black leading-tight text-guaca-ink">{t.candidatesNudgeTitle(candidates.length)}</p>
+                    <p className="mt-1 text-[12px] font-semibold leading-relaxed text-guaca-ink/55">{t.candidatesNudgeBody}</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => setTab('map')}
+                  className="mt-4 h-11 w-full rounded-2xl bg-guaca-teal text-[13px] font-black text-white hover:bg-guaca-teal-dark"
+                >
+                  {t.candidatesNudgeCta} <ArrowRight aria-hidden="true" className="ml-1.5 h-4 w-4" />
+                </Button>
+              </div>
+            )}
             {missions.length === 0 && (
               <div className="rounded-[28px] border border-dashed border-guaca-coral/30 bg-white/70 p-6 text-center">
                 <Trophy aria-hidden="true" className="mx-auto h-8 w-8 text-guaca-coral/60" />
@@ -917,6 +940,10 @@ export function SpotterView() {
       </div>
 
       <div className="relative z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-6 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:w-24 lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
+        <a href="/" className="mb-6 hidden flex-col items-center gap-1 lg:flex" aria-label="Guaca">
+          <img src="/brand/guaca-mark.png" alt="" className="h-12 w-12 object-contain" />
+          <span className="text-[15px] font-black lowercase tracking-tight text-guaca-coral-dark">guaca</span>
+        </a>
         <div className="flex items-center justify-around lg:flex-col lg:justify-start lg:gap-5">
           {(
             [

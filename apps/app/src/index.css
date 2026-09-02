@@ -10,3 +10,14 @@
     bottom: 112px;
   }
 }
+
+/* Phone spotter map: the verify button spans the bottom edge, so the
+   Mapbox wordmark steps above it and the zoom buttons yield to pinch. */
+@media (max-width: 1023px) {
+  .spotter-map .mapboxgl-ctrl-bottom-left {
+    bottom: 68px;
+  }
+  .spotter-map .mapboxgl-ctrl-bottom-right {
+    display: none;
+  }
+}
