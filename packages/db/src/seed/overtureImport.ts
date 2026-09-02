@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import { recordSource } from './placeSources.js';
 
 /**
  * Overture Maps places (CDLA Permissive 2.0) for an area. Two outcomes per
@@ -128,6 +129,7 @@ export async function importOverture(
          where id = $1`,
         [match.id, phone, website, JSON.stringify(socials), address, p.confidence ?? null, overtureId, subcategory],
       );
+      if (overtureId) await recordSource(pool, { placeId: match.id, source: 'overture', sourceId: overtureId, name, category, lat, lon, attrs: { phone, website, address, socials, subcategory }, confidence: p.confidence ?? null });
       continue;
     }
     out.preview.push({ name, action: 'insert' });
@@ -158,6 +160,7 @@ export async function importOverture(
     // the unique index, not counted as new), or zero rows because the
     // WHERE ST_Covers clause found the point outside the area polygon.
     if (ins.rows[0]?.inserted) out.inserted++;
+    if (ins.rows[0]?.id && overtureId) await recordSource(pool, { placeId: ins.rows[0].id, source: 'overture', sourceId: overtureId, name, category, lat, lon, attrs: { phone, website, address, socials, subcategory }, confidence: p.confidence ?? null });
   }
   return out;
 }

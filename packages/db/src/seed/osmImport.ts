@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import type { Pool } from 'pg';
+import { recordSource } from './placeSources.js';
 
 /**
  * OSM amenity/shop keys mapped onto the GUACA taxonomy. Candidates import
@@ -195,7 +196,7 @@ export async function importOsmCandidates(
       const osmId = Number(id);
       if (!Number.isFinite(osmId)) continue;
 
-      const r = await pool.query(
+      const r = await pool.query<{ id: string; inserted: boolean }>(
         `insert into places
            (area_id, name, category, landmark_description, location, h3_8,
             source, verification_status, tags, osm_type, osm_id, public_source, public_subcategory)
@@ -230,6 +231,13 @@ export async function importOsmCandidates(
         ],
       );
       if (r.rows[0]?.inserted) inserted += 1;
+      if (r.rows[0]?.id) {
+        await recordSource(pool, {
+          placeId: r.rows[0].id, source: 'osm', sourceId: `${osmType}/${osmId}`, name, category,
+          lat: Number(lat), lon: Number(lon),
+          attrs: Object.fromEntries(tags.filter((t) => t['@_k'] && t['@_v']).map((t) => [t['@_k'] as string, t['@_v'] as string])),
+        });
+      }
     }
   }
   return { inserted };

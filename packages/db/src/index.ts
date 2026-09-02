@@ -73,3 +73,7 @@ export { createTrip, listTrips, tripById, tripBySlug, deleteTrip } from './trips
 export type { CreateTripInput } from './tripsDb.js';
 export { importOverture, categoryForOverture, nameSimilarity, normaliseName } from './seed/overtureImport.js';
 export type { OvertureFeature, OvertureImportResult } from './seed/overtureImport.js';
+export { importFoursquare, categoryForFoursquare } from './seed/foursquareImport.js';
+export type { FoursquareRow, FoursquareImportResult } from './seed/foursquareImport.js';
+export { recordSource } from './seed/placeSources.js';
+export type { PlaceSource, SourceRecord } from './seed/placeSources.js';

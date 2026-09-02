@@ -15,7 +15,7 @@ export const PlaceRowSchema = z.object({
   open_hours: z.record(z.string(), z.string()).nullable(),
   price_band: z.number().int().min(1).max(4).nullable(),
   tags: z.array(z.string()),
-  source: z.enum(['spotter', 'business', 'osm_candidate', 'overture_candidate']),
+  source: z.enum(['spotter', 'business', 'osm_candidate', 'overture_candidate', 'foursquare_candidate', 'wikidata_candidate']),
   verification_status: VerificationStatus,
   witness_count: z.number().int().min(0),
   created_by_spotter_id: z.string().uuid().nullable(),
