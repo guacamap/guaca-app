@@ -4,11 +4,12 @@ import type { Inference, JsonRequest, JsonResult } from '../../src/inference/typ
 
 class Scripted implements Inference {
   calls = 0;
-  /** The concierge answer, plus an optional editor: which sentences point at something. */
-  constructor(private readonly answer: unknown, private readonly pointing: (text: string) => boolean = () => false) {}
+  /** The concierge answer, plus an optional editor: what a message becomes once claims are removed (null = clean as is). */
+  constructor(private readonly answer: unknown, private readonly edit: (text: string) => string | null = () => null) {}
   async json<T>(req: JsonRequest<T>): Promise<JsonResult<T>> {
     if (req.purpose === 'concierge-guard') {
-      return { raw: { pointsAtSomething: this.pointing(req.user) } as T, usage: { tokensIn: 5, tokensOut: 1 }, model: 'scripted' };
+      const cleaned = this.edit(req.user);
+      return { raw: { pointsAtSomething: cleaned !== null, cleaned: cleaned ?? req.user } as T, usage: { tokensIn: 5, tokensOut: 1 }, model: 'scripted' };
     }
     this.calls++;
     return { raw: this.answer as T, usage: { tokensIn: 10, tokensOut: 5 }, model: 'scripted' };
@@ -103,12 +104,24 @@ describe('the refusal in Guaca\'s voice', () => {
   it('is null when the provider is down, so the fixed line is used', async () => {
     expect(await narrateRefusal(new Down(), input)).toBeNull();
   });
-  it('an invented lowercase place is caught by the editor and only that sentence goes', async () => {
+  it('an invented lowercase place is caught by the editor, which hands back the cleaned message', async () => {
     const r = await narrateRefusal(
-      new Scripted({ reply: 'Nobody has verified that yet. There is a trail by the old lighthouse though. Want me to send a local?' }, (t) => /lighthouse/.test(t)),
+      new Scripted(
+        { reply: 'Nobody has verified that yet. There is a trail by the old lighthouse though. Want me to send a local?' },
+        (t) => (/lighthouse/.test(t) ? 'Nobody has verified that yet. Want me to send a local?' : null),
+      ),
       input,
     );
     expect(r).toBe('Nobody has verified that yet. Want me to send a local?');
+  });
+  it('a cleaned message that still points at something is dropped', async () => {
+    const r = await narrateRefusal(new Scripted({ reply: 'There is a trail by the old lighthouse.' }, () => 'Some walks around.'), input);
+    expect(r).toBeNull();
+  });
+  it('the fixed line follows the language the traveller writes, not the UI', async () => {
+    const t = await converse(new Scripted({ mode: 'notify', reply: 'Te aviso en media hora.' }, () => ''), { ...base, text: 'sí, avísame cuando alguien lo revise', language: 'en' });
+    expect(t.via).toBe('guard');
+    expect(t.reply).toMatch(/aviso/);
   });
   it('fails closed when the editor is down', async () => {
     class HalfDown extends Scripted {

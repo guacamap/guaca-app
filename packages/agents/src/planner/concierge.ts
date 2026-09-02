@@ -63,42 +63,60 @@ function withoutNamingSentences(reply: string, placeNames: readonly string[]): s
 }
 
 const PlaceCheckSchema = z.object({
-  /** True when the message points at anything specific on the ground, or promises a time. */
+  /** True when the message points at anything specific on the ground, claims something exists, or promises a duration. */
   pointsAtSomething: z.boolean(),
+  /** The same message with those parts removed and nothing else changed; empty when nothing honest remains. */
+  cleaned: z.string().max(400),
 });
+
+const EDITOR_SYSTEM =
+  'You are a strict editor for a service that must never suggest places it has not verified. Read the message. Set pointsAtSomething to true if it mentions, describes, hints at, suggests, or claims the existence of ANY place, spot, beach, trail, walk, road, landmark, building, neighbourhood, business, dish, event or route, whether named or not, specific or vague ("a couple of easy walks around", "a trail by the lighthouse", "some spots by the water" all count), or promises a duration (in half an hour, in minutes, tonight). ' +
+  'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. ' +
+  'Then write cleaned: the same message in the same language with only the offending parts removed or neutralised, everything else word for word; if nothing honest remains, cleaned is empty. Answer with the JSON only.';
 
 /**
  * The lexical sweep only sees capitalised names. "a trail by the old
  * lighthouse" is an invention too, and so is "in half an hour". A second,
- * cheap call reads the message as a strict editor and answers one question.
- * Fails closed: an error counts as pointing at something.
+ * cheap call reads the message as a strict editor and hands back a cleaned
+ * version; the cleaned version is checked once more, and if it still points
+ * at something the message is dropped. Fails closed on any error.
  */
-async function pointsAtSomething(inference: Inference, reply: string): Promise<boolean> {
+async function withoutPointing(inference: Inference, reply: string, placeNames: readonly string[]): Promise<string> {
+  if (reply.length === 0) return reply;
+  const edit = async (text: string) =>
+    (
+      await inference.json<z.infer<typeof PlaceCheckSchema>>({
+        schema: PlaceCheckSchema,
+        purpose: 'concierge-guard',
+        maxOutputTokens: 260,
+        system: EDITOR_SYSTEM,
+        user: text,
+        untrusted: text,
+      })
+    ).raw;
   try {
-    const res = await inference.json<z.infer<typeof PlaceCheckSchema>>({
-      schema: PlaceCheckSchema,
-      purpose: 'concierge-guard',
-      maxOutputTokens: 30,
-      system:
-        'You are a strict editor for a service that must never suggest places it has not verified. Read the message and answer true if it mentions, describes, hints at, suggests, or claims the existence of ANY place, spot, beach, trail, walk, road, landmark, building, neighbourhood, business, dish, event or route, whether named or not, specific or vague ("a couple of easy walks around", "a trail by the lighthouse", "some spots by the water" all count), or promises a duration (in half an hour, in minutes, tonight). ' +
-        'Greetings, weather, sea, sun, feelings, questions about the traveller, saying that nothing is verified yet, and offers to send a local or to let them know when something is verified are fine: answer false for those. Answer with the JSON only.',
-      user: reply,
-      untrusted: reply,
-    });
-    return res.raw.pointsAtSomething;
+    const first = await edit(reply);
+    if (!first.pointsAtSomething) return reply;
+    const cleaned = withoutNamingSentences(first.cleaned.trim(), placeNames);
+    if (cleaned.length === 0) return '';
+    const second = await edit(cleaned);
+    return second.pointsAtSomething ? '' : cleaned;
   } catch {
-    return true;
+    return '';
   }
 }
 
-/** Sentences that point at something are dropped; the clean ones survive. */
-async function withoutPointing(inference: Inference, reply: string): Promise<string> {
-  if (reply.length === 0) return reply;
-  if (!(await pointsAtSomething(inference, reply))) return reply;
-  const sentences = (reply.match(/[^.!?]+[.!?]+["»)]?\s*|[^.!?]+$/g) ?? []).map((x) => x.trim()).filter(Boolean);
-  if (sentences.length <= 1) return '';
-  const verdicts = await Promise.all(sentences.map((x) => pointsAtSomething(inference, x)));
-  return sentences.filter((_, i) => !verdicts[i]).join(' ').trim();
+/**
+ * The traveller's language from the message itself; the UI setting is only
+ * the tie-break. A Spanish message in an English UI gets Spanish back.
+ */
+function guessLang(text: string, fallback: 'en' | 'es'): 'en' | 'es' {
+  const t = ` ${text.toLowerCase()} `;
+  if (/[¿¡ñ]|[áéíóú]/.test(t)) return 'es';
+  const es = (t.match(/ (el|la|los|las|que|para|con|una|uno|hola|quiero|necesito|busco|donde|dónde|algo|cerca|vamos|dale|si|sí|gracias|manda|avísame|avisame) /g) ?? []).length;
+  const en = (t.match(/ (the|and|for|with|want|need|looking|where|something|near|nearby|please|thanks|send|yes|yeah|ok|hey|hi|tell|me) /g) ?? []).length;
+  if (es === 0 && en === 0) return fallback;
+  return es > en ? 'es' : en > es ? 'en' : fallback;
 }
 
 /** A chat message asks one thing: anything after the first question is cut. */
@@ -148,7 +166,7 @@ const SWEPT_BY_MODE: Record<'mission' | 'notify', Record<'en' | 'es', string>> =
  * that ever cites a place.
  */
 export async function converse(inference: Inference, input: ConciergeInput): Promise<ConciergeTurn> {
-  const lang: 'en' | 'es' = input.language === 'es' ? 'es' : 'en';
+  const lang = guessLang(input.text, input.language === 'es' ? 'es' : 'en');
   if (detectInjection(input.text).reasons.length > 0) {
     return { mode: 'chat', reply: FALLBACK[lang], via: 'guard' };
   }
@@ -183,7 +201,7 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
       untrusted: input.text,
     });
     const turn = res.raw;
-    const kept = await withoutPointing(inference, withoutNamingSentences(turn.reply, input.placeNames));
+    const kept = await withoutPointing(inference, withoutNamingSentences(turn.reply, input.placeNames), input.placeNames);
     if (kept.length === 0) {
       // Every sentence named something. The line goes; the intent survives.
       const line = turn.mode === 'mission' || turn.mode === 'notify' ? SWEPT_BY_MODE[turn.mode][lang] : SWEPT[lang];
@@ -236,7 +254,7 @@ export interface RefusalNarrationInput {
  * back to the fixed line.
  */
 export async function narrateRefusal(inference: Inference, input: RefusalNarrationInput): Promise<string | null> {
-  const lang: 'en' | 'es' = input.language === 'es' ? 'es' : 'en';
+  const lang = guessLang(input.text, input.language === 'es' ? 'es' : 'en');
   try {
     const res = await inference.json<z.infer<typeof RefusalNarrationSchema>>({
       schema: RefusalNarrationSchema,
@@ -256,7 +274,7 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
           : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
-    const reply = await withoutPointing(inference, withoutNamingSentences(res.raw.reply, input.placeNames));
+    const reply = await withoutPointing(inference, withoutNamingSentences(res.raw.reply, input.placeNames), input.placeNames);
     return reply.length > 0 ? reply : null;
   } catch {
     return null;
