@@ -73,7 +73,7 @@ const PlaceCheckSchema = z.object({
 
 const EDITOR_SYSTEM =
   'You are a strict editor for a service that must never suggest places it has not verified. Read the message. Set pointsAtSomething to true if it mentions, describes, hints at, suggests, or claims the existence of ANY place, spot, beach, trail, walk, road, landmark, building, neighbourhood, business, dish, event or route, whether named or not, specific or vague ("a couple of easy walks around", "a trail by the lighthouse", "some spots by the water" all count), or promises a duration (in half an hour, in minutes, tonight). ' +
-  'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. ' +
+  'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, repeating the traveller\'s own wish in general words (a quiet beach, somewhere for dinner, live music tonight), saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. ' +
   'Then write cleaned: the same message in the same language with only the offending parts removed or neutralised, everything else word for word; if nothing honest remains, cleaned is empty. Answer with the JSON only.';
 
 /**
@@ -221,7 +221,8 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
     const kept = await withoutPointing(inference, withoutDurations(withoutNamingSentences(turn.reply, input.placeNames)), input.placeNames);
     if (kept.length === 0) {
       // Every sentence named something. The line goes; the intent survives.
-      const line = turn.mode === 'mission' || turn.mode === 'notify' ? SWEPT_BY_MODE[turn.mode][lang] : SWEPT[lang];
+      // A chat that named something has nothing to check; ask instead.
+      const line = turn.mode === 'mission' || turn.mode === 'notify' ? SWEPT_BY_MODE[turn.mode][lang] : turn.mode === 'chat' ? FALLBACK[lang] : SWEPT[lang];
       return { ...turn, reply: line, via: 'guard' };
     }
     turn.reply = turn.mode === 'chat' ? oneQuestionOnly(kept) : kept;
