@@ -124,6 +124,35 @@ describe('POST /api/ask', () => {
     await app.close();
   });
 
+  it('a corroborated beach is planned with its tier said out loud; the single listing is not preferred', async () => {
+    // Nobody verified a beach. Two open datasets agree one exists, one
+    // dataset lists another. Tiered honesty: the plan may use them and must
+    // say so, corroborated first.
+    await pool.query(
+      `insert into places (id, area_id, name, category, landmark_description, location, h3_8, source, verification_status, witness_count, corroboration)
+       values
+        ('00000000-0000-4000-8000-0000000000e1', $1, 'Playa Blanca', 'beach_water', 'Listado público', ST_SetSRID(ST_MakePoint(-68.0100, 10.4800), 4326)::geography, '8a0000000000000', 'overture_candidate', 'candidate', 0, 2),
+        ('00000000-0000-4000-8000-0000000000e2', $1, 'Playa Escondida', 'beach_water', 'Listado público', ST_SetSRID(ST_MakePoint(-68.0060, 10.4730), 4326)::geography, '8a0000000000000', 'foursquare_candidate', 'candidate', 0, 1)`,
+      [AREA_ID],
+    );
+    const fake = new FakeInference({});
+    const cap = captureSender();
+    const app = buildApp({ pool, inference: fake, minCandidates: 1, emailSender: cap.sender });
+    const headers = await authTourist(app, cap.codes);
+    const res = await app.inject({
+      method: 'POST', url: '/api/ask', headers,
+      payload: { text: 'a beach nearby', language: 'en', lat: 10.4716, lon: -68.0056 },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as { kind: string; placeIds: string[]; text: string };
+    expect(body.kind).toBe('answer');
+    expect(body.placeIds[0]).toBe('00000000-0000-4000-8000-0000000000e1');
+    expect(body.text).toMatch(/2 open maps agree it exists/);
+    expect(body.text).toMatch(/Unverified stops come from open maps/);
+    await pool.query(`delete from places where id in ('00000000-0000-4000-8000-0000000000e1','00000000-0000-4000-8000-0000000000e2')`);
+    await app.close();
+  });
+
   it('refuses an uncovered question as a first-class result, never an error', async () => {
     const cap = captureSender();
     const app = buildApp({

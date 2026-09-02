@@ -1,4 +1,5 @@
 import type { Pool } from 'pg';
+import { tierOf } from '@guaca/shared';
 import {
   answerFromCatalog,
   converse,
@@ -280,10 +281,13 @@ export async function ask(
     return { kind: 'chat', text: STORM_TEXT[lang](ctx.alert), placeIds: [], ...withCtx };
   }
 
-  const allRows = await q.places.findVerifiedNear(pool, input.lat, input.lon, 5000, undefined);
+  // Tiered honesty: verified first, then what open maps agree on. Every
+  // row carries its tier so the planner prefers, and the renderer says, it.
+  const allRows = await q.places.findPlannableNear(pool, input.lat, input.lon, 5000, undefined);
   const { skipBeaches, notes } = contextNotes(ctx, lang);
   const rows = skipBeaches ? allRows.filter((r) => r.category !== 'beach_water') : allRows;
   const withNotes = notes.length ? { notes } : {};
+  const tierFor = (r: (typeof rows)[number]) => tierOf(r.verification_status, r.witness_count, r.corroboration ?? 0);
   const places = new Map(
     rows.map((r) => [
       r.id,
@@ -292,12 +296,17 @@ export async function ask(
         name: r.name,
         landmarkDescription: r.landmark_description,
         category: r.category,
+        tier: tierFor(r),
+        corroboration: r.corroboration ?? 0,
+        verifiedAt: r.verified_at ?? null,
+        spotterName: r.spotter_name ?? null,
         // A phone is spoken only once a local confirmed it; a public listing
         // is shown on the sheet as public, never read out as fact.
         ...(r.contact_confirmed_at && r.public_phone ? { phone: r.public_phone } : {}),
       },
     ]),
   );
+  const verifiedRows = rows.filter((r) => tierFor(r) === 'verified');
 
   // The conversation turn: a concrete ask the lexicon knows goes straight
   // through; anything else gets one concierge call that chats, clarifies,
@@ -309,7 +318,7 @@ export async function ask(
     language: input.language,
     history: input.history ?? [],
     hasOpenRefusal: !!input.lastQuestionId,
-    coverage: { verifiedNearby: rows.length, byCategory: byCategoryAll },
+    coverage: { verifiedNearby: verifiedRows.length, byCategory: byCategoryAll },
     placeNames: rows.map((r) => r.name),
     ...(ctx ? { now: contextLine(ctx) } : {}),
   });
@@ -357,6 +366,9 @@ export async function ask(
       lon: r.lon,
       verificationStatus: r.verification_status,
       witnessCount: r.witness_count,
+      tier: tierFor(r),
+      corroboration: r.corroboration ?? 0,
+      subcategory: r.public_subcategory ?? null,
     })),
     inference: opts.inference,
     minCandidates: opts.minCandidates,
@@ -388,7 +400,7 @@ export async function ask(
       history: input.history ?? [],
       reason: outcome.reason,
       category: understood,
-      coverage: { verifiedNearby: rows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0 },
+      coverage: { verifiedNearby: verifiedRows.length, inCategory: understood ? (byCategory.get(understood) ?? 0) : 0 },
       placeNames: rows.map((r) => r.name),
       ...(ctx ? { now: contextLine(ctx) } : {}),
     });
@@ -550,8 +562,9 @@ export async function planTrip(
     intent.category = resolvedCategory as typeof intent.category;
   }
 
-  const rows = await q.places.findVerifiedNear(pool, input.lat, input.lon, 5000, undefined);
+  const rows = await q.places.findPlannableNear(pool, input.lat, input.lon, 5000, undefined);
   const verifiedIds = new Set(rows.map((r) => r.id));
+  const tierFor = (r: (typeof rows)[number]) => tierOf(r.verification_status, r.witness_count, r.corroboration ?? 0);
 
   if (rows.length < opts.minCandidates) {
     return refuse('INSUFFICIENT_COVERAGE');
@@ -572,6 +585,9 @@ export async function planTrip(
       category: r.category,
       verificationStatus: r.verification_status,
       witnessCount: r.witness_count,
+      tier: tierFor(r),
+      corroboration: r.corroboration ?? 0,
+      subcategory: r.public_subcategory ?? null,
     })),
     days: input.days,
     inference: opts.inference,
@@ -606,6 +622,10 @@ export async function planTrip(
         name: r.name,
         landmarkDescription: r.landmark_description,
         category: r.category,
+        tier: tierFor(r),
+        corroboration: r.corroboration ?? 0,
+        verifiedAt: r.verified_at ?? null,
+        spotterName: r.spotter_name ?? null,
       },
     ]),
   );
