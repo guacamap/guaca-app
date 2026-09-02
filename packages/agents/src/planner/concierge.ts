@@ -62,6 +62,45 @@ function withoutNamingSentences(reply: string, placeNames: readonly string[]): s
   return kept.join(' ').trim();
 }
 
+const PlaceCheckSchema = z.object({
+  /** True when the message points at anything specific on the ground, or promises a time. */
+  pointsAtSomething: z.boolean(),
+});
+
+/**
+ * The lexical sweep only sees capitalised names. "a trail by the old
+ * lighthouse" is an invention too, and so is "in half an hour". A second,
+ * cheap call reads the message as a strict editor and answers one question.
+ * Fails closed: an error counts as pointing at something.
+ */
+async function pointsAtSomething(inference: Inference, reply: string): Promise<boolean> {
+  try {
+    const res = await inference.json<z.infer<typeof PlaceCheckSchema>>({
+      schema: PlaceCheckSchema,
+      purpose: 'concierge-guard',
+      maxOutputTokens: 30,
+      system:
+        'You are a strict editor for a service that must never suggest places it has not verified. Read the message and answer true if it mentions, describes, hints at or suggests ANY specific place, spot, beach, trail, road, landmark, building, neighbourhood, business, dish, event or route (named or not, real or not), or promises when something will happen (minutes, hours, tonight). ' +
+        'Greetings, weather, sea, sun, feelings, questions about the traveller, and offers to send a local or to notify them are fine: answer false for those. Answer with the JSON only.',
+      user: reply,
+      untrusted: reply,
+    });
+    return res.raw.pointsAtSomething;
+  } catch {
+    return true;
+  }
+}
+
+/** Sentences that point at something are dropped; the clean ones survive. */
+async function withoutPointing(inference: Inference, reply: string): Promise<string> {
+  if (reply.length === 0) return reply;
+  if (!(await pointsAtSomething(inference, reply))) return reply;
+  const sentences = (reply.match(/[^.!?]+[.!?]+["»)]?\s*|[^.!?]+$/g) ?? []).map((x) => x.trim()).filter(Boolean);
+  if (sentences.length <= 1) return '';
+  const verdicts = await Promise.all(sentences.map((x) => pointsAtSomething(inference, x)));
+  return sentences.filter((_, i) => !verdicts[i]).join(' ').trim();
+}
+
 /** A chat message asks one thing: anything after the first question is cut. */
 function oneQuestionOnly(reply: string): string {
   const i = reply.indexOf('?');
@@ -139,7 +178,7 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
       untrusted: input.text,
     });
     const turn = res.raw;
-    const kept = withoutNamingSentences(turn.reply, input.placeNames);
+    const kept = await withoutPointing(inference, withoutNamingSentences(turn.reply, input.placeNames));
     if (kept.length === 0) {
       // Every sentence named something. The line goes; the intent survives.
       return { ...turn, reply: SWEPT[lang], via: 'guard' };
@@ -211,7 +250,7 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
           : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
-    const reply = withoutNamingSentences(res.raw.reply, input.placeNames);
+    const reply = await withoutPointing(inference, withoutNamingSentences(res.raw.reply, input.placeNames));
     return reply.length > 0 ? reply : null;
   } catch {
     return null;

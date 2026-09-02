@@ -4,8 +4,12 @@ import type { Inference, JsonRequest, JsonResult } from '../../src/inference/typ
 
 class Scripted implements Inference {
   calls = 0;
-  constructor(private readonly answer: unknown) {}
-  async json<T>(_req: JsonRequest<T>): Promise<JsonResult<T>> {
+  /** The concierge answer, plus an optional editor: which sentences point at something. */
+  constructor(private readonly answer: unknown, private readonly pointing: (text: string) => boolean = () => false) {}
+  async json<T>(req: JsonRequest<T>): Promise<JsonResult<T>> {
+    if (req.purpose === 'concierge-guard') {
+      return { raw: { pointsAtSomething: this.pointing(req.user) } as T, usage: { tokensIn: 5, tokensOut: 1 }, model: 'scripted' };
+    }
     this.calls++;
     return { raw: this.answer as T, usage: { tokensIn: 10, tokensOut: 5 }, model: 'scripted' };
   }
@@ -98,5 +102,21 @@ describe('the refusal in Guaca\'s voice', () => {
   });
   it('is null when the provider is down, so the fixed line is used', async () => {
     expect(await narrateRefusal(new Down(), input)).toBeNull();
+  });
+  it('an invented lowercase place is caught by the editor and only that sentence goes', async () => {
+    const r = await narrateRefusal(
+      new Scripted({ reply: 'Nobody has verified that yet. There is a trail by the old lighthouse though. Want me to send a local?' }, (t) => /lighthouse/.test(t)),
+      input,
+    );
+    expect(r).toBe('Nobody has verified that yet. Want me to send a local?');
+  });
+  it('fails closed when the editor is down', async () => {
+    class HalfDown extends Scripted {
+      override async json<T>(req: JsonRequest<T>): Promise<JsonResult<T>> {
+        if (req.purpose === 'concierge-guard') throw new Error('down');
+        return super.json(req);
+      }
+    }
+    expect(await narrateRefusal(new HalfDown({ reply: 'Nobody has verified that yet.' }), input)).toBeNull();
   });
 });
