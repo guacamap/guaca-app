@@ -20,6 +20,8 @@ const CATEGORY: Array<[RegExp, string]> = [
 ];
 
 export interface OvertureFeature {
+  /** The overturemaps CLI puts the id on the feature, not in properties. */
+  id?: string | null;
   properties: {
     id?: string | null;
     names?: { primary?: string | null } | null;
@@ -104,7 +106,7 @@ export async function importOverture(
     const website = p.websites?.[0] ?? null;
     const socials = (p.socials ?? []).filter((u) => typeof u === 'string');
     const address = p.addresses?.[0]?.freeform ?? null;
-    const overtureId = p.id ?? null;
+    const overtureId = f.id ?? p.id ?? null;
     const subcategory = subcategoryFor(p);
 
     // Match: same name within the radius, verified or candidate, any source.
