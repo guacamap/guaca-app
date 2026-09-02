@@ -142,15 +142,55 @@ import { TAXONOMY } from '@guaca/shared'
 
 const DOTS_SOURCE = 'guaca-dots'
 
-/** ['match', ['get','category'], cat1, color1, cat2, color2, ..., fallback] —
- *  built once from the one taxonomy definition, so a dot, a pin and a
- *  category chip are always the same colour for the same category. */
-const DOT_COLOR_EXPR: mapboxgl.ExpressionSpecification = [
-  'match',
-  ['get', 'category'],
-  ...TAXONOMY.flatMap((t) => [t.category, t.color]),
-  '#0C4A5C',
-]
+const DOT_FALLBACK_IMAGE = 'guaca-dot-default'
+/** Bitmap edge in device pixels; registered at pixelRatio 2, so 1.0 icon-size = 32 CSS px. */
+const DOT_IMAGE_PX = 64
+
+/**
+ * A candidate dot as a small badge: the category's colour as a translucent
+ * disc, the category's emoji on top. Rasterised to a canvas at runtime
+ * from the one taxonomy definition — the browser draws the emoji in its
+ * own colour font, so it looks exactly like the same glyph on a pin or a
+ * chip — and registered as a sprite image, so the layer stays a GPU
+ * symbol layer. Hundreds of these per viewport cost what hundreds of
+ * circles did; a DOM marker each would not.
+ */
+function renderDotImage(emoji: string, color: string): ImageData | null {
+  if (typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = DOT_IMAGE_PX
+  canvas.height = DOT_IMAGE_PX
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  const r = DOT_IMAGE_PX / 2
+  ctx.beginPath()
+  ctx.arc(r, r, r - 3, 0, Math.PI * 2)
+  ctx.fillStyle = color
+  // Translucent on purpose: a candidate is not yet proven, and it must keep
+  // reading as lighter than a pin even now that it carries a glyph.
+  ctx.globalAlpha = 0.78
+  ctx.fill()
+  ctx.globalAlpha = 1
+  ctx.lineWidth = 3
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+  ctx.stroke()
+  ctx.font = `${Math.round(DOT_IMAGE_PX * 0.5)}px sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(emoji, r, r + DOT_IMAGE_PX * 0.03)
+  return ctx.getImageData(0, 0, DOT_IMAGE_PX, DOT_IMAGE_PX)
+}
+
+/** Registers every category's badge once per map. Idempotent. */
+function ensureDotImages(map: mapboxgl.Map) {
+  const register = (id: string, emoji: string, color: string) => {
+    if (map.hasImage(id)) return
+    const img = renderDotImage(emoji, color)
+    if (img) map.addImage(id, img, { pixelRatio: 2 })
+  }
+  for (const t of TAXONOMY) register(t.category, t.emoji, t.color)
+  register(DOT_FALLBACK_IMAGE, '📍', '#0C4A5C')
+}
 const HEAT_SOURCE = 'guaca-heat'
 
 /** mapbox-gl's own GeoJSON input type — avoids a @types/geojson dependency. */
@@ -239,18 +279,24 @@ function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[],
     ;(map.getSource(HEAT_SOURCE) as mapboxgl.GeoJSONSource).setData(heatGeoJson(heat))
   }
   if (!map.getSource(DOTS_SOURCE)) {
+    ensureDotImages(map)
     map.addSource(DOTS_SOURCE, { type: 'geojson', data: dotsGeoJson(dots) })
     map.addLayer({
       id: `${DOTS_SOURCE}-layer`,
-      type: 'circle',
+      type: 'symbol',
       source: DOTS_SOURCE,
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5],
-        'circle-color': DOT_COLOR_EXPR,
-        'circle-opacity': 0.7,
-        'circle-stroke-width': 1,
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-opacity': 0.7,
+      layout: {
+        // The feature's category is the image id; anything unmapped falls
+        // back to the generic badge rather than vanishing.
+        'icon-image': ['coalesce', ['image', ['get', 'category']], ['image', DOT_FALLBACK_IMAGE]],
+        // ~13 CSS px at zoom 12, ~22 at 16: legible, still well under a
+        // pin's 32–42, so the "not verified" reading survives.
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.4, 16, 0.7, 18, 0.9],
+        // Never drop a candidate to collision avoidance: a dense block of
+        // them is real information (and the click handler still resolves
+        // the topmost one at the tap point).
+        'icon-allow-overlap': true,
+        'icon-ignore-placement': true,
       },
     })
   } else {
