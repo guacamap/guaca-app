@@ -156,6 +156,11 @@ export interface AppCopy {
     verifiedBy: string
     landmarkLabel: string
     close: string
+    firstEyebrow: Record<string, string>
+    checkinGood: string
+    checkinNotThere: string
+    checkinSkipped: string
+    checkinThanks: string
     askError: string
     emptyMapTitle: string
     emptyMapBody: string
@@ -485,6 +490,11 @@ export const appCopy: Record<Lang, AppCopy> = {
       verifiedBy: 'Physically visited by',
       landmarkLabel: 'How to find it',
       close: 'Close',
+      firstEyebrow: { rain_replan: 'Guaca moved your day', storm: 'Storm alert', morning_plan: 'Guaca, this morning', evening_checkin: 'How did it go?', stop_verified: 'A local checked', stop_rejected: 'A local checked', next_stop: 'Next stop' },
+      checkinGood: 'Good',
+      checkinNotThere: 'Not there',
+      checkinSkipped: 'Skipped',
+      checkinThanks: 'Thanks, that teaches me. "Not there" sends a local to look.',
       askError: 'Couldn’t reach Guaca — try again.',
       emptyMapTitle: 'Coverage grows locally',
       emptyMapBody: 'Verified places appear as Spotters confirm them on the ground.',
@@ -825,6 +835,11 @@ export const appCopy: Record<Lang, AppCopy> = {
       verifiedBy: 'Visitado físicamente por',
       landmarkLabel: 'Cómo encontrarlo',
       close: 'Cerrar',
+      firstEyebrow: { rain_replan: 'Guaca movió tu día', storm: 'Alerta de tormenta', morning_plan: 'Guaca, esta mañana', evening_checkin: '¿Cómo te fue?', stop_verified: 'Un local revisó', stop_rejected: 'Un local revisó', next_stop: 'Siguiente parada' },
+      checkinGood: 'Bien',
+      checkinNotThere: 'No existía',
+      checkinSkipped: 'La salté',
+      checkinThanks: 'Gracias, eso me enseña. "No existía" manda a un local a mirar.',
       askError: 'No pudimos conectar con Guaca — intenta de nuevo.',
       emptyMapTitle: 'La cobertura crece localmente',
       emptyMapBody: 'Los lugares verificados aparecen cuando los Spotters los confirman en el terreno.',

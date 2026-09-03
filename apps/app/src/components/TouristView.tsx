@@ -116,8 +116,13 @@ interface AreaNow {
 interface ChatMsg {
   id: string
   role: 'user' | 'guaca'
-  kind?: 'answer' | 'refusal' | 'error' | 'chat' | 'mission' | 'notify'
+  kind?: 'answer' | 'refusal' | 'error' | 'chat' | 'mission' | 'notify' | 'first'
   text: string
+  /** Guaca spoke first: why, and for an evening check-in, the stops to rate. */
+  trigger?: string
+  checkin?: Array<{ placeId: string; name: string }>
+  /** Which verdicts have been sent for this check-in, by placeId. */
+  verdicts?: Record<string, string>
   /** A friendly lead-in from the concierge above a grounded answer or refusal. */
   lead?: string
   placeIds?: string[]
@@ -288,6 +293,7 @@ export function TouristView() {
   const [guacaText, setGuacaText] = useState('')
   const [guacaBusy, setGuacaBusy] = useState(false)
   const [plan, setPlan] = useState<SavedPlan | null>(null)
+  const [unreadFirst, setUnreadFirst] = useState(0)
   const [trips, setTrips] = useState<ApiTrip[]>([])
   const [tripText, setTripText] = useState('')
   const [tripDays, setTripDays] = useState(2)
@@ -533,6 +539,7 @@ export function TouristView() {
         }
       })
       .catch(() => {})
+    void takeInbox()
     fetch('/api/tourist/posts', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { posts: MyPost[] } | null) => {
@@ -1074,6 +1081,56 @@ export function TouristView() {
       return next
     })
     setGuacaBusy(false)
+  }
+
+  /**
+   * Guaca speaking first. Each undelivered message lands in the thread as
+   * its own bubble; a replan also replaces the saved plan. Polled every two
+   * minutes and whenever the app comes back to the front.
+   */
+  const takeInbox = useCallback(async () => {
+    try {
+      const r = await fetch('/api/tourist/inbox', { credentials: 'include' })
+      if (!r.ok) return
+      const d = (await r.json()) as { messages: Array<{ id: string; trigger: string; text: string; payload: { plan?: string; placeIds?: string[]; stops?: Array<{ placeId: string; name: string }> } | null; createdAt: string }> }
+      if (!d.messages?.length) return
+      const bubbles: ChatMsg[] = d.messages.map((m) => ({
+        id: `first:${m.id}`, role: 'guaca', kind: 'first', trigger: m.trigger,
+        text: m.payload?.plan ? `${m.text}\n\n${m.payload.plan}` : m.text,
+        ...(m.payload?.placeIds?.length ? { placeIds: m.payload.placeIds } : {}),
+        ...(m.payload?.stops?.length ? { checkin: m.payload.stops } : {}),
+      }))
+      setThread((prev) => {
+        const next = [...prev, ...bubbles].slice(-60)
+        saveJson(THREAD_KEY, next)
+        return next
+      })
+      const replan = d.messages.find((m) => m.trigger === 'rain_replan' && m.payload?.plan && m.payload.placeIds)
+      if (replan?.payload?.plan && replan.payload.placeIds) savePlanFromAnswer(plan?.question ?? '', replan.payload.plan, replan.payload.placeIds)
+      setUnreadFirst((n) => n + d.messages.length)
+    } catch {
+      // Silence is fine; the next poll tries again.
+    }
+  }, [plan?.question])
+  useEffect(() => {
+    if (!me) return
+    const id = setInterval(() => void takeInbox(), 120_000)
+    const onFocus = () => void takeInbox()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus) }
+  }, [me, takeInbox])
+  useEffect(() => { if (activeTab === 'guaca') setUnreadFirst(0) }, [activeTab])
+
+  const sendVerdicts = async (msgId: string, verdicts: Record<string, string>) => {
+    setThread((prev) => {
+      const next = prev.map((m) => (m.id === msgId ? { ...m, verdicts } : m))
+      saveJson(THREAD_KEY, next)
+      return next
+    })
+    await fetch('/api/tourist/feedback', {
+      method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ verdicts: Object.entries(verdicts).map(([placeId, verdict]) => ({ placeId, verdict })) }),
+    }).catch(() => {})
   }
 
   /** Everything under a refusal's headline: honest coverage, the chips, the watch, and the local as the last option. */
@@ -1954,6 +2011,43 @@ export function TouristView() {
                 })()}
                 {m.kind === 'notify' && <p className="mt-2 flex items-center gap-1.5 text-[11px] font-black text-guaca-teal-dark"><Check className="h-3.5 w-3.5" /> {t.refusalNotifySaved}</p>}
               </div>
+            ) : m.kind === 'first' ? (
+              <div key={m.id} className="max-w-[92%] rounded-3xl rounded-bl-lg border border-guaca-teal/25 bg-guaca-teal/6 p-4">
+                <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[.12em] text-guaca-teal">
+                  <Sparkles className="h-3 w-3" /> {t.firstEyebrow[m.trigger ?? ''] ?? 'Guaca'}
+                </p>
+                <p className="mt-1.5 whitespace-pre-line text-[13px] font-bold leading-relaxed text-guaca-ink">{m.text}</p>
+                {m.checkin && (
+                  <div className="mt-3 space-y-2">
+                    {m.checkin.map((s) => {
+                      const v = m.verdicts?.[s.placeId]
+                      const opt = (verdict: string, label: string) => (
+                        <button key={verdict} type="button" disabled={!!v} onClick={() => void sendVerdicts(m.id, { ...(m.verdicts ?? {}), [s.placeId]: verdict })}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-black ${v === verdict ? 'bg-guaca-teal text-white' : v ? 'bg-guaca-ink/5 text-guaca-ink/35' : 'bg-white text-guaca-teal ring-1 ring-guaca-teal/30 hover:bg-guaca-teal/10'}`}>
+                          {label}
+                        </button>
+                      )
+                      return (
+                        <div key={s.placeId} className="flex flex-wrap items-center gap-1.5">
+                          <span className="mr-1 text-[12px] font-black text-guaca-ink">{s.name}</span>
+                          {opt('good', t.checkinGood)}{opt('not_there', t.checkinNotThere)}{opt('skipped', t.checkinSkipped)}
+                        </div>
+                      )
+                    })}
+                    {m.verdicts && Object.keys(m.verdicts).length === m.checkin.length && (
+                      <p className="text-[11px] font-bold text-guaca-ink/55">{t.checkinThanks}</p>
+                    )}
+                  </div>
+                )}
+                {(m.placeIds ?? []).length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {(m.placeIds ?? []).map((id) => { const p = placeById(id); return p ? (
+                      <button key={id} type="button" onClick={() => openPlaceOnMap(id)} className="rounded-full bg-guaca-teal/8 px-3 py-1.5 text-[10px] font-black text-guaca-teal hover:bg-guaca-teal/15">
+                        {(CATEGORY_GLYPH[p.category] ?? { emoji: '📍' }).emoji} {p.name}
+                      </button>) : null })}
+                  </div>
+                )}
+              </div>
             ) : m.kind === 'refusal' && m.refusal?.spoken ? (
               <div key={m.id} className="guaca-card max-w-[92%] rounded-3xl rounded-bl-lg p-4">
                 {m.notes?.map((n) => <p key={n} className="mb-1.5 flex items-start gap-1.5 text-[11px] font-bold leading-snug text-guaca-mango-dark"><Sun className="mt-0.5 h-3.5 w-3.5 shrink-0" />{n}</p>)}
@@ -2556,7 +2650,7 @@ export function TouristView() {
           ].map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.id
-            return <Button key={tab.id} type="button" variant="ghost" onClick={() => setActiveTab(tab.id)} aria-label={tab.label} aria-current={active ? 'page' : undefined} className={`h-14 min-w-16 flex-col gap-1 rounded-2xl px-3 text-[10px] font-bold hover:bg-transparent lg:h-[76px] lg:w-[88px] lg:text-[13px] ${active ? 'text-guaca-teal lg:bg-guaca-teal/10' : 'text-guaca-ink/42 lg:hover:bg-guaca-sand'}`}><Icon className={`h-5 w-5 lg:h-7 lg:w-7 ${active ? 'fill-guaca-teal/10' : ''}`} />{tab.label}</Button>
+            return <Button key={tab.id} type="button" variant="ghost" onClick={() => setActiveTab(tab.id)} aria-label={tab.label} aria-current={active ? 'page' : undefined} className={`relative h-14 min-w-16 flex-col gap-1 rounded-2xl px-3 text-[10px] font-bold hover:bg-transparent lg:h-[76px] lg:w-[88px] lg:text-[13px] ${active ? 'text-guaca-teal lg:bg-guaca-teal/10' : 'text-guaca-ink/42 lg:hover:bg-guaca-sand'}`}><Icon className={`h-5 w-5 lg:h-7 lg:w-7 ${active ? 'fill-guaca-teal/10' : ''}`} />{tab.label}{tab.id === 'guaca' && unreadFirst > 0 && <span aria-label={String(unreadFirst)} className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-guaca-coral ring-2 ring-white lg:right-5 lg:top-3" />}</Button>
           })}
         </div>
         <RailArt />
