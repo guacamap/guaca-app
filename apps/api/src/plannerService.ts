@@ -400,7 +400,7 @@ export async function ask(
   }
   const askText = turn.askText?.trim() || input.text;
   const nowMin = localNowMin(area?.timezone);
-  const planForTomorrow = nowMin >= 17 * 60 && /plan|day|día|dia|itinerar/i.test(askText);
+  const planForTomorrow = nowMin >= 17 * 60 && /plan|day|día|dia|itinerar/i.test(`${input.text} ${askText}`);
   const spoken = guessLang(input.text, lang);
   // The rain that matters is the rain of the day being planned.
   const rainHours = ctx?.weather ? (planForTomorrow ? ctx.weather.rainByHourTomorrow : ctx.weather.rainByHour) ?? null : null;
