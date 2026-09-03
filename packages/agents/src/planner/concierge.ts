@@ -18,6 +18,8 @@ export const ConciergeSchema = z.object({
   kind: z.string().max(40).optional(),
   /** For mode 'ask': true when they are asking about tomorrow, not today. */
   tomorrow: z.boolean().optional(),
+  /** Short notes worth remembering about this traveller from this message ("travelling with partner", "here until Sunday", "dislikes crowds", "already did the fort"). Empty when nothing new. */
+  learned: z.array(z.string().max(160)).max(4).optional(),
 });
 export type ConciergeTurn = z.infer<typeof ConciergeSchema> & {
   /** Where the turn came from: the lexicon, the model, a guard, or the fallback. */
@@ -39,6 +41,10 @@ export interface ConciergeInput {
   now?: string;
   /** The town: its name and what kind of place it is, for flavour, never for citing. */
   about?: string;
+  /** What Guaca remembers about this traveller from earlier days, oldest first. */
+  remembered?: readonly string[];
+  /** The plan Guaca is keeping for them today, one line, when there is one. */
+  activePlan?: string;
 }
 
 /**
@@ -217,7 +223,10 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
         (coverage ? ` (${coverage})` : '') +
         '. Categories: ' + CATEGORY_VALUES.join(', ') + '.' +
         (input.now ? ` Right now: ${input.now}. Weave these in only when natural, the way a local mentions the sea or the heat.` : '') +
-        (input.about ? ` Where you both are: ${input.about}. Use it to sound like you live here; still never name or recommend a specific place from it.` : ''),
+        (input.about ? ` Where you both are: ${input.about}. Use it to sound like you live here; still never name or recommend a specific place from it.` : '') +
+        (input.remembered?.length ? ` What you remember about this traveller from before: ${input.remembered.join('; ')}. Use it the way a friend would (do not ask what you already know; refer back naturally; never recite the list).` : '') +
+        (input.activePlan ? ` The plan you are keeping for them today: ${input.activePlan}. If they refer to it, you know it.` : '') +
+        ' Fill learned with at most four short notes worth keeping about them from THIS message only (who they are with, how long they stay, what they like or avoid, what they already did); nothing that is already remembered, and never a guess.',
       user: (transcript ? `Conversation so far:\n${transcript}\n\n` : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
@@ -300,6 +309,55 @@ export async function narrateRefusal(inference: Inference, input: RefusalNarrati
     });
     const reply = await withoutPointing(inference, withoutDurations(withoutNamingSentences(res.raw.reply, input.placeNames)), input.placeNames);
     return reply.length > 0 ? reply : null;
+  } catch {
+    return null;
+  }
+}
+
+export const SpeakFirstSchema = z.object({ text: z.string().min(1).max(400) });
+
+export interface SpeakFirstInput {
+  language: string;
+  /** Why Guaca is speaking, in plain facts: the tick decided, the model only words it. */
+  reason: string;
+  /** What Guaca may refer to by name: the stops of the traveller's own plan. */
+  allowedNames: readonly string[];
+  remembered?: readonly string[];
+  now?: string;
+  about?: string;
+}
+
+/**
+ * Guaca speaks first. The trigger and the facts come from the tick; this
+ * turns them into one or two sentences in Guaca's voice. The plan's own
+ * stops may be named (the traveller already has them); anything else goes
+ * through the same editor as every other sentence. Null when nothing
+ * honest survives, and then the tick sends its plain fallback line.
+ */
+export async function speakFirst(inference: Inference, input: SpeakFirstInput): Promise<string | null> {
+  const lang: 'en' | 'es' = input.language === 'es' ? 'es' : 'en';
+  try {
+    const res = await inference.json<z.infer<typeof SpeakFirstSchema>>({
+      schema: SpeakFirstSchema,
+      purpose: 'concierge',
+      maxOutputTokens: 220,
+      system:
+        persona(lang) +
+        'You are messaging the traveller first, unprompted, because of one concrete reason. Say the reason plainly in the first sentence, then what you propose or ask, in at most two sentences. No greeting ritual, no apology for writing. ' +
+        `You may name these places because they are already in the traveller's own plan: ${input.allowedNames.join('; ') || 'none'}. Name nothing else. ` +
+        (input.remembered?.length ? `What you remember about them: ${input.remembered.join('; ')}. ` : '') +
+        (input.now ? `Right now: ${input.now}. ` : '') +
+        (input.about ? `Where they are: ${input.about}. ` : ''),
+      user: `Reason: ${input.reason}`,
+      untrusted: input.reason,
+    });
+    // The plan's names are allowed; everything else is swept as usual.
+    const raw = res.raw.text.trim();
+    const shielded = input.allowedNames.reduce((t, n, i) => t.split(n).join(`__P${i}__`), raw);
+    const kept = withoutDurations(withoutNamingSentences(shielded, []));
+    const edited = await withoutPointing(inference, kept, []);
+    const restored = input.allowedNames.reduce((t, n, i) => t.split(`__P${i}__`).join(n), edited);
+    return restored.length > 0 ? restored : null;
   } catch {
     return null;
   }
