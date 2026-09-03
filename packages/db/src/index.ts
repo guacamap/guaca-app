@@ -77,4 +77,6 @@ export { importFoursquare, categoryForFoursquare } from './seed/foursquareImport
 export type { FoursquareRow, FoursquareImportResult } from './seed/foursquareImport.js';
 export { recordSource } from './seed/placeSources.js';
 export { fetchAreaAbout, refreshAreaAbout } from './seed/areaAbout.js';
+export { getTravellerState, heardFromTraveller, setActivePlan, travellersToTick, guacaSpoke, spokenToday, takeInbox, recordStopFeedback } from './travellerState.js';
+export type { TravellerState, ActivePlan, ActivePlanStop, InboxMessage } from './travellerState.js';
 export type { PlaceSource, SourceRecord } from './seed/placeSources.js';
