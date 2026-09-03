@@ -19,7 +19,7 @@ export const ConciergeSchema = z.object({
   /** For mode 'ask': true when they are asking about tomorrow, not today. */
   tomorrow: z.boolean().optional(),
   /** Short notes worth remembering about this traveller from this message ("travelling with partner", "here until Sunday", "dislikes crowds", "already did the fort"). Empty when nothing new. */
-  learned: z.array(z.string().max(160)).max(4).optional(),
+  learned: z.array(z.string().max(160)).max(4),
 });
 export type ConciergeTurn = z.infer<typeof ConciergeSchema> & {
   /** Where the turn came from: the lexicon, the model, a guard, or the fallback. */
@@ -194,7 +194,7 @@ const SWEPT_BY_MODE: Record<'mission' | 'notify', Record<'en' | 'es', string>> =
 export async function converse(inference: Inference, input: ConciergeInput): Promise<ConciergeTurn> {
   const lang = guessLang(input.text, input.language === 'es' ? 'es' : 'en');
   if (detectInjection(input.text).reasons.length > 0) {
-    return { mode: 'chat', reply: FALLBACK[lang], via: 'guard' };
+    return { mode: 'chat', reply: FALLBACK[lang], learned: [], via: 'guard' };
   }
 
   const coverage = [...input.coverage.byCategory.entries()]
@@ -214,6 +214,7 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
       system:
         persona(lang) +
         'How a conversation goes: if they greet you, greet them back like you mean it and get curious about their day. If they mention what they are after, react to it as a person would (a private beach, a long lunch, somewhere to dance) and, when it would genuinely change what you look for, ask ONE light question: with whom, when, what mood, walking or driving. Never more than one question per message, and never ask twice in a row; after one clarifying exchange, or when the wish is already clear, go look. ' +
+        'Always fill learned: a list of 0 to 4 short notes worth remembering about this traveller from THIS message (who they are with, how long they stay, what they like or avoid, what they already did), like "travelling with partner", "here until Sunday", "avoids crowds". Empty list when the message teaches nothing new. Never a guess, never something already remembered. ' +
         'Choose mode: "chat" when your message is a greeting, small talk, a reaction, or that one question (a message ending in a question is always "chat"). ' +
         '"ask" when it is time to look: askText is a short plain query in their language that the map can answer ("a quiet beach nearby", "where can I eat nearby", "museums and history nearby"), category is set, and reply is one natural sentence saying you are going to check what locals have verified, in your own words each time. When they want a plan, a whole day or several stops, askText starts with "plan my day" (Spanish: "planifica mi día") and keeps every topic they named, for example "plan my day: history and a beach". Set kind to the specific type of place when they named one (tattoo studio, sushi, pharmacy, cocktail bar, surf school); leave it empty for a generic wish (somewhere to eat, a beach). Set tomorrow to true when the ask is about tomorrow. ' +
         (input.hasOpenRefusal
@@ -225,8 +226,7 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
         (input.now ? ` Right now: ${input.now}. Weave these in only when natural, the way a local mentions the sea or the heat.` : '') +
         (input.about ? ` Where you both are: ${input.about}. Use it to sound like you live here; still never name or recommend a specific place from it.` : '') +
         (input.remembered?.length ? ` What you remember about this traveller from before: ${input.remembered.join('; ')}. Use it the way a friend would (do not ask what you already know; refer back naturally; never recite the list).` : '') +
-        (input.activePlan ? ` The plan you are keeping for them today: ${input.activePlan}. If they refer to it, you know it.` : '') +
-        ' Fill learned with at most four short notes worth keeping about them from THIS message only (who they are with, how long they stay, what they like or avoid, what they already did); nothing that is already remembered, and never a guess.',
+        (input.activePlan ? ` The plan you are keeping for them today: ${input.activePlan}. If they refer to it, you know it.` : ''),
       user: (transcript ? `Conversation so far:\n${transcript}\n\n` : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
     });
@@ -246,9 +246,9 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
     // pipeline, which refuses honestly and records the demand; anything else
     // gets the fixed greeting so the traveller is not left hanging.
     if (classifiesIntent(input.text)) {
-      return { mode: 'ask', reply: '', askText: input.text, via: 'lexicon' };
+      return { mode: 'ask', reply: '', askText: input.text, learned: [], via: 'lexicon' };
     }
-    return { mode: 'ask', reply: FALLBACK[lang], askText: input.text, via: 'fallback' };
+    return { mode: 'ask', reply: FALLBACK[lang], askText: input.text, learned: [], via: 'fallback' };
   }
 }
 
