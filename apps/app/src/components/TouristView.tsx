@@ -1113,18 +1113,19 @@ export function TouristView() {
     }
   }, [plan?.question])
   useEffect(() => {
-    if (!me) return
+    // The view is behind login already; a 401 from the inbox is a quiet no-op.
+    void takeInbox()
     const id = setInterval(() => void takeInbox(), 120_000)
     const onFocus = () => void takeInbox()
     window.addEventListener('focus', onFocus)
     return () => { clearInterval(id); window.removeEventListener('focus', onFocus) }
-  }, [me, takeInbox])
+  }, [takeInbox])
   useEffect(() => { if (activeTab === 'guaca') setUnreadFirst(0) }, [activeTab])
 
   // Guaca says hello first: when the conversation opens empty, once a day.
   const helloAsked = useRef(false)
   useEffect(() => {
-    if (activeTab !== 'guaca' || !me || thread.length > 0 || helloAsked.current) return
+    if (activeTab !== 'guaca' || thread.length > 0 || helloAsked.current) return
     helloAsked.current = true
     const [lon, lat] = center
     fetch('/api/tourist/hello', { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lat, lon, language: lang }) })
@@ -1140,7 +1141,7 @@ export function TouristView() {
         })
       })
       .catch(() => {})
-  }, [activeTab, me, thread.length, center, lang])
+  }, [activeTab, thread.length, center, lang])
 
   const sendVerdicts = async (msgId: string, verdicts: Record<string, string>) => {
     setThread((prev) => {

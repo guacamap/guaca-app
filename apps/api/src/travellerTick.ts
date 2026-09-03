@@ -52,8 +52,8 @@ function fmt(min: number): string {
 }
 
 const WELCOME = {
-  en: (first: boolean) => (first ? 'Hey, I am Guaca. I live here, and I only pass on places a local has actually stood in front of. Tell me what you are in the mood for and I will look.' : 'Hey, welcome back. Tell me what today is about and I will look.'),
-  es: (first: boolean) => (first ? 'Hola, soy Guaca. Vivo aquí, y solo paso lugares donde un local ha estado de verdad. Dime qué te provoca hoy y busco.' : 'Hola, qué bueno verte de nuevo. Dime de qué va el día de hoy y busco.'),
+  en: (first: boolean) => (first ? 'Hey, I am Guaca. I live around here, and when I point you somewhere it is because a local actually went and stood there. What are you in the mood for today?' : 'Hey, welcome back. What is today about?'),
+  es: (first: boolean) => (first ? 'Hola, soy Guaca. Vivo por aquí, y cuando te mando a un sitio es porque un local fue y estuvo ahí de verdad. ¿Qué te provoca hoy?' : 'Hola, qué bueno verte de nuevo. ¿De qué va el día de hoy?'),
 };
 
 /**
@@ -78,11 +78,15 @@ export async function welcome(
   const reason = returning
     ? 'The traveller just opened the conversation again. Greet them like a friend who remembers them and ask what today is about.'
     : 'The traveller just opened the conversation for the first time. Introduce yourself by name (Guaca) in one breath: you live here, and when you point somewhere it is because a local actually went and stood there; then ask what they are in the mood for today. Warm, short, no sales pitch.';
-  const text =
-    (await speakFirst(deps.inference, {
-      language: input.language, reason, allowedNames: [], remembered: state?.notes ?? [],
-      ...(ctx ? { now: contextLine(ctx) } : {}), ...(area ? { about: aboutLine(area, input.language) } : {}),
-    })) ?? fallback;
+  // The first hello is Guaca's own definition of itself, said the same way
+  // every time; the model is trusted with the return greetings, where what
+  // it remembers is the point. (The editor kept trimming the introduction.)
+  const text = returning
+    ? (await speakFirst(deps.inference, {
+        language: input.language, reason, allowedNames: [], remembered: state?.notes ?? [],
+        ...(ctx ? { now: contextLine(ctx) } : {}), ...(area ? { about: aboutLine(area, input.language) } : {}),
+      })) ?? fallback
+    : fallback;
   await heardFromTraveller(pool, input.touristId, { lat: input.lat, lon: input.lon, language: input.language, learned: [] });
   const id = await guacaSpoke(pool, input.touristId, { trigger: 'welcome', text });
   // Handed over in this response; the inbox must not deliver it again.
