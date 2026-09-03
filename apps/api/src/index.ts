@@ -1,5 +1,6 @@
 import { pool, clusterUnanswered, expireMissions, recomputeZoneDemand } from '@guaca/db';
 import { runGapAgent } from '@guaca/agents';
+import { routerFromEnv } from './routing.js';
 import { buildApp } from './app.js';
 import { gapAgentOptions } from './gapAgentDeps.js';
 import { disabledContextProvider, liveContextProvider } from './context.js';
@@ -8,7 +9,7 @@ import { recomputeTrends } from './trendsService.js';
 import { disabledWeatherProvider, openMeteoProvider } from './weather.js';
 
 const contextProvider = (process.env.WEATHER_ENABLED ?? 'true') !== 'false' ? liveContextProvider() : disabledContextProvider();
-const app = buildApp({ pool, contextProvider });
+const app = buildApp({ pool, contextProvider, router: routerFromEnv() });
 const port = Number(process.env.API_PORT ?? 3001);
 
 const AREA_ID =

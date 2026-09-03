@@ -110,6 +110,8 @@ export interface DeterministicOptions {
   /** Category resolved by the caller (model classifier) when the
    *  deterministic lexicon did not recognise the question. */
   categoryOverride?: string;
+  /** Local hours (0..23) with rain likely; open-air categories are not planned into them. */
+  wetHours?: readonly number[];
 }
 
 /**
@@ -138,6 +140,11 @@ export async function answerDeterministic(
 
   const now = new Date();
   const startMin = options.nowMin ?? now.getHours() * 60 + now.getMinutes();
+  // A beach or a walk in the rain is not an answer. If the coming hour is
+  // wet for an open-air category, the model path decides (it can shift
+  // the day around the rain); the fast path only answers dry questions.
+  const openAir = new Set(['beach_water', 'nature_walk', 'market_shop']);
+  if (options.wetHours?.includes(Math.floor(startMin / 60)) && openAir.has(intent.category)) return null;
   const stops = greedyRoute({
     places: options.places,
     category: intent.category,

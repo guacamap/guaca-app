@@ -100,6 +100,7 @@ services:
       PLANNER_MIN_CANDIDATES: ${PLANNER_MIN_CANDIDATES:-3}
       # Trend engine weather modulation (Open-Meteo; off = scores run weather-free).
       WEATHER_ENABLED: ${WEATHER_ENABLED:-true}
+      ROUTING_URL: ${ROUTING_URL:-}
       WEATHER_BASE_URL: ${WEATHER_BASE_URL:-https://api.open-meteo.com}
     depends_on:
       postgres:

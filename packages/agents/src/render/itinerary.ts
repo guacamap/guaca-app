@@ -56,6 +56,15 @@ const TEMPLATES: Record<string, Template> = {
   },
 };
 
+/** "25 min by car", "8 min on foot", "by boat, ask a local"; an estimate says so. */
+function legWords(leg: { minutes: number; mode: 'foot' | 'car' | 'boat'; estimated: boolean }, lang: string): string {
+  const es = lang === 'es';
+  if (leg.mode === 'boat') return es ? `en lancha, pregunta a un local (unos ${leg.minutes} min)` : `by boat, ask a local (about ${leg.minutes} min)`;
+  const mode = leg.mode === 'foot' ? (es ? 'a pie' : 'on foot') : es ? 'en carro' : 'by car';
+  const est = leg.estimated ? (es ? ', estimado' : ', estimate') : '';
+  return `${leg.minutes} min ${mode}${est}`;
+}
+
 function fmt(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -72,7 +81,7 @@ export function renderItinerary(
   artifact: PlanArtifact,
   places: ReadonlyMap<string, RenderPlace>,
   lang: string,
-  opts: { tomorrow?: boolean } = {},
+  opts: { tomorrow?: boolean; legs?: ReadonlyMap<string, { minutes: number; mode: 'foot' | 'car' | 'boat'; estimated: boolean }> } = {},
 ): string {
   const t = TEMPLATES[lang] ?? TEMPLATES.en!;
   // Single-day plans render exactly as they always have — no day header.
@@ -86,7 +95,11 @@ export function renderItinerary(
       lines.push('');
       lines.push(t.day(day + 1));
     }
-    for (const stop of artifact.stops.filter((s) => s.dayIndex === day)) {
+    let prevId: string | null = null;
+    for (const stop of [...artifact.stops.filter((s) => s.dayIndex === day)].sort((a, b) => a.startMin - b.startMin)) {
+      const leg = prevId ? opts.legs?.get(`${prevId}>${stop.placeId}`) : undefined;
+      if (leg) lines.push(`   ↳ ${legWords(leg, lang)}`);
+      prevId = stop.placeId;
       const place = places.get(stop.placeId);
       // Fail closed. A grounded artifact passed the step-6 re-read, so a missing
       // row means the caller supplied a mismatched map — silently dropping the

@@ -65,6 +65,8 @@ export interface PipelineOptions {
   minCandidates: number;
   /** Minutes past midnight for the fast path; the wall clock when omitted. */
   nowMin?: number;
+  /** Hours with rain likely, as text for the planner and as hours for the fast path. */
+  rain?: { windows: string; wetHours: readonly number[] };
 }
 
 /**
@@ -117,6 +119,7 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
       places: fastPathPlaces, inference: options.inference,
       ...(options.nowMin !== undefined ? { nowMin: options.nowMin } : {}),
       ...(resolvedCategory ? { categoryOverride: resolvedCategory } : {}),
+      ...(options.rain ? { wetHours: options.rain.wetHours } : {}),
     });
     if (fast) {
       const artifact = groundFromVerifiedRows(fast.stops, verifiedIds);
@@ -150,6 +153,7 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
     inference: options.inference,
     onGap: () => undefined,
     ...(options.nowMin !== undefined ? { nowMin: options.nowMin } : {}),
+    ...(options.rain ? { rainWindows: options.rain.windows } : {}),
   });
 
   if (outcome.kind === 'PlanArtifact') {

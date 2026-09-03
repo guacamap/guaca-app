@@ -1,5 +1,7 @@
 import type { Pool } from 'pg';
 import { tierOf } from '@guaca/shared';
+import { estimatingRouter, type Router } from './routing.js';
+import { applyTravel } from './travel.js';
 import {
   answerFromCatalog,
   converse,
@@ -28,7 +30,7 @@ import {
   type TripStop,
 } from '@guaca/shared';
 import { suggestionsNear } from './suggestionsService.js';
-import { contextLine, type AreaContext, type ContextProvider } from './context.js';
+import { contextLine, rainWindows, rainWindowsLine, type AreaContext, type ContextProvider } from './context.js';
 
 export interface AreaRow { id: string; slug: string; name: string; country: string; timezone: string; lat: number; lon: number; about_en?: string | null; about_es?: string | null }
 
@@ -273,7 +275,7 @@ export async function ask(
     /** Needed for the mission and notify turns. */
     touristId?: string;
   },
-  opts: { minCandidates: number; inference: import('@guaca/agents').Inference; contextProvider?: ContextProvider },
+  opts: { minCandidates: number; inference: import('@guaca/agents').Inference; contextProvider?: ContextProvider; router?: Router },
 ): Promise<AskResult> {
   const lang: 'en' | 'es' = input.language === 'es' ? 'es' : 'en';
   const record = async (
@@ -400,6 +402,10 @@ export async function ask(
   const nowMin = localNowMin(area?.timezone);
   const planForTomorrow = nowMin >= 17 * 60 && /plan|day|día|dia|itinerar/i.test(askText);
   const spoken = guessLang(input.text, lang);
+  // The rain that matters is the rain of the day being planned.
+  const rainHours = ctx?.weather ? (planForTomorrow ? ctx.weather.rainByHourTomorrow : ctx.weather.rainByHour) ?? null : null;
+  const rainLine = rainHours ? rainWindowsLine(rainHours) : null;
+  const rain = rainLine && rainHours ? { windows: rainLine, wetHours: rainWindows(rainHours).flatMap((w) => Array.from({ length: w.to - w.from }, (_, i) => w.from + i)) } : null;
   const lead = turn.via === 'model' && turn.reply.trim() ? { lead: turn.reply.trim() } : {};
 
   // Intent, coverage, fast path, single-topic filter, guarded model path and
@@ -428,6 +434,7 @@ export async function ask(
     // After 17:00 "plan my day" means tomorrow: a whole day from the
     // morning, said so in the header. Before that, the day left from now.
     nowMin: planForTomorrow ? 8 * 60 : nowMin,
+    ...(rain ? { rain } : {}),
   });
 
   // The concierge asked a question but chose 'ask', and the pipeline could
@@ -486,9 +493,10 @@ export async function ask(
   const questionId = await record(true, category, ids, null);
   await recordUnverifiedStops(pool, input, rows.filter((r) => ids.includes(r.id) && tierFor(r) !== 'verified'));
   const sugg = await followUps(ids);
+  const travelled = await applyTravel(outcome.artifact, new Map(rows.map((r) => [r.id, { lat: r.lat, lon: r.lon }])), opts.router ?? estimatingRouter());
   return {
     kind: 'answer',
-    text: renderItinerary(outcome.artifact, places, spoken, { tomorrow: planForTomorrow }),
+    text: renderItinerary(travelled.artifact, places, spoken, { tomorrow: planForTomorrow, legs: travelled.legs }),
     placeIds: ids,
     ...lead,
     ...withNotes,
@@ -577,7 +585,7 @@ export async function planTrip(
     pace: TripPace;
     interests?: readonly string[];
   },
-  opts: { minCandidates: number; inference: Inference },
+  opts: { minCandidates: number; inference: Inference; router?: Router },
 ): Promise<TripResult> {
   const intent = extractIntent(input.text);
   let resolvedCategory: string | null = null;
@@ -672,6 +680,7 @@ export async function planTrip(
   );
   const ids = [...artifact.placeIds];
   await recordUnverifiedStops(pool, input, rows.filter((r) => ids.includes(r.id) && tierFor(r) !== 'verified'));
+  const travelled = await applyTravel(artifact, new Map(rows.map((r) => [r.id, { lat: r.lat, lon: r.lon }])), opts.router ?? estimatingRouter());
 
   const places = new Map(
     rows.map((r) => [
@@ -705,7 +714,7 @@ export async function planTrip(
   const questionId = await record(true, ids, null);
   return {
     kind: 'trip',
-    text: renderItinerary(artifact, places, input.language),
+    text: renderItinerary(travelled.artifact, places, guessLang(input.text, input.language === 'es' ? 'es' : 'en'), { legs: travelled.legs }),
     placeIds: ids,
     ...(trip ? { trip } : {}),
     ...(questionId ? { questionId } : {}),

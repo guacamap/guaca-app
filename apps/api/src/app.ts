@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
+import { estimatingRouter } from './routing.js';
 import { randomUUID, createHash, timingSafeEqual, randomInt } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
@@ -29,6 +30,8 @@ export interface AppOptions {
   objectStore?: ObjectStore;
   /** Weather, sea, sun, holiday, rates, alerts per area; tests inject a stub. */
   contextProvider?: import('./context.js').ContextProvider;
+  /** Travel between stops; the straight-line estimator when unset. */
+  router?: import('./routing.js').Router;
 }
 
 /** §4.1 — auth tokens arrive as an httpOnly cookie (web) or a Bearer
@@ -938,6 +941,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         minCandidates: options.minCandidates ?? Number(process.env.PLANNER_MIN_CANDIDATES ?? 3),
         inference,
         ...(options.contextProvider ? { contextProvider: options.contextProvider } : {}),
+        router: options.router ?? estimatingRouter(),
       },
     );
     return reply.send(result);
@@ -975,6 +979,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       {
         minCandidates: options.minCandidates ?? Number(process.env.PLANNER_MIN_CANDIDATES ?? 3),
         inference,
+        router: options.router ?? estimatingRouter(),
       },
     );
     return reply.send(result);

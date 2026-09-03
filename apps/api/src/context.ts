@@ -11,7 +11,11 @@ import type { WeatherProvider } from './weather.js';
 export interface AreaContext {
   /** ISO local time in the area's zone, e.g. "2026-08-29T15:10". */
   localTime: string;
-  weather: { tempC: number; rainPct: number; windKmh: number; uv: number; summary: 'clear' | 'showers' | 'rain' | 'windy' } | null;
+  weather: {
+    tempC: number; rainPct: number; windKmh: number; uv: number; summary: 'clear' | 'showers' | 'rain' | 'windy';
+    /** Rain probability per local hour, index 0..23, today and tomorrow. The planner reads these when present. */
+    rainByHour?: number[]; rainByHourTomorrow?: number[];
+  } | null;
   sea: { waveM: number; swellM: number; seaTempC: number | null; state: 'calm' | 'moderate' | 'rough' } | null;
   sun: { sunrise: string; sunset: string } | null;
   holiday: { name: string; localName: string } | null;
@@ -54,9 +58,33 @@ export function localIso(date: Date, timezone: string): string {
 }
 
 /** One line for a prompt: "15:10 local · 31°C, 20% rain, UV 9 · calm sea 29°C · sunset 18:41 · holiday: Día del Virgen del Valle · 1 USD = 791.67 VES official, 911.73 parallel". */
+/**
+ * Hours with rain likely, as ranges: [60,55,70] from 13:00 reads "13:00–16:00".
+ * Threshold 50%: a coin flip is worth planning around, a drizzle chance is not.
+ */
+export function rainWindows(rainByHour: readonly number[], threshold = 50): Array<{ from: number; to: number }> {
+  const out: Array<{ from: number; to: number }> = [];
+  let start: number | null = null;
+  for (let h = 0; h <= rainByHour.length; h++) {
+    const wet = h < rainByHour.length && (rainByHour[h] ?? 0) >= threshold;
+    if (wet && start === null) start = h;
+    if (!wet && start !== null) { out.push({ from: start, to: h }); start = null; }
+  }
+  return out;
+}
+
+export function rainWindowsLine(rainByHour: readonly number[]): string | null {
+  const w = rainWindows(rainByHour);
+  if (w.length === 0) return null;
+  const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
+  return w.map((r) => `${hh(r.from)}–${hh(r.to)}`).join(', ');
+}
+
 export function contextLine(c: AreaContext): string {
   const bits: string[] = [`${c.localTime.slice(11)} local`];
   if (c.weather) bits.push(`${Math.round(c.weather.tempC)}°C, ${c.weather.rainPct}% rain, wind ${Math.round(c.weather.windKmh)} km/h, UV ${Math.round(c.weather.uv)} (${c.weather.summary})`);
+  const wet = c.weather?.rainByHour ? rainWindowsLine(c.weather.rainByHour) : null;
+  if (wet) bits.push(`rain likely ${wet}`);
   if (c.sea) bits.push(`${c.sea.state} sea, waves ${c.sea.waveM.toFixed(1)} m${c.sea.seaTempC != null ? `, water ${Math.round(c.sea.seaTempC)}°C` : ''}`);
   if (c.sun) bits.push(`sunrise ${c.sun.sunrise}, sunset ${c.sun.sunset}`);
   if (c.holiday) bits.push(`public holiday today: ${c.holiday.localName}`);
@@ -105,17 +133,19 @@ export function liveContextProvider(options: LiveContextOptions = {}): ContextPr
         memo(`wx:${key}`, cacheMs, async () => {
           const d = (await getJson(
             `https://api.open-meteo.com/v1/forecast?latitude=${area.lat}&longitude=${area.lon}` +
-            `&hourly=temperature_2m,precipitation_probability,wind_speed_10m,uv_index&daily=sunrise,sunset&forecast_days=1&timezone=auto`,
+            `&hourly=temperature_2m,precipitation_probability,wind_speed_10m,uv_index&daily=sunrise,sunset&forecast_days=2&timezone=auto`,
           )) as { hourly: { temperature_2m: number[]; precipitation_probability: number[]; wind_speed_10m: number[]; uv_index: number[] }; daily: { sunrise: string[]; sunset: string[] } };
           const i = Math.min(hourIdx, d.hourly.temperature_2m.length - 1);
           // Rain for the rest of the day, not the current hour alone: a 5% now
           // before a 70% afternoon must not read as a dry day.
-          const restOfDay = d.hourly.precipitation_probability.slice(i);
+          const restOfDay = d.hourly.precipitation_probability.slice(i, 24);
           const rainPct = Math.max(...restOfDay, 0);
+          const rainByHour = d.hourly.precipitation_probability.slice(0, 24);
+          const rainByHourTomorrow = d.hourly.precipitation_probability.slice(24, 48);
           const windKmh = d.hourly.wind_speed_10m[i] ?? 0;
           const summary: NonNullable<AreaContext['weather']>['summary'] = rainPct >= 70 ? 'rain' : rainPct >= 40 ? 'showers' : windKmh >= 35 ? 'windy' : 'clear';
           return {
-            weather: { tempC: d.hourly.temperature_2m[i] ?? 0, rainPct, windKmh, uv: Math.max(...d.hourly.uv_index.slice(i, i + 4), 0), summary },
+            weather: { tempC: d.hourly.temperature_2m[i] ?? 0, rainPct, windKmh, uv: Math.max(...d.hourly.uv_index.slice(i, i + 4), 0), summary, rainByHour, rainByHourTomorrow },
             sun: { sunrise: (d.daily.sunrise[0] ?? '').slice(11), sunset: (d.daily.sunset[0] ?? '').slice(11) },
           };
         }),
