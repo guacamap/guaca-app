@@ -83,7 +83,7 @@ const PlaceCheckSchema = z.object({
 
 const EDITOR_SYSTEM =
   'You are a strict editor for a service that must never suggest places it has not verified. Read the message. Set pointsAtSomething to true if it mentions, describes, hints at, suggests, or claims the existence of ANY place, spot, beach, trail, walk, road, landmark, building, neighbourhood, business, dish, event or route, whether named or not, specific or vague ("a couple of easy walks around", "a trail by the lighthouse", "some spots by the water" all count), or promises a duration (in half an hour, in minutes, tonight). ' +
-  'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, repeating the traveller\'s own wish in general words (a quiet beach, somewhere for dinner, live music tonight), saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. ' +
+  'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, repeating the traveller\'s own words about themselves (who they are with, how long they stay, the day they leave, what they like or avoid), repeating their wish in general words (a quiet beach, somewhere for dinner, live music tonight), saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. A day of the week or a date the traveller mentioned is not a promise; only a promise about how soon YOU will do something counts (in ten minutes, within the hour). ' +
   'Then write cleaned: the same message in the same language with only the offending parts removed or neutralised, everything else word for word; if nothing honest remains, cleaned is empty. Answer with the JSON only.';
 
 /**
@@ -132,7 +132,7 @@ export function guessLang(text: string, fallback: 'en' | 'es'): 'en' | 'es' {
 }
 
 /** "In half an hour", "en media hora", "in 20 minutes": a promise nobody can keep. The sentence goes. */
-const DURATION = /\b(media hora|medias horas|minutos?|horas?|hours?|minutes?|mins?)\b|\ben (un|una|unos|unas|\d+)\b.{0,12}\b(hora|minuto)|\bin (an?|half an|\d+|a few|a couple of)\b.{0,12}\b(hour|minute)/i;
+const DURATION = /\b(en|dentro de|in|within)\s+(media\s+hora|half\s+an\s+hour|(un|una|unos|unas|an?|\d+|a few|a couple of|pocos|unos pocos)\b.{0,14}\b(horas?|minutos?|hours?|minutes?|mins?))\b/i;
 function withoutDurations(reply: string): string {
   if (!DURATION.test(reply)) return reply;
   return (reply.match(/[^.!?]+[.!?]+["»)]?\s*|[^.!?]+$/g) ?? [])
@@ -225,7 +225,7 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
         '. Categories: ' + CATEGORY_VALUES.join(', ') + '.' +
         (input.now ? ` Right now: ${input.now}. Weave these in only when natural, the way a local mentions the sea or the heat.` : '') +
         (input.about ? ` Where you both are: ${input.about}. Use it to sound like you live here; still never name or recommend a specific place from it.` : '') +
-        (input.remembered?.length ? ` What you remember about this traveller from before: ${input.remembered.join('; ')}. Use it the way a friend would (do not ask what you already know; refer back naturally; never recite the list).` : '') +
+        (input.remembered?.length ? ` What you remember about this traveller from before: ${input.remembered.join('; ')}. Use it the way a friend would: when they greet you, show you remember by picking up ONE of these naturally (how the partner is doing, how many days they have left, whether they found somewhere quiet); do not ask what you already know; never recite the list.` : '') +
         (input.activePlan ? ` The plan you are keeping for them today: ${input.activePlan}. If they refer to it, you know it.` : ''),
       user: (transcript ? `Conversation so far:\n${transcript}\n\n` : '') + `Traveller now: ${input.text}`,
       untrusted: input.text,
