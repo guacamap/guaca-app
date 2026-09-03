@@ -83,7 +83,7 @@ const PlaceCheckSchema = z.object({
 
 const EDITOR_SYSTEM =
   'You are a strict editor for a service that must never suggest places it has not verified. Read the message. Set pointsAtSomething to true if it mentions, describes, hints at, suggests, or claims the existence of ANY place, spot, beach, trail, walk, road, landmark, building, neighbourhood, business, dish, event or route, whether named or not, specific or vague ("a couple of easy walks around", "a trail by the lighthouse", "some spots by the water" all count), or promises a duration (in half an hour, in minutes, tonight). ' +
-  'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, repeating the traveller\'s own words about themselves (who they are with, how long they stay, the day they leave, what they like or avoid), repeating their wish in general words (a quiet beach, somewhere for dinner, live music tonight), saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. A day of the week or a date the traveller mentioned is not a promise; only a promise about how soon YOU will do something counts (in ten minutes, within the hour). ' +
+  'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, questions offering KINDS of place as choices without naming any (a beach, a walk, a museum, somewhere to sit), repeating the traveller\'s own words about themselves (who they are with, how long they stay, the day they leave, what they like or avoid), repeating their wish in general words (a quiet beach, somewhere for dinner, live music tonight), saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. A day of the week or a date the traveller mentioned is not a promise; only a promise about how soon YOU will do something counts (in ten minutes, within the hour). ' +
   'Then write cleaned: when pointsAtSomething is true, the same message in the same language with every offending sentence or clause REMOVED (you must change the text; returning it unchanged is wrong), everything else word for word; when false, the message unchanged; if nothing honest remains, cleaned is empty. Answer with the JSON only.';
 
 /**
@@ -118,6 +118,9 @@ async function withoutPointing(inference: Inference, reply: string, placeNames: 
       cleaned = parts.filter((_, i) => !verdicts[i]!.pointsAtSomething).join(' ').trim();
     }
     if (cleaned.length === 0) return '';
+    // The editor's own edit is trusted; the second look only guards against
+    // an edit that changed nothing. A veto here threw away honest replies.
+    if (cleaned !== reply.trim()) return cleaned;
     const second = await edit(cleaned);
     return second.pointsAtSomething ? '' : cleaned;
   } catch {

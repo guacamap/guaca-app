@@ -125,9 +125,9 @@ describe('the refusal in Guaca\'s voice', () => {
     const r = await narrateRefusal(new Scripted({ reply: 'Good to meet you both. There are quiet spots if you avoid the buzz. What kind of quiet are you after?' }, lazy), input);
     expect(r).toBe('Good to meet you both. What kind of quiet are you after?');
   });
-  it('a cleaned message that still points at something is dropped', async () => {
-    const r = await narrateRefusal(new Scripted({ reply: 'There is a trail by the old lighthouse.' }, () => 'Some walks around.'), input);
-    expect(r).toBeNull();
+  it("the editor's own edit is trusted; only an unchanged text is asked again", async () => {
+    const r = await narrateRefusal(new Scripted({ reply: 'There is a trail by the old lighthouse.' }, () => 'Nothing verified there yet.'), input);
+    expect(r).toBe('Nothing verified there yet.');
   });
   it('a bare "hola!" counts as Spanish', async () => {
     const t = await converse(new Scripted({ mode: 'chat', reply: 'Hola, ¿qué tal?' }, () => ''), { ...base, text: 'hola!', language: 'en' });
