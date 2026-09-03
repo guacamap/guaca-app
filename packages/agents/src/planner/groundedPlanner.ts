@@ -105,7 +105,7 @@ export async function runGroundedPlanner(
   const instruction =
     (days === 1
       ? `You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. ${timing} Never invent places. ${tiers}`
-      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Spread the days; at most 8 stops per day; do not repeat a place within the same day. ${timing} Never invent places. ${tiers}`) +
+      : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Every day from 0 to ${days - 1} gets at least two stops; at most 8 stops per day; do not repeat a place within the same day. ${timing} Never invent places. ${tiers}`) +
     clock + rain +
     `\n\nCatalog:\n${catalog.listing()}`;
 

@@ -110,8 +110,11 @@ export function renderItinerary(
         );
       }
       const tier = place.tier ?? 'verified';
+      // "A favourite" is a claim only a local can make; for an open-data
+      // stop the reason is the planner's, so it says what it can.
+      const reason = tier !== 'verified' && stop.reasonCode === 'BEST_RATED' ? (t.reasons.MATCHES_TOPIC ?? stop.reasonCode) : (t.reasons[stop.reasonCode] ?? stop.reasonCode);
       lines.push(
-        t.stop(place.name, fmt(stop.startMin), t.reasons[stop.reasonCode] ?? stop.reasonCode) +
+        t.stop(place.name, fmt(stop.startMin), reason) +
           (place.phone ? ` · tel ${place.phone}` : '') +
           ` · ${tierWords(tier, lang, { corroboration: place.corroboration ?? 0, verifiedAt: place.verifiedAt ?? null, spotter: place.spotterName ?? null })}`,
       );

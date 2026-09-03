@@ -14,6 +14,10 @@ export const ConciergeSchema = z.object({
   /** For mode 'ask': a short plain query in the traveller's language. */
   askText: z.string().max(140).optional(),
   category: z.enum([...CATEGORY_VALUES, 'unknown']).optional(),
+  /** For mode 'ask': the specific kind of place when the traveller named one ("tattoo studio", "sushi", "pharmacy"); empty when generic. */
+  kind: z.string().max(40).optional(),
+  /** For mode 'ask': true when they are asking about tomorrow, not today. */
+  tomorrow: z.boolean().optional(),
 });
 export type ConciergeTurn = z.infer<typeof ConciergeSchema> & {
   /** Where the turn came from: the lexicon, the model, a guard, or the fallback. */
@@ -205,7 +209,7 @@ export async function converse(inference: Inference, input: ConciergeInput): Pro
         persona(lang) +
         'How a conversation goes: if they greet you, greet them back like you mean it and get curious about their day. If they mention what they are after, react to it as a person would (a private beach, a long lunch, somewhere to dance) and, when it would genuinely change what you look for, ask ONE light question: with whom, when, what mood, walking or driving. Never more than one question per message, and never ask twice in a row; after one clarifying exchange, or when the wish is already clear, go look. ' +
         'Choose mode: "chat" when your message is a greeting, small talk, a reaction, or that one question (a message ending in a question is always "chat"). ' +
-        '"ask" when it is time to look: askText is a short plain query in their language that the map can answer ("a quiet beach nearby", "where can I eat nearby", "museums and history nearby"), category is set, and reply is one natural sentence saying you are going to check what locals have verified, in your own words each time. When they want a plan, a whole day or several stops, askText starts with "plan my day" (Spanish: "planifica mi día") and keeps every topic they named, for example "plan my day: history and a beach". ' +
+        '"ask" when it is time to look: askText is a short plain query in their language that the map can answer ("a quiet beach nearby", "where can I eat nearby", "museums and history nearby"), category is set, and reply is one natural sentence saying you are going to check what locals have verified, in your own words each time. When they want a plan, a whole day or several stops, askText starts with "plan my day" (Spanish: "planifica mi día") and keeps every topic they named, for example "plan my day: history and a beach". Set kind to the specific type of place when they named one (tattoo studio, sushi, pharmacy, cocktail bar, surf school); leave it empty for a generic wish (somewhere to eat, a beach). Set tomorrow to true when the ask is about tomorrow. ' +
         (input.hasOpenRefusal
           ? 'The map had nothing for their last wish. If they now agree to have a local sent to check, mode is "mission" and reply confirms it warmly; if they would rather be told when it is verified, mode is "notify". Otherwise keep talking. '
           : '') +

@@ -242,6 +242,17 @@ export function refusalOptions(input: {
 // The headline states only what is true at this moment. Whether a local is
 // sent is the traveller's call now (the last option under the refusal), so
 // the old "we have commissioned a local" promise is gone.
+/** What Guaca says when a local could not be sent, per outcome. */
+const MISSION_OUTCOME: Record<string, Record<'en' | 'es', string>> = {
+  no_gap: { en: 'That one I already answered from open maps, so there is nothing for a local to chase yet. If a stop turns out wrong, tell me and I will send someone.', es: 'Eso ya te lo respondí con mapas abiertos, así que todavía no hay nada que un vecino tenga que revisar. Si una parada resulta mal, dime y mando a alguien.' },
+  not_found: { en: 'I lost track of which question you meant. Ask it again and I will send someone.', es: 'Perdí el hilo de qué pregunta era. Pregúntamelo de nuevo y mando a alguien.' },
+  no_intent: { en: 'I could not pin that question to a place on the map, so I cannot send anyone yet.', es: 'No pude ubicar esa pregunta en el mapa, así que todavía no puedo mandar a nadie.' },
+  budget: { en: 'Today\'s missions are all spent here. I will queue it for tomorrow and tell you when someone goes.', es: 'Las misiones de hoy ya se acabaron por aquí. Lo dejo para mañana y te aviso cuando alguien vaya.' },
+  no_spotter: { en: 'No local is signed up for this corner yet. I have kept your question so the first one who joins sees it.', es: 'Todavía no hay ningún vecino registrado en esta zona. Guardé tu pregunta para que el primero que se una la vea.' },
+  needs_approval: { en: 'That one needs a person on our side to approve the mission. I have flagged it.', es: 'Esa necesita que alguien de nuestro equipo apruebe la misión. Ya la marqué.' },
+  declined: { en: 'I could not open a mission for that right now. Your question is kept.', es: 'No pude abrir una misión para eso ahora mismo. Tu pregunta queda guardada.' },
+};
+
 const REFUSAL_TEXT: Record<string, string> = {
   es: 'Nadie ha estado frente a algo así por aquí todavía, así que no voy a adivinar. Puedo mandar a un vecino a revisar, o avisarte cuando esté verificado.',
   en: 'Nobody has stood in front of anything like that here yet, so I will not guess. I can send a local to check, or tell you when it is verified.',
@@ -390,8 +401,12 @@ export async function ask(
     }
     const { requestMission } = await import('./missionRequest.js');
     const m = await requestMission(pool, input.lastQuestionId, input.touristId);
+    // The concierge wrote "I'll send someone" before knowing whether it
+    // could. When it could not, the sentence is replaced by what happened.
+    const spokenLang = guessLang(input.text, lang);
+    const outcomeLine = MISSION_OUTCOME[m.status]?.[spokenLang];
     return {
-      kind: 'mission', text: turn.reply, placeIds: [],
+      kind: 'mission', text: m.status === 'commissioned' || m.status === 'already_open' ? turn.reply : (outcomeLine ?? turn.reply), placeIds: [],
       mission: {
         status: m.status, questionId: input.lastQuestionId,
         ...('spotterName' in m ? { spotterName: m.spotterName, expiresAt: m.expiresAt } : {}),
@@ -402,7 +417,9 @@ export async function ask(
   // Outside every area the context provider still knows the local time of
   // the point itself; the area's zone is the source only when there is one.
   const nowMin = area ? localNowMin(area.timezone) : ctx ? Number(ctx.localTime.slice(11, 13)) * 60 + Number(ctx.localTime.slice(14, 16)) : localNowMin(undefined);
-  const planForTomorrow = nowMin >= 17 * 60 && /plan|day|día|dia|itinerar/i.test(`${input.text} ${askText}`);
+  const wantsPlan = /plan|day|día|dia|itinerar/i.test(`${input.text} ${askText}`);
+  const saysTomorrow = turn.tomorrow === true || /\b(tomorrow|mañana|manana)\b/i.test(input.text);
+  const planForTomorrow = wantsPlan && (saysTomorrow || nowMin >= 17 * 60);
   const spoken = guessLang(input.text, lang);
   // The rain that matters is the rain of the day being planned.
   const rainHours = ctx?.weather ? (planForTomorrow ? ctx.weather.rainByHourTomorrow : ctx.weather.rainByHour) ?? null : null;
@@ -437,6 +454,7 @@ export async function ask(
     // morning, said so in the header. Before that, the day left from now.
     nowMin: planForTomorrow ? 8 * 60 : nowMin,
     ...(rain ? { rain } : {}),
+    ...(turn.kind?.trim() ? { kind: turn.kind.trim() } : {}),
   });
 
   // The concierge asked a question but chose 'ask', and the pipeline could

@@ -67,6 +67,18 @@ export interface PipelineOptions {
   nowMin?: number;
   /** Hours with rain likely, as text for the planner and as hours for the fast path. */
   rain?: { windows: string; wetHours: readonly number[] };
+  /** The specific kind of place the traveller named, when they did. A broad category never satisfies it. */
+  kind?: string;
+}
+
+/** "tattoo studio" against "Tattoo parlor" or "Ink Tattoo Studio": any content word in common, accents and case aside. */
+export function matchesKind(kind: string, name: string, subcategory: string | null | undefined): boolean {
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const stop = new Set(['the', 'a', 'an', 'de', 'del', 'la', 'el', 'los', 'las', 'and', 'y', 'shop', 'place', 'studio', 'bar', 'restaurant', 'restaurante', 'tienda', 'local', 'centro', 'center']);
+  const words = norm(kind).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !stop.has(w));
+  if (words.length === 0) return true;
+  const hay = norm(`${name} ${subcategory ?? ''}`);
+  return words.some((w) => hay.includes(w.replace(/s$/, '')));
 }
 
 /**
@@ -105,12 +117,19 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
   // Coverage before any planning call. Zero tokens spent to say "I don't know".
   if (options.places.length < options.minCandidates) return refuse('INSUFFICIENT_COVERAGE', 'coverage');
 
-  const verifiedIds = new Set(options.places.map((p) => p.id));
+  // A named kind narrows the catalog to places whose name or listed kind
+  // says so. "A tattoo studio" answered with a bank is worse than a refusal:
+  // the refusal funds a mission, the bank teaches the traveller not to ask.
+  const kind = options.kind?.trim();
+  const places = kind ? options.places.filter((p) => matchesKind(kind, p.name, p.subcategory)) : options.places;
+  if (kind && places.length === 0) return refuse('INSUFFICIENT_COVERAGE', 'coverage');
+
+  const verifiedIds = new Set(places.map((p) => p.id));
 
   // Deterministic fast path, zero inference. A single day only: a trip is a
   // composition question by definition.
   if (days === 1) {
-    const fastPathPlaces: FastPathPlace[] = options.places.map((p) => ({
+    const fastPathPlaces: FastPathPlace[] = places.map((p) => ({
       id: p.id, name: p.name, category: p.category, landmarkDescription: p.landmarkDescription ?? '',
       lat: p.lat, lon: p.lon, openAt: 0, closeAt: 1440, tierRank: TIER_RANK[p.tier ?? 'verified'],
     }));
@@ -139,8 +158,8 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
   const hits = categoryHits(options.text);
   const singleCategory = resolvedCategory ?? (hits.length === 1 ? hits[0]! : null);
   const catalogRows = days === 1
-    ? (singleCategory ? options.places.filter((p) => p.category === singleCategory) : options.places)
-    : options.places.slice(0, 24);
+    ? (singleCategory ? places.filter((p) => p.category === singleCategory) : places)
+    : places.slice(0, 24);
   if (catalogRows.length < options.minCandidates) return refuse('INSUFFICIENT_COVERAGE', 'coverage');
 
   const outcome = await runGroundedPlanner({
