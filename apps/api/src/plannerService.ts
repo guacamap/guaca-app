@@ -399,7 +399,9 @@ export async function ask(
     };
   }
   const askText = turn.askText?.trim() || input.text;
-  const nowMin = localNowMin(area?.timezone);
+  // Outside every area the context provider still knows the local time of
+  // the point itself; the area's zone is the source only when there is one.
+  const nowMin = area ? localNowMin(area.timezone) : ctx ? Number(ctx.localTime.slice(11, 13)) * 60 + Number(ctx.localTime.slice(14, 16)) : localNowMin(undefined);
   const planForTomorrow = nowMin >= 17 * 60 && /plan|day|día|dia|itinerar/i.test(`${input.text} ${askText}`);
   const spoken = guessLang(input.text, lang);
   // The rain that matters is the rain of the day being planned.
