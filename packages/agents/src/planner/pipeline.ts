@@ -69,6 +69,8 @@ export interface PipelineOptions {
   rain?: { windows: string; wetHours: readonly number[] };
   /** The specific kind of place the traveller named, when they did. A broad category never satisfies it. */
   kind?: string;
+  /** Local sunrise and sunset; open-air stops are kept inside them. */
+  daylight?: { sunrise: string; sunset: string };
 }
 
 /** "tattoo studio" against "Tattoo parlor" or "Ink Tattoo Studio": any content word in common, accents and case aside. */
@@ -139,6 +141,7 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
       ...(options.nowMin !== undefined ? { nowMin: options.nowMin } : {}),
       ...(resolvedCategory ? { categoryOverride: resolvedCategory } : {}),
       ...(options.rain ? { wetHours: options.rain.wetHours } : {}),
+      ...(options.daylight ? { sunsetMin: Number(options.daylight.sunset.slice(0, 2)) * 60 + Number(options.daylight.sunset.slice(3, 5)) } : {}),
     });
     if (fast) {
       const artifact = groundFromVerifiedRows(fast.stops, verifiedIds);
@@ -173,6 +176,7 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
     onGap: () => undefined,
     ...(options.nowMin !== undefined ? { nowMin: options.nowMin } : {}),
     ...(options.rain ? { rainWindows: options.rain.windows } : {}),
+    ...(options.daylight ? { daylight: options.daylight } : {}),
   });
 
   if (outcome.kind === 'PlanArtifact') {

@@ -23,6 +23,8 @@ export interface GroundedPlannerOptions {
   nowMin?: number;
   /** Hours with rain likely, e.g. "13:00–16:00"; the planner keeps open-air stops out of them. */
   rainWindows?: string;
+  /** Local sunrise and sunset, "06:12" and "18:40"; beaches and walks stay inside them. */
+  daylight?: { sunrise: string; sunset: string };
 }
 
 export type GroundedOutcome =
@@ -101,12 +103,15 @@ export async function runGroundedPlanner(
   const rain = options.rainWindows
     ? ` Rain is likely ${options.rainWindows}: put beaches, walks, markets and anything open-air outside those hours, and museums, restaurants and indoor stops inside them.`
     : '';
+  const daylight = options.daylight
+    ? ` The sun is up from ${options.daylight.sunrise} to ${options.daylight.sunset}: beaches, walks and viewpoints only inside those hours, never after dark.`
+    : '';
   const tiers = 'Each entry carries a tier: verified (a local stood there), corroborated (several open maps agree), listed (one open map). Prefer verified, then corroborated, and use listed only when nothing better matches the ask.';
   const instruction =
     (days === 1
       ? `You plan a single day of visits from a catalog. Each stop references a catalog entry by its integer ref; dayIndex is always 0. ${timing} Never invent places. ${tiers}`
       : `You plan a ${days}-day trip from a catalog. Each stop references a catalog entry by its integer ref and carries dayIndex 0..${days - 1}. Every day from 0 to ${days - 1} gets at least two stops; at most 8 stops per day; do not repeat a place within the same day. ${timing} Never invent places. ${tiers}`) +
-    clock + rain +
+    clock + rain + daylight +
     `\n\nCatalog:\n${catalog.listing()}`;
 
   try {

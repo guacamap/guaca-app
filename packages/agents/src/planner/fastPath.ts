@@ -112,6 +112,8 @@ export interface DeterministicOptions {
   categoryOverride?: string;
   /** Local hours (0..23) with rain likely; open-air categories are not planned into them. */
   wetHours?: readonly number[];
+  /** Minutes past midnight of sunset; an open-air ask after it is the model's to answer. */
+  sunsetMin?: number;
 }
 
 /**
@@ -145,6 +147,7 @@ export async function answerDeterministic(
   // the day around the rain); the fast path only answers dry questions.
   const openAir = new Set(['beach_water', 'nature_walk', 'market_shop']);
   if (options.wetHours?.includes(Math.floor(startMin / 60)) && openAir.has(intent.category)) return null;
+  if (options.sunsetMin !== undefined && startMin + 30 >= options.sunsetMin && openAir.has(intent.category)) return null;
   const stops = greedyRoute({
     places: options.places,
     category: intent.category,

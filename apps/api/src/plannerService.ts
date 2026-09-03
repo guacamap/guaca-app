@@ -455,6 +455,7 @@ export async function ask(
     nowMin: planForTomorrow ? 8 * 60 : nowMin,
     ...(rain ? { rain } : {}),
     ...(turn.kind?.trim() ? { kind: turn.kind.trim() } : {}),
+    ...(ctx?.sun ? { daylight: { sunrise: ctx.sun.sunrise, sunset: ctx.sun.sunset } } : {}),
   });
 
   // The concierge asked a question but chose 'ask', and the pipeline could
