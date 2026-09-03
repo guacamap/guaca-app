@@ -8,7 +8,8 @@
     "build": "pnpm --filter @guaca/shared build && next build",
     "start": "next start -p 3000",
     "test": "pnpm test:unit",
-    "test:unit": "echo 'no web unit tests yet' && exit 0"
+    "test:unit": "echo 'no web unit tests yet' && exit 0",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@guaca/shared": "workspace:*",

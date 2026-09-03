@@ -3,6 +3,7 @@ import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { estimatingRouter } from './routing.js';
 import { takeInbox, recordStopFeedback } from '@guaca/db';
+import { welcome } from './travellerTick.js';
 import { randomUUID, createHash, timingSafeEqual, randomInt } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
@@ -833,6 +834,25 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const { touristId } = await verifyTouristToken(token, sessionSecret());
     if (!touristId) return reply.code(401).send({ error: 'login required' });
     return reply.send({ messages: await takeInbox(options.pool, touristId) });
+  });
+
+  /*
+   * Guaca says hello first. Called when the conversation opens empty; one
+   * welcome a day per traveller, written in Guaca's voice from the town,
+   * the day and what it remembers. Returns the message and also leaves it
+   * in the inbox so a second device sees the same hello.
+   */
+  app.post('/api/tourist/hello', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const body = (req.body ?? {}) as { lat?: number; lon?: number; language?: string };
+    const lat = Number(body.lat); const lon = Number(body.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return reply.code(400).send({ error: 'lat and lon required' });
+    const inference = await resolveInference();
+    const msg = await welcome(options.pool, { touristId, lat, lon, language: body.language === 'es' ? 'es' : 'en' }, { inference, ...(options.contextProvider ? { contextProvider: options.contextProvider } : {}) });
+    return reply.send({ message: msg });
   });
 
   /*

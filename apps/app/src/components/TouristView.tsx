@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, ChevronRight, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Palmtree, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Sun, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
 import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
 import { CARIBBEAN_COUNTRIES, TAXONOMY } from '@guaca/shared'
@@ -1121,6 +1121,27 @@ export function TouristView() {
   }, [me, takeInbox])
   useEffect(() => { if (activeTab === 'guaca') setUnreadFirst(0) }, [activeTab])
 
+  // Guaca says hello first: when the conversation opens empty, once a day.
+  const helloAsked = useRef(false)
+  useEffect(() => {
+    if (activeTab !== 'guaca' || !me || thread.length > 0 || helloAsked.current) return
+    helloAsked.current = true
+    const [lon, lat] = center
+    fetch('/api/tourist/hello', { method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lat, lon, language: lang }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { message: { id: string; trigger: string; text: string } | null } | null) => {
+        if (!d?.message) return
+        const m = d.message
+        setThread((prev) => {
+          if (prev.length > 0) return prev
+          const next: ChatMsg[] = [{ id: `first:${m.id}`, role: 'guaca', kind: 'first', trigger: 'welcome', text: m.text }]
+          saveJson(THREAD_KEY, next)
+          return next
+        })
+      })
+      .catch(() => {})
+  }, [activeTab, me, thread.length, center, lang])
+
   const sendVerdicts = async (msgId: string, verdicts: Record<string, string>) => {
     setThread((prev) => {
       const next = prev.map((m) => (m.id === msgId ? { ...m, verdicts } : m))
@@ -1954,11 +1975,13 @@ export function TouristView() {
 
       <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4">
         {thread.length === 0 && (
-          <div className="rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/70 p-5 text-center">
-            <Sparkles aria-hidden="true" className="mx-auto h-7 w-7 text-guaca-teal/60" />
-            <h3 className="mt-3 text-[14px] font-black text-guaca-ink">{t.guacaEmptyTitle}</h3>
-            <p className="mx-auto mt-1 max-w-[250px] text-[11px] font-semibold leading-relaxed text-guaca-ink/50">{t.guacaEmptyBody}</p>
-            <div className="mt-4 space-y-2">
+          <div className={thread.length === 0 ? 'rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/70 p-5 text-center' : 'order-last mt-1 px-1'}>
+            {thread.length === 0 && (<>
+              <Sparkles aria-hidden="true" className="mx-auto h-7 w-7 text-guaca-teal/60" />
+              <h3 className="mt-3 text-[14px] font-black text-guaca-ink">{t.guacaEmptyTitle}</h3>
+              <p className="mx-auto mt-1 max-w-[250px] text-[11px] font-semibold leading-relaxed text-guaca-ink/50">{t.guacaEmptyBody}</p>
+            </>)}
+            <div className={thread.length === 0 ? 'mt-4 space-y-2' : 'flex flex-wrap gap-1.5'}>
               {t.guacaSuggestions.map((s) => (
                 <button key={s} type="button" onClick={() => void askGuaca(s)} className="block w-full rounded-2xl bg-guaca-teal/8 px-4 py-2.5 text-[12px] font-black text-guaca-teal hover:bg-guaca-teal/15">
                   {s}
@@ -2126,6 +2149,16 @@ export function TouristView() {
             </div>
           )}
         </div>
+        {thread.length === 1 && thread[0]?.trigger === 'welcome' && (
+          <div className="mt-3 flex flex-wrap gap-1.5 px-1">
+            {t.guacaSuggestions.map((s) => (
+              <button key={s} type="button" onClick={() => void askGuaca(s)} className="rounded-full bg-guaca-teal/8 px-3 py-1.5 text-[11px] font-black text-guaca-teal hover:bg-guaca-teal/15">
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
         {thread.length > 0 && !guacaBusy && (
           <button
             type="button"

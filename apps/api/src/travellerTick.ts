@@ -1,6 +1,6 @@
 import type { Pool } from 'pg';
 import { speakFirst, type Inference } from '@guaca/agents';
-import { guacaSpoke, spokenToday, travellersToTick, type TravellerState } from '@guaca/db';
+import { getTravellerState, guacaSpoke, heardFromTraveller, spokenToday, travellersToTick, type TravellerState } from '@guaca/db';
 import { contextLine, rainWindows, type ContextProvider } from './context.js';
 import { aboutLine, areaAt, contextFor, ask } from './plannerService.js';
 import type { Router } from './routing.js';
@@ -49,6 +49,45 @@ function localMinutes(localTime: string): number {
 
 function fmt(min: number): string {
   return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+}
+
+const WELCOME = {
+  en: (first: boolean) => (first ? 'Hey, I am Guaca. I live here, and I only pass on places a local has actually stood in front of. Tell me what you are in the mood for and I will look.' : 'Hey, welcome back. Tell me what today is about and I will look.'),
+  es: (first: boolean) => (first ? 'Hola, soy Guaca. Vivo aquí, y solo paso lugares donde un local ha estado de verdad. Dime qué te provoca hoy y busco.' : 'Hola, qué bueno verte de nuevo. Dime de qué va el día de hoy y busco.'),
+};
+
+/**
+ * The first thing a traveller reads is Guaca, not a card. Once a day per
+ * traveller; the sentence comes from the town, the weather right now and
+ * what Guaca remembers, through the same guard as everything else. The
+ * fixed line is the fallback and the model's version replaces it.
+ */
+export async function welcome(
+  pool: Pool,
+  input: { touristId: string; lat: number; lon: number; language: 'en' | 'es' },
+  deps: { inference: Inference; contextProvider?: ContextProvider },
+): Promise<{ id: string; trigger: 'welcome'; text: string } | null> {
+  const area = await areaAt(pool, input.lat, input.lon);
+  const ctx = await contextFor(deps.contextProvider, area, input.lat, input.lon);
+  const nowMin = ctx ? localMinutes(ctx.localTime) : 12 * 60;
+  const state = await getTravellerState(pool, input.touristId);
+  const said = await spokenToday(pool, input.touristId, nowMin);
+  if (said.triggers.includes('welcome')) return null;
+  const returning = !!state?.lastHeardAt;
+  const fallback = WELCOME[input.language](!returning);
+  const reason = returning
+    ? 'The traveller just opened the conversation again. Greet them like a friend who remembers them and ask what today is about.'
+    : 'The traveller just opened the conversation for the first time. Introduce yourself by name (Guaca) in one breath: you live here, and when you point somewhere it is because a local actually went and stood there; then ask what they are in the mood for today. Warm, short, no sales pitch.';
+  const text =
+    (await speakFirst(deps.inference, {
+      language: input.language, reason, allowedNames: [], remembered: state?.notes ?? [],
+      ...(ctx ? { now: contextLine(ctx) } : {}), ...(area ? { about: aboutLine(area, input.language) } : {}),
+    })) ?? fallback;
+  await heardFromTraveller(pool, input.touristId, { lat: input.lat, lon: input.lon, language: input.language, learned: [] });
+  const id = await guacaSpoke(pool, input.touristId, { trigger: 'welcome', text });
+  // Handed over in this response; the inbox must not deliver it again.
+  await pool.query(`update guaca_messages set delivered_at = now() where id = $1`, [id]);
+  return { id, trigger: 'welcome', text };
 }
 
 export interface TickResult { looked: number; spoke: Array<{ touristId: string; trigger: string }> }
