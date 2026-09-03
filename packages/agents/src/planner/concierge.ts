@@ -84,7 +84,7 @@ const PlaceCheckSchema = z.object({
 const EDITOR_SYSTEM =
   'You are a strict editor for a service that must never suggest places it has not verified. Read the message. Set pointsAtSomething to true if it mentions, describes, hints at, suggests, or claims the existence of ANY place, spot, beach, trail, walk, road, landmark, building, neighbourhood, business, dish, event or route, whether named or not, specific or vague ("a couple of easy walks around", "a trail by the lighthouse", "some spots by the water" all count), or promises a duration (in half an hour, in minutes, tonight). ' +
   'These are fine and must be kept: greetings, weather, sea, sun, feelings, questions to the traveller, repeating the traveller\'s own words about themselves (who they are with, how long they stay, the day they leave, what they like or avoid), repeating their wish in general words (a quiet beach, somewhere for dinner, live music tonight), saying that nothing is verified yet, and offers to send a local to go and check or to let them know when something is verified. A day of the week or a date the traveller mentioned is not a promise; only a promise about how soon YOU will do something counts (in ten minutes, within the hour). ' +
-  'Then write cleaned: the same message in the same language with only the offending parts removed or neutralised, everything else word for word; if nothing honest remains, cleaned is empty. Answer with the JSON only.';
+  'Then write cleaned: when pointsAtSomething is true, the same message in the same language with every offending sentence or clause REMOVED (you must change the text; returning it unchanged is wrong), everything else word for word; when false, the message unchanged; if nothing honest remains, cleaned is empty. Answer with the JSON only.';
 
 /**
  * The lexical sweep only sees capitalised names. "a trail by the old
@@ -106,10 +106,17 @@ async function withoutPointing(inference: Inference, reply: string, placeNames: 
         untrusted: text,
       })
     ).raw;
+  const sentences = (text: string) => (text.match(/[^.!?]+[.!?]+["»)]?\s*|[^.!?]+$/g) ?? []).map((x) => x.trim()).filter(Boolean);
   try {
     const first = await edit(reply);
     if (!first.pointsAtSomething) return reply;
-    const cleaned = withoutNamingSentences(first.cleaned.trim(), placeNames);
+    let cleaned = withoutNamingSentences(first.cleaned.trim(), placeNames);
+    if (cleaned === reply.trim()) {
+      // The editor judged but did not edit. Do it sentence by sentence.
+      const parts = sentences(reply);
+      const verdicts = await Promise.all(parts.map((p) => edit(p)));
+      cleaned = parts.filter((_, i) => !verdicts[i]!.pointsAtSomething).join(' ').trim();
+    }
     if (cleaned.length === 0) return '';
     const second = await edit(cleaned);
     return second.pointsAtSomething ? '' : cleaned;

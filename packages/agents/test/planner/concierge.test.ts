@@ -118,6 +118,13 @@ describe('the refusal in Guaca\'s voice', () => {
     const r = await narrateRefusal(new Scripted({ reply: 'Nobody has verified that yet. I can send a local and tell you in half an hour. Want that?' }), input);
     expect(r).toBe('Nobody has verified that yet. Want that?');
   });
+  it('an editor that judges without editing is overridden sentence by sentence', async () => {
+    // The editor flags the message but hands it back unchanged; the guard then
+    // asks per sentence and keeps the honest ones.
+    const lazy = (t: string) => (/quiet spots|lighthouse/.test(t) ? t : null);
+    const r = await narrateRefusal(new Scripted({ reply: 'Good to meet you both. There are quiet spots if you avoid the buzz. What kind of quiet are you after?' }, lazy), input);
+    expect(r).toBe('Good to meet you both. What kind of quiet are you after?');
+  });
   it('a cleaned message that still points at something is dropped', async () => {
     const r = await narrateRefusal(new Scripted({ reply: 'There is a trail by the old lighthouse.' }, () => 'Some walks around.'), input);
     expect(r).toBeNull();
