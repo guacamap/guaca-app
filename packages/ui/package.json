@@ -15,8 +15,8 @@
   "dependencies": {
     "@guaca/shared": "workspace:*",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.563.0",
-    "mapbox-gl": "^3.28.1",
+    "lucide-react": "^1.37.0",
+    "mapbox-gl": "^3.29.0",
     "tailwind-merge": "^3.4.0"
   },
   "peerDependencies": {
@@ -25,6 +25,6 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "typescript": "^5.7.2"
+    "typescript": "^7.0.2"
   }
 }

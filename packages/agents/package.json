@@ -19,15 +19,15 @@
   },
   "dependencies": {
     "@guaca/shared": "workspace:*",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "sharp-phash": "^2.2.0",
-    "zod": "^3.25.32",
+    "zod": "^4.5.4",
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.4.0",
     "fast-check": "^4.9.0",
-    "typescript": "^5.7.2",
-    "vitest": "^3.2.6"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }
