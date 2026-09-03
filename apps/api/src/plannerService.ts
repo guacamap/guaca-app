@@ -1,5 +1,6 @@
 import type { Pool } from 'pg';
 import { tierOf } from '@guaca/shared';
+import { getTravellerState, heardFromTraveller, setActivePlan } from '@guaca/db';
 import { estimatingRouter, type Router } from './routing.js';
 import { applyTravel } from './travel.js';
 import {
@@ -74,6 +75,15 @@ async function recordUnverifiedStops(
       // Bookkeeping only.
     }
   }
+}
+
+function fmtMin(min: number): string {
+  return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+}
+export function nextLocalDate(isoDate: string): string {
+  const d = new Date(`${isoDate}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Minutes past midnight in the town's own timezone; the server clock is UTC and means nothing to a traveller. */
@@ -375,6 +385,10 @@ export async function ask(
   // or hands a plain query to the pipeline. It can never cite a place.
   const byCategoryAll = new Map<string, number>();
   for (const r of rows) byCategoryAll.set(r.category, (byCategoryAll.get(r.category) ?? 0) + 1);
+  // What Guaca remembers about this traveller, and the plan it is keeping.
+  const state = input.touristId ? await getTravellerState(pool, input.touristId).catch(() => null) : null;
+  const todayLocal = ctx?.localTime.slice(0, 10) ?? null;
+  const keptPlan = state?.activePlan && state.activePlanDate && todayLocal && state.activePlanDate >= todayLocal ? state.activePlan : null;
   const turn = await converse(opts.inference, {
     text: input.text,
     language: input.language,
@@ -384,7 +398,13 @@ export async function ask(
     placeNames: rows.map((r) => r.name),
     ...(ctx ? { now: contextLine(ctx) } : {}),
     ...(area ? { about: aboutLine(area, lang) } : {}),
+    ...(state?.notes.length ? { remembered: state.notes } : {}),
+    ...(keptPlan ? { activePlan: keptPlan.stops.map((s) => `${fmtMin(s.startMin)} ${s.name}`).join(', ') } : {}),
   });
+  // Remember what this turn taught, wherever it goes next. Never blocks.
+  if (input.touristId) {
+    void heardFromTraveller(pool, input.touristId, { lat: input.lat, lon: input.lon, language: input.language, learned: turn.learned ?? [] }).catch(() => undefined);
+  }
   if (turn.mode === 'chat') {
     return { kind: 'chat', text: turn.reply, placeIds: [], ...withCtx };
   }
@@ -416,7 +436,10 @@ export async function ask(
   const askText = turn.askText?.trim() || input.text;
   // Outside every area the context provider still knows the local time of
   // the point itself; the area's zone is the source only when there is one.
-  const nowMin = area ? localNowMin(area.timezone) : ctx ? Number(ctx.localTime.slice(11, 13)) * 60 + Number(ctx.localTime.slice(14, 16)) : localNowMin(undefined);
+  // The context provider's local time is the one clock (tests set it, and
+  // it already knows the zone of a bare point); the area's zone is the
+  // fallback when there is no context at all.
+  const nowMin = ctx ? Number(ctx.localTime.slice(11, 13)) * 60 + Number(ctx.localTime.slice(14, 16)) : localNowMin(area?.timezone);
   const wantsPlan = /plan|day|día|dia|itinerar/i.test(`${input.text} ${askText}`);
   const saysTomorrow = turn.tomorrow === true || /\b(tomorrow|mañana|manana)\b/i.test(input.text);
   const planForTomorrow = wantsPlan && (saysTomorrow || nowMin >= 17 * 60);
@@ -515,6 +538,20 @@ export async function ask(
   await recordUnverifiedStops(pool, input, rows.filter((r) => ids.includes(r.id) && tierFor(r) !== 'verified'));
   const sugg = await followUps(ids);
   const travelled = await applyTravel(outcome.artifact, new Map(rows.map((r) => [r.id, { lat: r.lat, lon: r.lon }])), opts.router ?? estimatingRouter());
+  // A plan of two or more stops is one Guaca keeps: the tick watches it
+  // against the rain and the clock, and the evening check-in asks about it.
+  if (input.touristId && travelled.artifact.stops.length >= 2 && todayLocal) {
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const planDate = planForTomorrow ? nextLocalDate(todayLocal) : todayLocal;
+    void setActivePlan(pool, input.touristId, {
+      question: input.text,
+      rainWindows: rain?.windows ?? null,
+      stops: travelled.artifact.stops.map((s) => {
+        const r = byId.get(s.placeId)!;
+        return { placeId: s.placeId, name: r.name, category: r.category, startMin: s.startMin, durationMin: s.durationMin, lat: r.lat, lon: r.lon, tier: tierFor(r) };
+      }),
+    }, planDate).catch(() => undefined);
+  }
   return {
     kind: 'answer',
     text: renderItinerary(travelled.artifact, places, spoken, { tomorrow: planForTomorrow, legs: travelled.legs }),

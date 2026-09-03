@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import type { Pool } from 'pg';
 import { estimatingRouter } from './routing.js';
+import { takeInbox, recordStopFeedback } from '@guaca/db';
 import { randomUUID, createHash, timingSafeEqual, randomInt } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
@@ -821,6 +822,54 @@ export function buildApp(options: AppOptions): FastifyInstance {
    * What this tourist is waiting on, and what already came back. Questions
    * stay anonymous: the only link is the opt-in row the tourist created.
    */
+  /*
+   * Guaca speaking first. The app polls this and drops each message into
+   * the thread; a message is handed over once. Nothing here is written by
+   * the traveller, so nothing is validated beyond identity.
+   */
+  app.get('/api/tourist/inbox', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    return reply.send({ messages: await takeInbox(options.pool, touristId) });
+  });
+
+  /*
+   * The evening check-in answered: one verdict per stop. "Not there" is a
+   * doubt at the place's own point, so a local goes to look; the rest
+   * teaches the ranking. A traveller is the weakest witness and still the
+   * first feedback a plan has ever had.
+   */
+  app.post('/api/tourist/feedback', async (req, reply) => {
+    const token = tokenFrom(req, 'guaca_tourist');
+    if (!token) return reply.code(401).send({ error: 'login required' });
+    const { touristId } = await verifyTouristToken(token, sessionSecret());
+    if (!touristId) return reply.code(401).send({ error: 'login required' });
+    const body = (req.body ?? {}) as { verdicts?: Array<{ placeId?: string; verdict?: string }> };
+    const verdicts = (body.verdicts ?? [])
+      .filter((v): v is { placeId: string; verdict: 'good' | 'not_there' | 'skipped' | 'bad' } =>
+        typeof v.placeId === 'string' && /^[0-9a-f-]{36}$/.test(v.placeId) && ['good', 'not_there', 'skipped', 'bad'].includes(v.verdict ?? ''))
+      .slice(0, 12);
+    if (verdicts.length === 0) return reply.code(400).send({ error: 'verdicts required' });
+    await recordStopFeedback(options.pool, touristId, verdicts);
+    for (const v of verdicts) {
+      if (v.verdict !== 'not_there' && v.verdict !== 'bad') continue;
+      const res = await options.pool.query<{ name: string; category: string; lat: number; lon: number }>(
+        `select name, category, ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon from places where id = $1`, [v.placeId],
+      );
+      const place = res.rows[0];
+      if (!place) continue;
+      await recordQuestion(options.pool, {
+        rawText: `[${v.verdict === 'not_there' ? 'not there' : 'bad'}] ${place.name}`,
+        language: 'en', category: place.category, lat: place.lat, lon: place.lon,
+        answered: false, answerPlaceIds: [], refusalReason: v.verdict === 'not_there' ? 'TRAVELLER_SAYS_NOT_THERE' : 'TRAVELLER_SAYS_BAD',
+        sessionId: null, propertyId: null,
+      });
+    }
+    return reply.code(201).send({ ok: true, recorded: verdicts.length });
+  });
+
   app.get('/api/tourist/watching', async (req, reply) => {
     const touristId = await requireTourist(req);
     if (!touristId) return reply.code(401).send({ error: 'login required' });
@@ -2388,6 +2437,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
     return res.rows[0];
   });
 
+  // The traveller tick (Guaca speaking first) runs on the same inference
+  // the routes use, recorder included, so ai_calls shows it too.
+  (app as unknown as { resolveInference: () => Promise<Inference> }).resolveInference = resolveInference;
   return app;
 }
 

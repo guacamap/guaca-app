@@ -101,6 +101,8 @@ services:
       # Trend engine weather modulation (Open-Meteo; off = scores run weather-free).
       WEATHER_ENABLED: ${WEATHER_ENABLED:-true}
       ROUTING_URL: ${ROUTING_URL:-}
+      TRAVELLER_TICK_ENABLED: ${TRAVELLER_TICK_ENABLED:-true}
+      TRAVELLER_TICK_MS: ${TRAVELLER_TICK_MS:-900000}
       WEATHER_BASE_URL: ${WEATHER_BASE_URL:-https://api.open-meteo.com}
     depends_on:
       postgres:

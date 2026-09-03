@@ -5,11 +5,13 @@ import { buildApp } from './app.js';
 import { gapAgentOptions } from './gapAgentDeps.js';
 import { disabledContextProvider, liveContextProvider } from './context.js';
 import { runGapCycle, startGapScheduler } from './scheduler.js';
+import { runTravellerTick } from './travellerTick.js';
 import { recomputeTrends } from './trendsService.js';
 import { disabledWeatherProvider, openMeteoProvider } from './weather.js';
 
 const contextProvider = (process.env.WEATHER_ENABLED ?? 'true') !== 'false' ? liveContextProvider() : disabledContextProvider();
-const app = buildApp({ pool, contextProvider, router: routerFromEnv() });
+const router = routerFromEnv();
+const app = buildApp({ pool, contextProvider, router });
 const port = Number(process.env.API_PORT ?? 3001);
 
 const AREA_ID =
@@ -57,9 +59,28 @@ const scheduler = startGapScheduler({
     }),
 });
 
+/**
+ * Guaca speaking first: every TRAVELLER_TICK_MS (15 min) each recent
+ * traveller is looked at against the rain, the storms, the morning and the
+ * evening. Kill switch TRAVELLER_TICK_ENABLED. Same inference as the routes.
+ */
+const tickEnabled = (process.env.TRAVELLER_TICK_ENABLED ?? 'true') !== 'false';
+const tickMs = Number(process.env.TRAVELLER_TICK_MS ?? 15 * 60_000);
+const tick = startGapScheduler({
+  enabled: tickEnabled,
+  intervalMs: tickMs,
+  cycle: async () => {
+    const inference = await (app as unknown as { resolveInference: () => Promise<import('@guaca/agents').Inference> }).resolveInference();
+    const r = await runTravellerTick({ pool, inference, contextProvider, router, minCandidates: Number(process.env.PLANNER_MIN_CANDIDATES ?? 3) });
+    if (r.spoke.length > 0) console.log(JSON.stringify({ ts: new Date().toISOString(), level: 'info', event: 'traveller_tick.spoke', detail: r }));
+  },
+  onError: (err) => console.error(JSON.stringify({ ts: new Date().toISOString(), level: 'warn', event: 'traveller_tick.failed', detail: { error: String(err) } })),
+});
+
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
     scheduler.stop();
+    tick.stop();
     void app.close().then(() => process.exit(0));
   });
 }
