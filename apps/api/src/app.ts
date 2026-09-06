@@ -21,6 +21,7 @@ import { requestSpotterCode, spotterLogin, verifySpotterToken } from './spotterA
 import { requestTouristCode, verifyTouristLogin, verifyTouristToken } from './touristAuth.js';
 import { createEmailSender, type EmailSender } from './email.js';
 import { recordingInference } from './aiRecorder.js';
+import { installShowcaseAccess } from './showcaseAccess.js';
 
 export interface AppOptions {
   pool: Pool;
@@ -82,6 +83,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const app = Fastify({ logger: false });
   void app.register(cookie);
   void app.register(opsStreamPlugin);
+  installShowcaseAccess(app, options.pool);
 
   /*
    * The web app is served from a different origin than the API in every
