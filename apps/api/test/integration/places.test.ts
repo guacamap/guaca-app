@@ -106,6 +106,36 @@ describe('GET /api/places', () => {
     expect(body.name).toBe('Arepera Verificada');
     await app.close();
   });
+
+  it('lists every supported public source with its tier and demo profile', async () => {
+    const app = buildApp({ pool });
+    const ids: string[] = [];
+    for (const [index, source] of ['osm_candidate', 'overture_candidate', 'foursquare_candidate', 'wikidata_candidate'].entries()) {
+      const inserted = await pool.query(`insert into places (area_id, name, category, landmark_description, location, h3_8, source, verification_status, corroboration, public_profile)
+        values ($1, $2, 'culture_history', 'Public map location', ST_SetSRID(ST_MakePoint(-68.006, 10.472),4326)::geography,
+        '8a0000000000000', $3, 'candidate', $4, $5::jsonb) returning id`,
+      [AREA_ID, `Listed ${source}`, source, index + 1, JSON.stringify({demo:true, researchedAt:'2026-09-06', summary:{en:'Public profile',es:'Perfil público'},sources:[{label:'OSM',url:'https://www.openstreetmap.org/'}]})]);
+      ids.push(inserted.rows[0].id);
+    }
+    try {
+      const res = await app.inject({ method: 'GET', url: '/api/places/candidates?bbox=-68.03,10.44,-67.98,10.52' });
+      expect(res.statusCode).toBe(200);
+      const candidates = res.json().candidates;
+      for (const id of ids) {
+        expect(candidates.find((p: {id:string}) => p.id === id)?.public_profile.demo).toBe(true);
+        const detail = await app.inject({ method:'GET', url:`/api/places/${id}` });
+        expect(detail.json().verification_status).toBe('candidate');
+        expect(detail.json().public_profile.summary.en).toBe('Public profile');
+      }
+      expect(candidates.every((p: {verification_status:string}) => p.verification_status === 'candidate')).toBe(true);
+      for (const bbox of ['a,b,c,d', '-68.03,10.44', '-67.98,10.52,-68.03,10.44', '-68.03,10.44,-67.98,10.52,0']) {
+        expect((await app.inject({ method:'GET', url:`/api/places/candidates?bbox=${bbox}` })).statusCode).toBe(400);
+      }
+    } finally {
+      await pool.query('delete from places where id=any($1::uuid[])', [ids]);
+      await app.close();
+    }
+  });
   it('admin panel routes: token-gated overview and spotters', async () => {
     process.env.OPERATOR_TOKEN = 'test-operator-token';
     const app = buildApp({ pool });

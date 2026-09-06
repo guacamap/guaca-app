@@ -88,12 +88,15 @@ export interface FavoriteRow {
   category: string;
   lat: number;
   lon: number;
+  verificationStatus: string;
+  corroboration: number;
 }
 
 export async function addFavorite(pool: Pool, touristId: string, placeId: string): Promise<void> {
   await pool.query(
     `insert into tourist_favorites (tourist_id, place_id)
-     select $1, id from places where id = $2 and verification_status = 'verified'
+     select $1, id from places where id = $2 and
+       (verification_status = 'verified' or (verification_status = 'candidate' and corroboration >= 1))
      on conflict do nothing`,
     [touristId, placeId],
   );
@@ -112,11 +115,12 @@ export async function removeFavorite(
 
 export async function listFavorites(pool: Pool, touristId: string): Promise<FavoriteRow[]> {
   const res = await pool.query(
-    `select p.id, p.name, p.category,
+    `select p.id, p.name, p.category, p.verification_status, p.corroboration,
             ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon
      from tourist_favorites f
      join places p on p.id = f.place_id
      where f.tourist_id = $1
+       and p.verification_status <> 'rejected'
      order by f.created_at desc`,
     [touristId],
   );
@@ -126,5 +130,7 @@ export async function listFavorites(pool: Pool, touristId: string): Promise<Favo
     category: r.category as string,
     lat: r.lat as number,
     lon: r.lon as number,
+    verificationStatus: r.verification_status as string,
+    corroboration: Number(r.corroboration ?? 0),
   }));
 }

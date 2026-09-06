@@ -1,18 +1,21 @@
 # GUACA
 
-A live map of local knowledge for the Caribbean, built so that every place on it
-was physically visited by a named local.
+A live map of local knowledge for the Caribbean, starting in Puerto Cabello.
 
-**Witnessed, not inferred.** The AI never generates a place. It composes,
-routes, translates and schedules over human-verified data only — and where no
-local has been, it refuses to answer and pays someone to go.
+**Witnessed, not inferred.** The AI never generates a place. It plans from a
+grounded catalog with explicit confidence tiers: locally verified, corroborated
+by independent open datasets, or publicly listed and unconfirmed. Public listings
+are not local verifications. See the [tiered-honesty spec](docs/superpowers/specs/2026-09-02-tiered-honesty-design.md).
+
+For the live demo, use the [Puerto Cabello demo guide](docs/PUERTO_CABELLO_DEMO.md).
+It includes repeatable data preparation, profile sources, and a short walkthrough.
 
 ---
 
 ## The loop
 
 1. A traveller asks a question, free.
-2. If verified places cover it, the planner answers **from those places only**.
+2. If the catalog covers it, the planner answers **from those places only**, stating each place's tier.
 3. If they do not, the system **refuses** and records the coverage gap.
 4. The gap agent aggregates demand across gaps and commissions exactly one paid
    mission to one Spotter.
@@ -53,8 +56,7 @@ Requires Node 24+, pnpm 11+, and Docker.
 ```bash
 pnpm install
 docker compose up -d          # postgres+postgis, minio
-pnpm migrate                  # schema
-pnpm seed                     # the pilot area, its zones and Spotters
+pnpm demo:prepare             # build backend packages, migrate, seed public Puerto Cabello profiles
 pnpm dev                      # every workspace in parallel
 ```
 
@@ -63,9 +65,10 @@ Then:
 | Surface | URL | Who it is for |
 | --- | --- | --- |
 | Landing | `http://localhost:3000` | travellers deciding whether to trust this |
-| Map | `http://localhost:3000/map` | travellers asking about where they are |
-| Villa QR view | `http://localhost:3000/v/qr-marina` | guests who scanned a property's code |
-| Spotter PWA | `http://localhost:3000/spotter` | paid locals running missions (Spanish) |
+| Map | `http://localhost:3002/map` | travellers asking about where they are |
+| Villa QR view | `http://localhost:3002/v/qr-marina` | requires optional fictional villa seed |
+| Spotter PWA | `http://localhost:3002/spotter` | paid locals running missions (Spanish) |
+| Admin | `http://localhost:3003` | token-gated operations |
 | API | `http://localhost:3001` | — |
 
 The map asks the browser for your location and centres there. Outside covered
@@ -101,12 +104,14 @@ pnpm test:integration  # needs docker compose up
 
 ## What the seed contains, and what it does not
 
-`pnpm seed` creates one area (Puerto Cabello), ten hand-drawn walkable zones,
-ten Spotters, and three properties.
+`pnpm seed` creates reference geography only. `pnpm seed:puerto-cabello` also
+imports the bundled OpenStreetMap snapshot and enriches eight real public place
+profiles in English and Spanish. It creates no people, reviews, or verifications.
+It can be rerun without duplicating places or inflating independent-source counts.
 
-**Every one of those Spotters and properties is fictional**, with placeholder
-phone numbers. There are no verified places and no Spotter photographs. Only the
-area, zone and town names are real geography.
+The optional `pnpm --filter @guaca/db seed --demo` adds ten fictional Spotters and
+three fictional properties with placeholder phone numbers. They are simulation
+fixtures, not evidence of coverage. Existing records are preserved by demo preparation.
 
 Nothing in this repository may present seeded records as real. No named person,
 no partner name, no verification date, and no count of verified places belongs

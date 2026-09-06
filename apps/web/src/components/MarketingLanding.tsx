@@ -12,7 +12,6 @@ import {
   MapPinned,
   MessageCircle,
   Medal,
-  Smartphone,
   Store,
   Trophy,
   Users,
@@ -26,6 +25,7 @@ import { useLanguage, type Lang } from '@guaca/ui'
 import { JoinWaitlist } from '@/components/JoinWaitlist'
 import { landingCopy } from '@/lib/landingCopy'
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.NODE_ENV === 'production' ? 'https://app.guaca.live' : 'http://localhost:3002')
 
 const roleMeta = [
   { id: 'tourist' as const, icon: Compass, tone: 'bg-guaca-teal/8 text-guaca-teal' },
@@ -60,8 +60,8 @@ export function MarketingLanding() {
             <a className="landing-link" href="#spotters">{t.nav.spotters}</a>
             <a className="landing-link" href="#waitlist">{t.nav.waitlist}</a>
           </nav>
-          <a href="#waitlist" className="ml-auto hidden min-h-11 items-center justify-center rounded-full bg-guaca-teal px-5 text-xs font-extrabold text-white shadow-lg shadow-guaca-teal/20 transition-colors hover:bg-guaca-teal-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guaca-ocean-deep focus-visible:ring-offset-2 sm:inline-flex lg:ml-0">
-            {t.joinWaitlist} <ArrowRight aria-hidden="true" className="ml-1.5 h-4 w-4" />
+          <a href={`${APP_URL}/map`} className="ml-auto hidden min-h-11 items-center justify-center rounded-full bg-guaca-teal px-5 text-xs font-extrabold text-white transition-colors hover:bg-guaca-teal-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guaca-ocean-deep focus-visible:ring-offset-2 sm:inline-flex lg:ml-0">
+            {lang === 'es' ? 'Abrir el mapa' : 'Open the map'} <ArrowRight aria-hidden="true" className="ml-1.5 h-4 w-4" />
           </a>
           <a href="#waitlist" aria-label={t.ariaJoinWaitlist} className="ml-auto grid h-11 w-11 place-items-center rounded-full bg-white/80 text-guaca-ocean shadow-sm backdrop-blur transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guaca-teal focus-visible:ring-offset-2 sm:hidden">
             <MailPlus aria-hidden="true" className="h-5 w-5" />
@@ -102,12 +102,12 @@ export function MarketingLanding() {
                 {t.hero.lede}
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button type="button" onClick={() => goToWaitlist()} className="h-13 rounded-xl bg-guaca-teal px-6 text-sm font-extrabold text-white shadow-xl shadow-guaca-teal/20 hover:bg-guaca-teal-dark">
-                  <MailPlus aria-hidden="true" className="mr-2 h-4 w-4" /> {t.joinWaitlist}
+                <a href={`${APP_URL}/map`} className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-guaca-teal px-6 text-sm font-bold text-white hover:bg-guaca-teal-dark">
+                  <Compass aria-hidden="true" className="h-4 w-4" /> {lang === 'es' ? 'Explorar Puerto Cabello' : 'Explore Puerto Cabello'} <ArrowRight className="h-4 w-4" />
+                </a>
+                <Button type="button" onClick={() => goToWaitlist()} variant="outline" className="h-13 rounded-xl border-guaca-ocean/30 bg-transparent px-6 text-sm font-semibold text-guaca-ocean hover:bg-white/50 hover:text-guaca-ocean">
+                  {t.joinWaitlist}
                 </Button>
-                <span className="inline-flex h-13 items-center justify-center rounded-xl border border-dashed border-guaca-teal/35 bg-white/60 px-6 text-sm font-extrabold text-guaca-teal/75 backdrop-blur">
-                  <Smartphone aria-hidden="true" className="mr-2 h-4 w-4" /> {t.hero.appComingSoon}
-                </span>
               </div>
               <div className="mt-7 flex items-center gap-4 text-xs font-bold text-guaca-ink/52">
                 <span className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4 text-guaca-teal" /> {t.hero.localVerification}</span>
@@ -126,6 +126,7 @@ export function MarketingLanding() {
                 alt={t.phoneTourist.imgAlt}
                 className="h-auto w-full"
               />
+              <p className="mt-2 text-center text-xs text-guaca-ink-light">{lang === 'es' ? 'Vista ilustrativa del producto · explora los datos actuales en el mapa.' : 'Illustrative product preview · explore current records on the map.'}</p>
             </div>
           </div>
         </section>

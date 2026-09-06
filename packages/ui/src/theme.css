@@ -4,13 +4,13 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #FBF4EB;
+  --background: #F8F6F1;
   --foreground: #0A1F24;
   --card: #FFFFFF;
   --card-foreground: #0A1F24;
   --popover: #FFFFFF;
   --popover-foreground: #0A1F24;
-  --primary: #0D8B8B;
+  --primary: #087A75;
   --primary-foreground: #FFFFFF;
   --secondary: #E8F0EE;
   --secondary-foreground: #0A1F24;
@@ -24,10 +24,10 @@
   --ring: #0D8B8B;
   --radius: 0.75rem;
 
-  --guaca-paper: #FBF4EB;
+  --guaca-paper: #F8F6F1;
   --guaca-ink: #0A1F24;
   --guaca-ink-light: #2D4A50;
-  --guaca-teal: #0D8B8B;
+  --guaca-teal: #087A75;
   --guaca-teal-light: #A8DDD4;
   --guaca-teal-dark: #0A6B6B;
   --guaca-ocean: #0C4A5C;
@@ -46,6 +46,7 @@
   --guaca-lagoon: #5CC5B8;
   --guaca-palm: #2D8B4E;
   --guaca-palm-dark: #1A5C3A;
+  --guaca-shadow-float: 0 12px 40px rgb(10 47 60 / .16);
 }
 
 .dark {
@@ -223,15 +224,13 @@
   }
 
   .guaca-card {
-    border: 1px solid rgba(226, 214, 200, 0.72);
-    background: rgba(255, 251, 245, 0.94);
-    box-shadow: 0 18px 45px rgba(52, 37, 20, 0.12);
+    background: var(--guaca-paper);
+    box-shadow: var(--guaca-shadow-float);
   }
 
   .guaca-pill-active {
-    background: linear-gradient(135deg, var(--guaca-teal), #14A6A0);
+    background: var(--guaca-teal);
     color: white;
-    box-shadow: 0 10px 22px rgba(13, 139, 139, 0.24);
   }
 
   .guaca-tropical-corner::after,

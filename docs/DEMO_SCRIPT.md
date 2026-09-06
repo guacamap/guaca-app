@@ -1,5 +1,15 @@
 # GUACA — Demo script (5 minutes)
 
+For the populated public-data demo, start with the
+[Puerto Cabello guide](PUERTO_CABELLO_DEMO.md). It covers what is available now,
+local login, sources, and the map → profile → save → plan walkthrough.
+
+## Extended field-verification demonstration
+
+The script below requires actual local verification, participating Spotters,
+and villa onboarding. Those are not created by the public-data demo seed; do not
+claim these targets have been met merely because places appear on the map.
+
 Target: one area (Puerto Cabello), 10 Spotters, 30–50 verified places,
 2–3 villas.
 

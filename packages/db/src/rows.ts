@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PlaceCategory, VerificationStatus } from '@guaca/shared';
+import { PlaceCategory, VerificationStatus, PublicPlaceProfileSchema } from '@guaca/shared';
 
 /** Row parser for places — converts DB snake_case + geography into the shared Place shape. */
 export const PlaceRowSchema = z.object({
@@ -38,6 +38,7 @@ export const PlaceRowSchema = z.object({
   public_address: z.string().nullable().optional(),
   public_source: z.string().nullable().optional(),
   public_subcategory: z.string().nullable().optional(),
+  public_profile: PublicPlaceProfileSchema.nullable().optional().catch(null),
   contact_confirmed_at: z
     .union([z.string(), z.date()])
     .nullable()

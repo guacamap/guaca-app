@@ -1,0 +1,970 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Overpass API 0.7.62.11 87bfad18">
+<note>The data included in this document is from www.openstreetmap.org. The data is made available under ODbL.</note>
+<meta osm_base="2026-09-06T05:16:53Z"/>
+
+  <node id="1306627169" lat="10.4784389" lon="-68.0098659">
+    <tag k="amenity" v="townhall"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Alcaldía de Puerto Cabello"/>
+  </node>
+  <node id="1307634047" lat="10.4788868" lon="-68.0101804">
+    <tag k="name" v="Puente colonial entre casas"/>
+    <tag k="tourism" v="attraction"/>
+  </node>
+  <node id="1692554610" lat="10.4702934" lon="-68.0287661">
+    <tag k="amenity" v="police"/>
+    <tag k="name" v="Puerto Cabello"/>
+  </node>
+  <node id="1692613070" lat="10.4594109" lon="-68.0216174">
+    <tag k="amenity" v="school"/>
+    <tag k="name" v="Escuela San Esteban"/>
+  </node>
+  <node id="1694026494" lat="10.4642851" lon="-68.0071946">
+    <tag k="addr:street" v="Av. Circunvalación del Mar"/>
+    <tag k="amenity" v="hospital"/>
+    <tag k="emergency" v="yes"/>
+    <tag k="healthcare" v="hospital"/>
+    <tag k="name" v="IVSS Hospital Dr. José Francisco Molina Sierra"/>
+    <tag k="name:en" v="IVSS Hospital del Seguro Social"/>
+    <tag k="name:es" v="IVSS - Hospital del Seguro Social (Dr. Jose Francisco Molina Sierra)"/>
+    <tag k="operator" v="Instituto Venezolano de los Seguros Sociales"/>
+    <tag k="operator:short" v="IVSS"/>
+    <tag k="operator:wikidata" v="Q6047563"/>
+  </node>
+  <node id="1734735741" lat="10.4814090" lon="-68.0084923">
+    <tag k="historic" v="memorial"/>
+    <tag k="image" v="http://www.viajeros.com/fotos/un-dia-en-puerto-cabello/672739"/>
+    <tag k="name" v="Monumento Él Águila"/>
+  </node>
+  <node id="1734748797" lat="10.4780953" lon="-68.0099157">
+    <tag k="historic" v="monument"/>
+    <tag k="name" v="Monumento a Simón Bolívar"/>
+    <tag k="subject" v="Simón Bolívar"/>
+  </node>
+  <node id="1734753334" lat="10.4815468" lon="-68.0098774">
+    <tag k="historic" v="monument"/>
+    <tag k="name" v="Monumento a la Descentralización"/>
+  </node>
+  <node id="2335798680" lat="10.4669360" lon="-68.0087119">
+    <tag k="amenity" v="hospital"/>
+    <tag k="name" v="Cruz Roja"/>
+  </node>
+  <node id="2336145914" lat="10.4589182" lon="-68.0218449">
+    <tag k="amenity" v="kindergarten"/>
+    <tag k="ele" v="4,6"/>
+    <tag k="name" v="Jardín de Infancia San Esteban"/>
+    <tag k="note" v="070705003"/>
+  </node>
+  <node id="2336175864" lat="10.4583848" lon="-68.0067478">
+    <tag k="amenity" v="school"/>
+    <tag k="name" v="Escuela Federal"/>
+  </node>
+  <node id="2339219343" lat="10.4692228" lon="-68.0115829">
+    <tag k="amenity" v="school"/>
+    <tag k="denomination" v="evangelical"/>
+    <tag k="name" v="Colegio Evangélico"/>
+    <tag k="official_name" v="Unidad Educativa Colegio Evangélico"/>
+    <tag k="religion" v="christian"/>
+  </node>
+  <node id="3445274655" lat="10.4660458" lon="-68.0109209">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="10"/>
+    <tag k="name" v="Escuela Primaria Juan José Flores"/>
+    <tag k="note" v="070702001"/>
+  </node>
+  <node id="3445290366" lat="10.4668870" lon="-68.0099348">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="11,8"/>
+    <tag k="name" v="Unidad Educativa Estadal Doroteo Centeno"/>
+    <tag k="note" v="070702003"/>
+  </node>
+  <node id="3445291031" lat="10.4652077" lon="-68.0111303">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="15,5"/>
+    <tag k="name" v="Ciclo Básico Común Simón Rodríguez"/>
+    <tag k="note" v="070702004"/>
+  </node>
+  <node id="3445491188" lat="10.4614185" lon="-68.0240532">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="10"/>
+    <tag k="name" v="Unidad Educativa Mis Vecinos"/>
+    <tag k="note" v="070705010"/>
+  </node>
+  <node id="3445493802" lat="10.4548253" lon="-68.0243290">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="13,8"/>
+    <tag k="name" v="Unidad Educativa Ligia de Ríos"/>
+    <tag k="note" v="070705011"/>
+  </node>
+  <node id="3445496696" lat="10.4566779" lon="-68.0216997">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="28,2"/>
+    <tag k="name" v="UNIDAD EDUCATIVA OVIDIO DE CROLY"/>
+    <tag k="note" v="070705013"/>
+  </node>
+  <node id="3445507421" lat="10.4549416" lon="-68.0043320">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="23,5"/>
+    <tag k="name" v="Ciclo Básico Común Carabobo"/>
+    <tag k="note" v="070705004"/>
+  </node>
+  <node id="3445514180" lat="10.4571625" lon="-68.0052499">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="22,8"/>
+    <tag k="name" v="Unidad Educativa Municipal Carlos Augusto Cubillán"/>
+    <tag k="note" v="070705006"/>
+  </node>
+  <node id="3445520068" lat="10.4623300" lon="-68.0026997">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="4,9"/>
+    <tag k="name" v="Unidad Educativa Municipal Doctor Adolfo Prince Lara"/>
+    <tag k="note" v="070705007"/>
+  </node>
+  <node id="3445520676" lat="10.4458947" lon="-68.0047334">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="38,1"/>
+    <tag k="name" v="Unidad Educativa Municipal Valle Seco"/>
+    <tag k="note" v="070705012"/>
+  </node>
+  <node id="3445532411" lat="10.4581056" lon="-68.0125697">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="6"/>
+    <tag k="name" v="Unidad Educativa Manuela Saenz"/>
+    <tag k="note" v="070705014"/>
+  </node>
+  <node id="3445556226" lat="10.4530729" lon="-68.0198254">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="16,5"/>
+    <tag k="name" v="Unidad Educativa Valle Verde"/>
+    <tag k="note" v="070705009"/>
+  </node>
+  <node id="3445557102" lat="10.4756549" lon="-68.0092767">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="9,2"/>
+    <tag k="name" v="Grupo Escolar República de Honduras"/>
+    <tag k="note" v="070706001"/>
+  </node>
+  <node id="3445557687" lat="10.4740457" lon="-68.0122929">
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="2,3"/>
+    <tag k="name" v="Unidad Educativa Colegio Evangélico de Puerto Cabello"/>
+    <tag k="note" v="070706002"/>
+  </node>
+  <node id="4375683094" lat="10.4692090" lon="-68.0076609">
+    <tag k="name" v="licomar"/>
+    <tag k="name:es" v="licomar"/>
+    <tag k="shop" v="alcohol"/>
+  </node>
+  <node id="4375701190" lat="10.4676836" lon="-68.0076575">
+    <tag k="name" v="Bodegón Costa Norte"/>
+    <tag k="shop" v="alcohol"/>
+  </node>
+  <node id="4375764189" lat="10.4670088" lon="-68.0083507">
+    <tag k="amenity" v="bar"/>
+    <tag k="name" v="Bella Mar"/>
+  </node>
+  <node id="4375764589" lat="10.4654189" lon="-68.0145608">
+    <tag k="name" v="Abasto Segrestaa"/>
+    <tag k="name:es" v="abasto segrestaa"/>
+    <tag k="shop" v="convenience"/>
+  </node>
+  <node id="4375767891" lat="10.4672898" lon="-68.0101691">
+    <tag k="amenity" v="bar"/>
+    <tag k="name" v="tio Manuel timanoca"/>
+    <tag k="name:es" v="tio Manuel timanoca"/>
+  </node>
+  <node id="4397298390" lat="10.4711899" lon="-68.0151068">
+    <tag k="addr:housenumber" v="176"/>
+    <tag k="addr:street" v="Calle Urdaneta"/>
+    <tag k="name" v="Mundo Bazar 468"/>
+    <tag k="opening_hours" v="Mo-Sa 08:00-12:00, 14:00-18:00"/>
+    <tag k="operator" v="Mundo bazar 468, C.A"/>
+    <tag k="phone" v="+58 242 3622518"/>
+    <tag k="shop" v="toys"/>
+  </node>
+  <node id="4474311189" lat="10.4684597" lon="-68.0120315">
+    <tag k="name" v="frenos y embregues Américo puerto cabello"/>
+    <tag k="name:es" v="frenos y embregues Américo puerto cabello"/>
+    <tag k="shop" v="car_repair"/>
+  </node>
+  <node id="4699620491" lat="10.4716610" lon="-68.0180382">
+    <tag k="addr:city" v="Puerto Cabello"/>
+    <tag k="addr:street" v="Calle Urdaneta"/>
+    <tag k="name" v="Repuestos La Paz"/>
+    <tag k="shop" v="car_parts"/>
+  </node>
+  <node id="4699657389" lat="10.4687457" lon="-68.0109492">
+    <tag k="name" v="auto servicio puerto frenos puerto cabello"/>
+    <tag k="name:es" v="auto servicio puerto frenos puerto cabello"/>
+    <tag k="shop" v="car_parts"/>
+  </node>
+  <node id="5240998821" lat="10.4697269" lon="-68.0164691">
+    <tag k="addr:street" v="Calle Ayacucho"/>
+    <tag k="amenity" v="clinic"/>
+    <tag k="healthcare" v="clinic"/>
+    <tag k="name" v="Policlínica Urdaneta"/>
+  </node>
+  <node id="5240998822" lat="10.4713466" lon="-68.0149166">
+    <tag k="addr:street" v="Calle Urdaneta"/>
+    <tag k="name" v="Yaris 2004"/>
+    <tag k="opening_hours" v="Mo-Su 09:00-18:00"/>
+    <tag k="operator" v="Yaris 2004, C.A."/>
+    <tag k="shop" v="bakery"/>
+  </node>
+  <node id="5240998823" lat="10.4717892" lon="-68.0147381">
+    <tag k="addr:street" v="Calle Juncal"/>
+    <tag k="amenity" v="pharmacy"/>
+    <tag k="healthcare" v="pharmacy"/>
+    <tag k="name" v="Farmacia Isabel María"/>
+    <tag k="opening_hours" v="Mo-Fr 09:00-18:00"/>
+  </node>
+  <node id="5240999022" lat="10.4718868" lon="-68.0181402">
+    <tag k="addr:street" v="Calle Miranda"/>
+    <tag k="name" v="Isla Larga Hotel Suites"/>
+    <tag k="tourism" v="hotel"/>
+  </node>
+  <node id="5240999023" lat="10.4715892" lon="-68.0184535">
+    <tag k="addr:street" v="Avenida La Paz"/>
+    <tag k="name" v="Licoreria Isla Larga"/>
+    <tag k="opening_hours" v="Mo-Su 09:00-18:00"/>
+    <tag k="shop" v="alcohol"/>
+  </node>
+  <node id="5240999221" lat="10.4702223" lon="-68.0149622">
+    <tag k="addr:street" v="Calle Juncal"/>
+    <tag k="name" v="Pequeña Vegas"/>
+    <tag k="tourism" v="hotel"/>
+  </node>
+  <node id="5240999223" lat="10.4703250" lon="-68.0149185">
+    <tag k="addr:street" v="Calle Juncal"/>
+    <tag k="name" v="Wilmar, C.A."/>
+    <tag k="opening_hours" v="Mo-Su 09:00-18:00"/>
+    <tag k="shop" v="bakery"/>
+  </node>
+  <node id="5240999224" lat="10.4721919" lon="-68.0147744">
+    <tag k="addr:street" v="Calle Juncal"/>
+    <tag k="amenity" v="pharmacy"/>
+    <tag k="name" v="Farmacia Johanna"/>
+    <tag k="opening_hours" v="Mo-Fr 09:00-18:00"/>
+  </node>
+  <node id="5240999225" lat="10.4722761" lon="-68.0172266">
+    <tag k="addr:street" v="Calle Miranda"/>
+    <tag k="amenity" v="courthouse"/>
+    <tag k="government" v="legislative"/>
+    <tag k="name" v="Tribunal Supremo de Justicia - Puerto Cabello"/>
+  </node>
+  <node id="5240999227" lat="10.4701315" lon="-68.0174433">
+    <tag k="amenity" v="doctors"/>
+    <tag k="healthcare" v="doctor"/>
+    <tag k="name" v="SRI - Puerto Cabello"/>
+  </node>
+  <node id="5241000521" lat="10.4719063" lon="-68.0183138">
+    <tag k="addr:street" v="Calle Miranda"/>
+    <tag k="amenity" v="restaurant"/>
+    <tag k="name" v="La Cueva del Mar"/>
+    <tag k="opening_hours" v="Mo-Fr 09:00-18:00"/>
+  </node>
+  <node id="5241000522" lat="10.4719108" lon="-68.0189089">
+    <tag k="addr:street" v="Calle Miranda"/>
+    <tag k="name" v="Hotel La Fragata"/>
+    <tag k="tourism" v="hotel"/>
+  </node>
+  <node id="5241009421" lat="10.4715746" lon="-68.0188477">
+    <tag k="amenity" v="ice_cream"/>
+    <tag k="name" v="Helados El Recreo"/>
+  </node>
+  <node id="5241018522" lat="10.4716376" lon="-68.0244596">
+    <tag k="name" v="Lusiana"/>
+    <tag k="shop" v="bakery"/>
+  </node>
+  <node id="5241020124" lat="10.4692688" lon="-68.0081912">
+    <tag k="amenity" v="bank"/>
+    <tag k="brand" v="Provincial"/>
+    <tag k="brand:wikidata" v="Q4835087"/>
+    <tag k="name" v="Provincial"/>
+  </node>
+  <node id="5241025822" lat="10.4715795" lon="-68.0271840">
+    <tag k="name" v="Ensenada Suites"/>
+    <tag k="tourism" v="hotel"/>
+  </node>
+  <node id="5241025823" lat="10.4681875" lon="-68.0076540">
+    <tag k="amenity" v="bank"/>
+    <tag k="brand" v="Bancaribe"/>
+    <tag k="brand:wikidata" v="Q5717827"/>
+    <tag k="name" v="Bancaribe"/>
+  </node>
+  <node id="5241025824" lat="10.4649789" lon="-68.0082683">
+    <tag k="addr:street" v="Avenida Juan José Flores"/>
+    <tag k="amenity" v="pharmacy"/>
+    <tag k="brand" v="Farmahorro"/>
+    <tag k="brand:wikidata" v="Q20015002"/>
+    <tag k="healthcare" v="pharmacy"/>
+    <tag k="name" v="Farmahorro"/>
+    <tag k="operator" v="Farmahorro"/>
+  </node>
+  <node id="5241025827" lat="10.4652112" lon="-68.0067054">
+    <tag k="addr:street" v="Calle Plaza"/>
+    <tag k="email" v="blosegre@gmail.com"/>
+    <tag k="name" v="Bloquera y Ferretería Segrestaa"/>
+    <tag k="opening_hours" v="Mo-Fr 09:00-18:00"/>
+    <tag k="phone" v="+582423614238"/>
+    <tag k="shop" v="hardware"/>
+  </node>
+  <node id="5718270282" lat="10.4776484" lon="-68.0111846">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="cuisine" v="seafood"/>
+    <tag k="name" v="Blue Marine Restaurant"/>
+    <tag k="phone" v="+58 412 4219903"/>
+  </node>
+  <node id="5718275034" lat="10.4762995" lon="-68.0108156">
+    <tag k="leisure" v="pitch"/>
+    <tag k="name" v="Skate Park Puerto Cabello"/>
+    <tag k="sport" v="skateboard"/>
+  </node>
+  <node id="6865224385" lat="10.4723902" lon="-68.0183385">
+    <tag k="name" v="Pescadería Pescalba"/>
+    <tag k="shop" v="seafood"/>
+  </node>
+  <node id="7754397389" lat="10.4786078" lon="-68.0102032">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Picua Seafood &amp; Bar"/>
+  </node>
+  <node id="11247061097" lat="10.4735527" lon="-68.0104945">
+    <tag k="name" v="Tienda La Isla"/>
+    <tag k="shop" v="fabric"/>
+  </node>
+  <node id="11523696598" lat="10.4664282" lon="-68.0099986">
+    <tag k="amenity" v="pharmacy"/>
+    <tag k="name" v="Farmacia Pto Cabello"/>
+    <tag k="operator" v="Farmacias San Ignacio"/>
+  </node>
+  <node id="11829098569" lat="10.4743672" lon="-68.0099002">
+    <tag k="name" v="Supermercado Catania"/>
+    <tag k="shop" v="supermarket"/>
+  </node>
+  <node id="12724624540" lat="10.4714260" lon="-68.0074987">
+    <tag k="amenity" v="studio"/>
+    <tag k="name" v="Stereo Mar 94 FM"/>
+    <tag k="studio" v="radio"/>
+    <tag k="website" v="https://stereomar94fm.com/"/>
+  </node>
+  <node id="13587323301" lat="10.4719898" lon="-68.0123999">
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="internet_access" v="wlan"/>
+    <tag k="name" v="Hotel Las Piedras PC"/>
+    <tag k="self_service" v="no"/>
+    <tag k="tourism" v="hotel"/>
+  </node>
+  <node id="13588263501" lat="10.4781820" lon="-68.0090131">
+    <tag k="amenity" v="university"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="education" v="university"/>
+    <tag k="name" v="Universidad Panamericana del Puerto"/>
+  </node>
+  <node id="13588392801" lat="10.4788271" lon="-68.0102929">
+    <tag k="amenity" v="ice_cream"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="La Heladería"/>
+  </node>
+  <node id="13588399902" lat="10.4795989" lon="-68.0100204">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="cuisine" v="pizza"/>
+    <tag k="name" v="Pizzería De la Costa"/>
+  </node>
+  <node id="13588404601" lat="10.4796657" lon="-68.0099979">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Casa Rosada"/>
+  </node>
+  <node id="13588404801" lat="10.4797795" lon="-68.0099763">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="cuisine" v="pizza"/>
+    <tag k="name" v="Da Franco"/>
+  </node>
+  <node id="13588404802" lat="10.4800217" lon="-68.0091684">
+    <tag k="amenity" v="police"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Centro de Coordinación Policial"/>
+  </node>
+  <node id="13588416101" lat="10.4796096" lon="-68.0095666">
+    <tag k="amenity" v="community_centre"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Avril Espacio Cultural"/>
+  </node>
+  <node id="13588425001" lat="10.4794836" lon="-68.0096387">
+    <tag k="addr:housenumber" v="4 36"/>
+    <tag k="addr:street" v="Calle de Bolívar"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Posada Santa Margarita"/>
+    <tag k="tourism" v="guest_house"/>
+  </node>
+  <node id="13588437102" lat="10.4793225" lon="-68.0097265">
+    <tag k="amenity" v="casino"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Casino Puerto Cabello"/>
+  </node>
+  <node id="13588440601" lat="10.4798790" lon="-68.0098042">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Resto Bar 28"/>
+  </node>
+  <node id="13588451503" lat="10.4809093" lon="-68.0088224">
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Casa Guipuzcoana"/>
+    <tag k="tourism" v="hotel"/>
+  </node>
+  <node id="13588457501" lat="10.4806741" lon="-68.0088436">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Marcos Pizza"/>
+  </node>
+  <node id="13588457601" lat="10.4810251" lon="-68.0088423">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="contact:instagram" v="1730.restaurante"/>
+    <tag k="name" v="1730"/>
+  </node>
+  <node id="13588577301" lat="10.4794483" lon="-68.0100724">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Calypso"/>
+  </node>
+  <node id="13588578801" lat="10.4784949" lon="-68.0103803">
+    <tag k="amenity" v="fast_food"/>
+    <tag k="check_date" v="2026-02-21"/>
+    <tag k="name" v="Perrito Caliente"/>
+  </node>
+  <node id="13589733703" lat="10.4909004" lon="-67.9946293">
+    <tag k="amenity" v="restaurant"/>
+    <tag k="check_date" v="2026-02-22"/>
+    <tag k="name" v="La Recalada"/>
+  </node>
+  <node id="13589733704" lat="10.4909068" lon="-67.9946661">
+    <tag k="check_date" v="2026-02-22"/>
+    <tag k="name" v="Bodegón Playero Delfin Beach"/>
+    <tag k="shop" v="alcohol"/>
+  </node>
+  <node id="13589733711" lat="10.4907278" lon="-67.9949153">
+    <tag k="artwork_type" v="sculpture"/>
+    <tag k="name" v="Hélice"/>
+    <tag k="tourism" v="artwork"/>
+  </node>
+  <way id="115753088">
+    <center lat="10.4638582" lon="-68.0109796"/>
+    <nd ref="1306892067"/>
+    <nd ref="1306892062"/>
+    <nd ref="1306892151"/>
+    <nd ref="1306892156"/>
+    <nd ref="1306892157"/>
+    <nd ref="1306892064"/>
+    <nd ref="1306892152"/>
+    <nd ref="1306892161"/>
+    <nd ref="1306892155"/>
+    <nd ref="1306892067"/>
+    <tag k="amenity" v="school"/>
+    <tag k="name" v="Liceo Miguel Peña"/>
+  </way>
+  <way id="115753096">
+    <center lat="10.4638568" lon="-68.0093676"/>
+    <nd ref="1306892101"/>
+    <nd ref="1306892115"/>
+    <nd ref="1306892088"/>
+    <nd ref="1306892103"/>
+    <nd ref="1306892051"/>
+    <nd ref="1306892121"/>
+    <nd ref="1306892113"/>
+    <nd ref="1306892110"/>
+    <nd ref="1306892056"/>
+    <nd ref="1306892049"/>
+    <nd ref="1306892042"/>
+    <nd ref="1306892041"/>
+    <nd ref="1306892092"/>
+    <nd ref="1306892097"/>
+    <nd ref="1306892132"/>
+    <nd ref="1306892101"/>
+    <tag k="leisure" v="pitch"/>
+    <tag k="name" v="Estadio de Beisbol Independencia"/>
+    <tag k="sport" v="baseball"/>
+  </way>
+  <way id="115967761">
+    <center lat="10.4704890" lon="-68.0187768"/>
+    <nd ref="1308873496"/>
+    <nd ref="1308873512"/>
+    <nd ref="1308873487"/>
+    <nd ref="1308873511"/>
+    <nd ref="1308873447"/>
+    <nd ref="1308873492"/>
+    <nd ref="1308873476"/>
+    <nd ref="1308873501"/>
+    <nd ref="1308873503"/>
+    <nd ref="1308873500"/>
+    <nd ref="1308873454"/>
+    <nd ref="1308873504"/>
+    <nd ref="1308873489"/>
+    <nd ref="1689282616"/>
+    <nd ref="11267459581"/>
+    <nd ref="1308873449"/>
+    <nd ref="1308873486"/>
+    <nd ref="1308873477"/>
+    <nd ref="1308873481"/>
+    <nd ref="1308873472"/>
+    <nd ref="1308873460"/>
+    <nd ref="1308873509"/>
+    <nd ref="1308873464"/>
+    <nd ref="1308873467"/>
+    <nd ref="1308873496"/>
+    <tag k="amenity" v="bus_station"/>
+    <tag k="bus" v="yes"/>
+    <tag k="name" v="Terminal de Pasajeros de Puerto Cabello"/>
+    <tag k="public_transport" v="station"/>
+  </way>
+  <way id="115967762">
+    <center lat="10.4666989" lon="-68.0141635"/>
+    <nd ref="1308878564"/>
+    <nd ref="1308873459"/>
+    <nd ref="1308873484"/>
+    <nd ref="1308873466"/>
+    <nd ref="1308873465"/>
+    <nd ref="1308873457"/>
+    <nd ref="1308878564"/>
+    <tag k="amenity" v="fire_station"/>
+    <tag k="name" v="Cuartel de Bomberos"/>
+  </way>
+  <way id="115968251">
+    <center lat="10.4690252" lon="-68.0082807"/>
+    <nd ref="1308878538"/>
+    <nd ref="1308878572"/>
+    <nd ref="1308878574"/>
+    <nd ref="1308878535"/>
+    <nd ref="1308878599"/>
+    <nd ref="1308878570"/>
+    <nd ref="1308878612"/>
+    <nd ref="1308878546"/>
+    <nd ref="1308878587"/>
+    <nd ref="1308878567"/>
+    <nd ref="1308878526"/>
+    <nd ref="1308878568"/>
+    <nd ref="1308878538"/>
+    <tag k="name" v="Centro Comercial Profesional Plaza"/>
+    <tag k="shop" v="mall"/>
+  </way>
+  <way id="115968252">
+    <center lat="10.4679638" lon="-68.0098129"/>
+    <nd ref="1308878595"/>
+    <nd ref="1308878583"/>
+    <nd ref="1308878585"/>
+    <nd ref="1308878562"/>
+    <nd ref="1308878595"/>
+    <tag k="leisure" v="pitch"/>
+    <tag k="name" v="Complejo Deportivo Socialista"/>
+    <tag k="sport" v="soccer"/>
+  </way>
+  <way id="156709591">
+    <center lat="10.4695845" lon="-68.0186315"/>
+    <nd ref="2335698739"/>
+    <nd ref="11267459579"/>
+    <nd ref="11267459580"/>
+    <nd ref="1689282612"/>
+    <nd ref="11267459581"/>
+    <nd ref="1689282616"/>
+    <nd ref="1308873489"/>
+    <nd ref="1308873504"/>
+    <nd ref="1308873454"/>
+    <nd ref="1308873500"/>
+    <nd ref="1689282608"/>
+    <nd ref="11267422468"/>
+    <nd ref="11267459569"/>
+    <nd ref="11267459570"/>
+    <nd ref="11267459571"/>
+    <nd ref="11267459572"/>
+    <nd ref="2335698739"/>
+    <tag k="alt_name" v="Mercado Puerto Cabello"/>
+    <tag k="amenity" v="marketplace"/>
+    <tag k="landuse" v="commercial"/>
+    <tag k="name" v="Mercado Municipal de Puerto Cabello"/>
+  </way>
+  <way id="156709880">
+    <center lat="10.4738979" lon="-68.0306092"/>
+    <nd ref="1692554611"/>
+    <nd ref="1689293210"/>
+    <nd ref="1689293213"/>
+    <nd ref="1689293216"/>
+    <nd ref="1692554611"/>
+    <tag k="addr:street" v="Avenida La Paz"/>
+    <tag k="amenity" v="hospital"/>
+    <tag k="emergency" v="yes"/>
+    <tag k="healthcare" v="hospital"/>
+    <tag k="name" v="Hospital Dr. Adolfo Prince Lara"/>
+  </way>
+  <way id="157031972">
+    <center lat="10.4670038" lon="-68.0284752"/>
+    <nd ref="3445308009"/>
+    <nd ref="1692599360"/>
+    <nd ref="1692563221"/>
+    <nd ref="1692563211"/>
+    <nd ref="3445308009"/>
+    <tag k="amenity" v="school"/>
+    <tag k="ele" v="-2,3"/>
+    <tag k="name" v="Unidad Educativa Monseñor José Alí Lebrún"/>
+    <tag k="note" v="070703001"/>
+    <tag k="operator" v="Fe y Alegría"/>
+    <tag k="operator:type" v="ngo"/>
+    <tag k="operator:wikidata" v="Q5856947"/>
+  </way>
+  <way id="157189923">
+    <center lat="10.4809450" lon="-68.0095731"/>
+    <nd ref="1694022963"/>
+    <nd ref="1694023059"/>
+    <nd ref="1694023023"/>
+    <nd ref="1694023070"/>
+    <nd ref="1696204572"/>
+    <nd ref="1694023074"/>
+    <nd ref="1696204573"/>
+    <nd ref="1694022986"/>
+    <nd ref="1696204574"/>
+    <nd ref="1696204575"/>
+    <nd ref="1696204576"/>
+    <nd ref="1694022969"/>
+    <nd ref="1694022976"/>
+    <nd ref="1694022965"/>
+    <nd ref="1694023030"/>
+    <nd ref="1694023055"/>
+    <nd ref="1694022963"/>
+    <tag k="leisure" v="park"/>
+    <tag k="name" v="Plaza Flores"/>
+  </way>
+  <way id="161006207">
+    <center lat="10.4801406" lon="-68.0094605"/>
+    <nd ref="1307634038"/>
+    <nd ref="1729919966"/>
+    <nd ref="1729919970"/>
+    <nd ref="1729919971"/>
+    <nd ref="1729919967"/>
+    <nd ref="1729919961"/>
+    <nd ref="1307634038"/>
+    <tag k="amenity" v="place_of_worship"/>
+    <tag k="building" v="yes"/>
+    <tag k="name" v="Iglesia Nuestra Señora del Rosario"/>
+    <tag k="religion" v="christian"/>
+    <tag k="wikidata" v="Q42901428"/>
+  </way>
+  <way id="161501174">
+    <center lat="10.4774829" lon="-68.0087920"/>
+    <nd ref="1306627157"/>
+    <nd ref="1734749411"/>
+    <nd ref="1738628613"/>
+    <nd ref="1738628612"/>
+    <nd ref="1738628610"/>
+    <nd ref="1738628611"/>
+    <nd ref="1734749410"/>
+    <nd ref="1734749408"/>
+    <nd ref="1306627157"/>
+    <tag k="alt_name" v="Catedral de Puerto Cabello"/>
+    <tag k="amenity" v="place_of_worship"/>
+    <tag k="building" v="yes"/>
+    <tag k="denomination" v="catholic"/>
+    <tag k="name" v="Catedral de San José"/>
+    <tag k="religion" v="christian"/>
+    <tag k="wikidata" v="Q25414204"/>
+  </way>
+  <way id="203615814">
+    <center lat="10.4626037" lon="-68.0169791"/>
+    <nd ref="2136231966"/>
+    <nd ref="2136231964"/>
+    <nd ref="2136231963"/>
+    <nd ref="2136231961"/>
+    <nd ref="2136231960"/>
+    <nd ref="2136231962"/>
+    <nd ref="2136231965"/>
+    <nd ref="2136231968"/>
+    <nd ref="2136231969"/>
+    <nd ref="7705676500"/>
+    <nd ref="2136231971"/>
+    <nd ref="2136231970"/>
+    <nd ref="2136231967"/>
+    <nd ref="2136231966"/>
+    <tag k="castle_type" v="fortress"/>
+    <tag k="historic" v="castle"/>
+    <tag k="name" v="Fortín Solano"/>
+    <tag k="source" v="bing"/>
+    <tag k="wikipedia" v="es:Fortín Solano"/>
+  </way>
+  <way id="321762808">
+    <center lat="10.4700867" lon="-68.0144882"/>
+    <nd ref="3285294848"/>
+    <nd ref="3285294849"/>
+    <nd ref="3285294850"/>
+    <nd ref="3285294851"/>
+    <nd ref="3285294852"/>
+    <nd ref="3285294853"/>
+    <nd ref="3285294856"/>
+    <nd ref="3285294855"/>
+    <nd ref="3285294854"/>
+    <nd ref="3285294848"/>
+    <tag k="addr:city" v="Puerto Cabello"/>
+    <tag k="addr:postcode" v="2050"/>
+    <tag k="addr:street" v="Calle Mariño"/>
+    <tag k="building" v="yes"/>
+    <tag k="name" v="Centro Comercial Mariño"/>
+    <tag k="shop" v="mall"/>
+  </way>
+  <way id="341326721">
+    <center lat="10.4659155" lon="-68.0089812"/>
+    <nd ref="3485250025"/>
+    <nd ref="3485250026"/>
+    <nd ref="3485250027"/>
+    <nd ref="3485250028"/>
+    <nd ref="3485250025"/>
+    <tag k="building" v="yes"/>
+    <tag k="name" v="Marrokal"/>
+    <tag k="shop" v="hardware"/>
+  </way>
+  <way id="341326723">
+    <center lat="10.4564003" lon="-68.0066188"/>
+    <nd ref="3485250030"/>
+    <nd ref="3485250031"/>
+    <nd ref="3485250032"/>
+    <nd ref="3485250033"/>
+    <nd ref="3485250030"/>
+    <tag k="amenity" v="clinic"/>
+    <tag k="building" v="yes"/>
+    <tag k="name" v="Clinica San Jose"/>
+  </way>
+  <way id="341326726">
+    <center lat="10.4558260" lon="-68.0071052"/>
+    <nd ref="3485250034"/>
+    <nd ref="3485250035"/>
+    <nd ref="3485250036"/>
+    <nd ref="3485250037"/>
+    <nd ref="3485250034"/>
+    <tag k="name" v="Funeraria Seres Previsivos"/>
+    <tag k="shop" v="funeral_directors"/>
+  </way>
+  <way id="601784324">
+    <center lat="10.4745880" lon="-68.0082395"/>
+    <nd ref="5718328399"/>
+    <nd ref="5718328398"/>
+    <nd ref="5718328397"/>
+    <nd ref="5718328396"/>
+    <nd ref="5718328399"/>
+    <tag k="amenity" v="school"/>
+    <tag k="name" v="Liceo Manuel Gual"/>
+  </way>
+  <way id="601785058">
+    <center lat="10.4736190" lon="-68.0079127"/>
+    <nd ref="5718337747"/>
+    <nd ref="5718337746"/>
+    <nd ref="5718337745"/>
+    <nd ref="5718337744"/>
+    <nd ref="5718337747"/>
+    <tag k="building" v="yes"/>
+    <tag k="leisure" v="sports_hall"/>
+    <tag k="name" v="Gimnacio Manuel Antonio Peñazola"/>
+    <tag k="sport" v="gymnastics"/>
+  </way>
+  <way id="830509731">
+    <center lat="10.4773099" lon="-68.0119345"/>
+    <nd ref="332616908"/>
+    <nd ref="332616907"/>
+    <nd ref="7754861306"/>
+    <nd ref="7754861307"/>
+    <nd ref="1687498222"/>
+    <nd ref="7754861305"/>
+    <nd ref="7754322354"/>
+    <nd ref="7754050064"/>
+    <nd ref="7754322355"/>
+    <nd ref="7754322356"/>
+    <nd ref="7754050066"/>
+    <nd ref="7754050065"/>
+    <nd ref="6574484031"/>
+    <nd ref="7754322357"/>
+    <nd ref="7754050061"/>
+    <nd ref="7754050067"/>
+    <nd ref="7754050068"/>
+    <nd ref="7754050062"/>
+    <nd ref="7754050063"/>
+    <nd ref="7754050060"/>
+    <nd ref="332616916"/>
+    <nd ref="332616917"/>
+    <nd ref="12250432779"/>
+    <nd ref="12250432778"/>
+    <nd ref="332616908"/>
+    <tag k="leisure" v="marina"/>
+    <tag k="mooring" v="yes"/>
+    <tag k="name" v="Marina Punta Brava"/>
+    <tag k="opening_hours" v="Mo-Su 08:00-18:00"/>
+    <tag k="phone" v="+58 242 3616466"/>
+    <tag k="seamark:harbour:category" v="marina"/>
+    <tag k="seamark:name" v="Marina Punta Brava"/>
+    <tag k="seamark:type" v="harbour"/>
+  </way>
+  <way id="1207500889">
+    <center lat="10.4651243" lon="-68.0079418"/>
+    <nd ref="11188395777"/>
+    <nd ref="11188395778"/>
+    <nd ref="11188395779"/>
+    <nd ref="11188395780"/>
+    <nd ref="11188395777"/>
+    <tag k="addr:street" v="Avenida Juan José Flores"/>
+    <tag k="name" v="Centro Comercial Plaza City"/>
+    <tag k="shop" v="mall"/>
+  </way>
+  <way id="1216059917">
+    <center lat="10.4627380" lon="-68.0118540"/>
+    <nd ref="11267255396"/>
+    <nd ref="11267255397"/>
+    <nd ref="11267255398"/>
+    <nd ref="11267255399"/>
+    <nd ref="11267255400"/>
+    <nd ref="11267255401"/>
+    <nd ref="11267255402"/>
+    <nd ref="11267255403"/>
+    <nd ref="11267255404"/>
+    <nd ref="11267255405"/>
+    <nd ref="11267255435"/>
+    <nd ref="11267255434"/>
+    <nd ref="11267255433"/>
+    <nd ref="11267255432"/>
+    <nd ref="11267255431"/>
+    <nd ref="11267255430"/>
+    <nd ref="11267255429"/>
+    <nd ref="11267255428"/>
+    <nd ref="11267255427"/>
+    <nd ref="11267255426"/>
+    <nd ref="11267255425"/>
+    <nd ref="11267255424"/>
+    <nd ref="11267255423"/>
+    <nd ref="11267255422"/>
+    <nd ref="11267255421"/>
+    <nd ref="11267255420"/>
+    <nd ref="11267255419"/>
+    <nd ref="11267255406"/>
+    <nd ref="11267255407"/>
+    <nd ref="11267255408"/>
+    <nd ref="11267255409"/>
+    <nd ref="11267255410"/>
+    <nd ref="11267255411"/>
+    <nd ref="11267255412"/>
+    <nd ref="11267255413"/>
+    <nd ref="11267255414"/>
+    <nd ref="11267255415"/>
+    <nd ref="11267255416"/>
+    <nd ref="11267255417"/>
+    <nd ref="11267255418"/>
+    <nd ref="11267255396"/>
+    <tag k="amenity" v="marketplace"/>
+    <tag k="name" v="Antiguo Mercado de Tejerías"/>
+  </way>
+  <way id="1323862254">
+    <center lat="10.4914577" lon="-67.9953718"/>
+    <nd ref="1728317252"/>
+    <nd ref="1724606468"/>
+    <nd ref="1728317246"/>
+    <nd ref="1728317240"/>
+    <nd ref="1728317234"/>
+    <nd ref="1728317231"/>
+    <nd ref="1728317202"/>
+    <nd ref="1728317205"/>
+    <nd ref="1728317207"/>
+    <nd ref="1728317210"/>
+    <nd ref="1728317212"/>
+    <nd ref="1724606461"/>
+    <nd ref="1728317215"/>
+    <nd ref="1728317252"/>
+    <tag k="check_date" v="2026-02-22"/>
+    <tag k="fee" v="yes"/>
+    <tag k="leisure" v="beach_resort"/>
+    <tag k="name" v="Balneario Playa Delfín"/>
+    <tag k="surface" v="concrete"/>
+    <tag k="wheelchair" v="no"/>
+  </way>
+  <way id="1323862255">
+    <center lat="10.4902285" lon="-67.9931193"/>
+    <nd ref="6574469928"/>
+    <nd ref="1728317214"/>
+    <nd ref="12250488676"/>
+    <nd ref="1728317199"/>
+    <nd ref="1728317196"/>
+    <nd ref="1728317188"/>
+    <nd ref="12250488679"/>
+    <nd ref="12250488680"/>
+    <nd ref="12250488681"/>
+    <nd ref="12250488684"/>
+    <nd ref="12250488685"/>
+    <nd ref="12250488686"/>
+    <nd ref="12250488683"/>
+    <nd ref="12250488682"/>
+    <nd ref="12250488671"/>
+    <nd ref="12250488675"/>
+    <nd ref="12250488674"/>
+    <nd ref="12250488673"/>
+    <nd ref="12250488672"/>
+    <nd ref="12250488670"/>
+    <nd ref="12250488665"/>
+    <nd ref="12250488664"/>
+    <nd ref="12250488663"/>
+    <nd ref="6574469931"/>
+    <nd ref="6574469930"/>
+    <nd ref="6574469929"/>
+    <nd ref="6574469928"/>
+    <tag k="name" v="Playa Delfín"/>
+    <tag k="natural" v="beach"/>
+  </way>
+  <way id="1374305155">
+    <center lat="10.4701256" lon="-68.0075131"/>
+    <nd ref="12724624561"/>
+    <nd ref="12724624562"/>
+    <nd ref="12724624563"/>
+    <nd ref="12724624564"/>
+    <nd ref="12724624561"/>
+    <tag k="building" v="yes"/>
+    <tag k="name" v="Centro Comercial Consolidado"/>
+    <tag k="shop" v="mall"/>
+  </way>
+  <way id="1374305156">
+    <center lat="10.4695126" lon="-68.0076111"/>
+    <nd ref="12724624565"/>
+    <nd ref="12724624566"/>
+    <nd ref="12724624567"/>
+    <nd ref="12724624568"/>
+    <nd ref="12724624569"/>
+    <nd ref="12724624570"/>
+    <nd ref="12724624571"/>
+    <nd ref="12724624572"/>
+    <nd ref="12724624573"/>
+    <nd ref="12724624565"/>
+    <tag k="building" v="yes"/>
+    <tag k="name" v="Centro Comercial Sideral"/>
+    <tag k="shop" v="mall"/>
+  </way>
+  <way id="1482081795">
+    <center lat="10.4771577" lon="-68.0103358"/>
+    <nd ref="12706283409"/>
+    <nd ref="13591789289"/>
+    <nd ref="13591789290"/>
+    <nd ref="13591789291"/>
+    <nd ref="13591789292"/>
+    <nd ref="13591789293"/>
+    <nd ref="13591789294"/>
+    <nd ref="13591789295"/>
+    <nd ref="13591789296"/>
+    <nd ref="12706283409"/>
+    <tag k="amenity" v="theatre"/>
+    <tag k="name" v="Teatro Municipal de Puerto Cabello"/>
+  </way>
+  <relation id="12166419">
+    <center lat="10.4842450" lon="-68.0104191"/>
+    <member type="way" ref="894107729" role="inner"/>
+    <member type="way" ref="894107728" role="outer"/>
+    <tag k="building" v="yes"/>
+    <tag k="historic" v="fort"/>
+    <tag k="name" v="Castillo San Felipe"/>
+    <tag k="type" v="multipolygon"/>
+    <tag k="wikidata" v="Q2941437"/>
+    <tag k="wikipedia" v="es:Castillo San Felipe"/>
+  </relation>
+
+</osm>

@@ -12,12 +12,14 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && node -e \"require('fs').cpSync('src/seed/data', 'dist/seed/data', { recursive: true })\"",
     "test": "pnpm test:unit && pnpm test:integration",
     "test:unit": "vitest run --config vitest.unit.config.ts --passWithNoTests",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "migrate": "tsx src/migrate-cli.ts",
-    "seed": "tsx src/seed-cli.ts"
+    "seed": "tsx src/seed-cli.ts",
+    "seed:puerto-cabello": "tsx src/seed-puerto-cabello-cli.ts",
+    "seed:demo-account": "tsx src/seed-demo-account-cli.ts"
   },
   "dependencies": {
     "@guaca/agents": "workspace:*",

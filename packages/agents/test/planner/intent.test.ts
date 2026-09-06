@@ -3,6 +3,7 @@ import {
   IntentSchema,
   parseIntent,
   extractIntent,
+  classifiesIntent,
 } from '../../src/planner/intent.ts';
 import { PlaceCategory } from '@guaca/shared';
 
@@ -32,6 +33,10 @@ describe('IntentSchema', () => {
 });
 
 describe('extractIntent', () => {
+  it.each(['historical places in Puerto Cabello', 'lugares históricos en Puerto Cabello', 'visitar el Fortín Solano', 'visitar el teatro'])('recognises local culture phrasing: %s', (text) => {
+    expect(classifiesIntent(text)).toBe(true);
+    expect(extractIntent(text).category).toBe('culture_history');
+  });
   it('classifies an eat/drink question by lexicon', () => {
     const intent = extractIntent('¿Dónde puedo comer arepas cerca del fuerte?');
     expect(intent.category).toBe('eat_drink');

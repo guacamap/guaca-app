@@ -13,6 +13,9 @@
     "test:integration": "pnpm -r test:integration",
     "lint": "pnpm -r lint",
     "migrate": "pnpm --filter @guaca/db migrate",
-    "seed": "pnpm --filter @guaca/db seed"
+    "seed": "pnpm --filter @guaca/db seed",
+    "seed:puerto-cabello": "pnpm --filter @guaca/db seed:puerto-cabello",
+    "seed:demo-account": "pnpm --filter @guaca/db seed:demo-account",
+    "demo:prepare": "pnpm --filter @guaca/api... build && pnpm migrate && pnpm seed:puerto-cabello && pnpm seed:demo-account"
   }
 }

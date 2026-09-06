@@ -47,9 +47,12 @@ export async function submitPlace(
          source = 'spotter', verification_status = 'provisional', witness_count = 1,
          created_by_spotter_id = $7, confirmed_by_spotter_id = null, verified_at = null,
          price_band = coalesce($8, price_band), open_hours = coalesce($9, open_hours),
+         -- The editorial demo profile described a listing; a local's record replaces it.
+         public_profile = case when public_profile->>'demo' = 'true' then null else public_profile end,
          updated_at = now()
        where id = $10 and area_id = $11
-         and verification_status = 'candidate' and source in ('osm_candidate', 'overture_candidate')
+         and verification_status = 'candidate'
+         and source in ('osm_candidate', 'overture_candidate', 'foursquare_candidate', 'wikidata_candidate')
        returning id`,
       [
         input.name, input.category, input.landmarkDescription, input.lon, input.lat, input.h3_8,

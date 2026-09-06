@@ -20,3 +20,5 @@ export type { TaxonomyEntry } from './taxonomy.js';
 export { tierOf, tierWords, TIER_RANK } from './tiers.js';
 export type { PlaceTier } from './tiers.js';
 export type { LogLine } from './log.js';
+export { PublicPlaceProfileSchema } from './placeProfile.js';
+export type { PublicPlaceProfile } from './placeProfile.js';

@@ -49,6 +49,9 @@ const LEXICON: Record<string, PlaceCategory> = {
   historia: 'culture_history', history: 'culture_history', fortin: 'culture_history', fort: 'culture_history',
   castillo: 'culture_history', castle: 'culture_history', mural: 'culture_history', cultura: 'culture_history',
   culture: 'culture_history', plaza: 'culture_history',
+  historical: 'culture_history', historic: 'culture_history', historico: 'culture_history',
+  historicos: 'culture_history', historica: 'culture_history', historicas: 'culture_history',
+  teatro: 'culture_history', theatre: 'culture_history', theater: 'culture_history',
   // market_shop
   mercado: 'market_shop', market: 'market_shop', tienda: 'market_shop', shop: 'market_shop',
   comprar: 'market_shop', buy: 'market_shop',
@@ -80,8 +83,7 @@ const WHEN: Record<string, Intent['when']> = {
  * arepa plan. An unrecognised question is unmet demand, not a plan.
  */
 export function classifiesIntent(text: string): boolean {
-  const words = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  return words.some((w) => LEXICON[w] !== undefined);
+  return categoryHits(text).length > 0;
 }
 
 /**

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { BadgeCheck } from 'lucide-react';
+import { BadgeCheck, Globe } from 'lucide-react';
 
 interface TripStop {
   placeId: string;
@@ -28,6 +28,8 @@ interface PlaceLite {
   landmark_description: string | null;
   spotter_name: string | null;
   verified_at: string | null;
+  verification_status?: string;
+  corroboration?: number;
 }
 
 const CATEGORY_GLYPH: Record<string, string> = {
@@ -119,7 +121,7 @@ export default function SharedTripPage() {
           Guaca
         </p>
         <h1 className="mt-2 text-center text-xl font-black leading-snug text-[#17272B]">
-          {es ? 'Un viaje verificado por locales' : 'A trip verified by locals'}
+          {es ? 'Tu itinerario con Guaca' : 'Your Guaca itinerary'}
         </h1>
         <p className="mt-1 text-center text-[12px] font-semibold italic leading-relaxed text-[#17272B]/55">
           “{trip.question}”
@@ -154,9 +156,16 @@ export default function SharedTripPage() {
                             {p.landmark_description}
                           </p>
                         )}
-                        {p?.spotter_name && (
+                        {p?.verification_status === 'verified' && p.spotter_name && (
                           <p className="mt-0.5 flex items-center gap-1 text-[10px] font-bold text-[#0D7A72]">
                             <BadgeCheck className="h-3 w-3" /> {p.spotter_name}
+                          </p>
+                        )}
+                        {p && p.verification_status !== 'verified' && (
+                          <p className="mt-1 flex items-center gap-1 text-xs text-guaca-ink-light">
+                            <Globe className="h-3 w-3" /> {(p.corroboration ?? 0) >= 2
+                              ? `${p.corroboration} ${es ? 'mapas coinciden' : 'maps agree'}`
+                              : (es ? 'Listado · sin confirmar' : 'Listed · unconfirmed')}
                           </p>
                         )}
                       </div>
@@ -169,8 +178,8 @@ export default function SharedTripPage() {
 
         <p className="mt-8 text-center text-[10px] font-bold text-[#17272B]/40">
           {es
-            ? 'Cada parada fue visitada y confirmada por dos locales con nombre. Testimonio, no invención.'
-            : 'Every stop was visited and confirmed by two named locals. Witnessed, not inferred.'}
+            ? 'Cada parada indica su fuente. Los horarios son sugeridos; confirma el acceso antes de salir.'
+            : 'Each stop shows its source. Times are suggested; confirm access before setting out.'}
         </p>
         <a
           href="/"

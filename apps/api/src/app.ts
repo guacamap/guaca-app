@@ -214,16 +214,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const { bbox } = req.query as { bbox?: string };
     if (!bbox) return reply.code(400).send({ error: 'bbox is required' });
     const [lonMin, latMin, lonMax, latMax] = bbox.split(',').map(Number);
-    if ([lonMin, latMin, lonMax, latMax].some((n) => !Number.isFinite(n))) {
+    if (bbox.split(',').length !== 4 || [lonMin, latMin, lonMax, latMax].some((n) => !Number.isFinite(n)) || !(lonMin! < lonMax!) || !(latMin! < latMax!)) {
       return reply.code(400).send({ error: 'invalid bbox' });
     }
     const res = await options.pool.query(
       `select id, name, category, source,
               ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon,
-              public_phone, public_website, public_socials, public_address, public_source, public_subcategory
+              public_phone, public_website, public_socials, public_address, public_source, public_subcategory,
+              public_profile, verification_status, corroboration
        from places
-       where verification_status = 'candidate' and source in ('osm_candidate', 'overture_candidate')
+       where verification_status = 'candidate' and corroboration >= 1
          and ST_Intersects(location::geometry, ST_MakeEnvelope($1, $2, $3, $4, 4326))
+       order by corroboration desc, name, id
        limit 800`,
       [lonMin, latMin, lonMax, latMax],
     );
@@ -2436,7 +2438,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
       `select
          p.id, p.area_id, p.name, p.category, p.description,
          p.landmark_description,
-         p.public_phone, p.public_website, p.public_socials, p.public_address, p.public_source, p.public_subcategory, p.contact_confirmed_at,
+         p.public_phone, p.public_website, p.public_socials, p.public_address, p.public_source, p.public_subcategory, p.public_profile, p.contact_confirmed_at,
          ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon,
          p.h3_8, p.open_hours, p.price_band, p.tags, p.source,
          p.verification_status, p.witness_count, p.corroboration,

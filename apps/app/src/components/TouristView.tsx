@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, ChevronRight, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Palmtree, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Sun, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
 import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
-import { CARIBBEAN_COUNTRIES, TAXONOMY } from '@guaca/shared'
+import { CARIBBEAN_COUNTRIES, TAXONOMY, type PublicPlaceProfile as PublicProfile } from '@guaca/shared'
+import { PlaceDiscovery } from './PlaceDiscovery'
+import { PublicPlaceProfile } from './PublicPlaceProfile'
 import { appCopy } from '../lib/copy'
 import { InstallApp } from './InstallApp'
 import { RailArt } from './RailArt'
@@ -10,7 +12,7 @@ import { RailArt } from './RailArt'
 const PILOT_CENTER: [number, number] = [-68.0056, 10.4716]
 const BBOX_HALF_DEG = 0.06 // ~6.5 km — the walkable pilot zone
 const LANDING_URL = process.env.NEXT_PUBLIC_LANDING_URL ?? 'https://guaca.live'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.guaca.live'
+const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
 
 const THREAD_KEY = 'guaca:thread'
 const PLAN_KEY = 'guaca:plan'
@@ -39,6 +41,7 @@ interface LocalStats {
 }
 
 interface ApiPlace {
+  public_profile?: PublicProfile | null
   id: string
   name: string
   category: string
@@ -64,6 +67,9 @@ interface ApiPlace {
 }
 
 interface CandidatePlace {
+  public_profile?: PublicProfile | null
+  verification_status?: string
+  corroboration?: number
   id: string
   name: string
   category: string
@@ -333,6 +339,11 @@ export function TouristView() {
   const [villaCode, setVillaCode] = useState('')
   const [villaErr, setVillaErr] = useState(false)
   const [offline, setOffline] = useState(false)
+  const [placesLoading, setPlacesLoading] = useState(true)
+  const [placesRetry, setPlacesRetry] = useState(0)
+  const placeRequest = useRef(0)
+  const favoritePending = useRef(new Set<string>())
+  const [favoriteError, setFavoriteError] = useState(false)
   // Play's User Data policy wants a disclosure BEFORE the runtime prompt.
   const [geoAsked, setGeoAsked] = useState(true)
   const threadEndRef = useRef<HTMLDivElement | null>(null)
@@ -408,30 +419,27 @@ export function TouristView() {
     }
   }, [])
 
-  // Real pins: verified rows only, straight from Postgres.
+  // Both map layers must arrive together. A failed API is not empty coverage.
   useEffect(() => {
     const [lon, lat] = center
-    const bbox = [
-      lon - BBOX_HALF_DEG,
-      lat - BBOX_HALF_DEG,
-      lon + BBOX_HALF_DEG,
-      lat + BBOX_HALF_DEG,
-    ].join(',')
-    fetch(`/api/places?bbox=${bbox}`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { places: [] }))
-      .then((data: { places: ApiPlace[] }) => {
-        setPlaces(data.places ?? [])
-        setOffline(false)
+    const bbox = [lon - BBOX_HALF_DEG, lat - BBOX_HALF_DEG, lon + BBOX_HALF_DEG, lat + BBOX_HALF_DEG].join(',')
+    const controller = new AbortController()
+    setPlacesLoading(true)
+    setOffline(false)
+    const read = async (url: string) => {
+      const response = await fetch(url, { credentials: 'include', signal: controller.signal })
+      if (!response.ok) throw new Error('Places unavailable')
+      return response.json()
+    }
+    Promise.all([read(`/api/places?bbox=${bbox}`), read(`/api/places/candidates?bbox=${bbox}`)])
+      .then(([verified, listed]) => {
+        setPlaces(verified.places ?? [])
+        setCandidates(listed.candidates ?? [])
       })
-      // A silent catch here left testers staring at an empty map with no
-      // explanation when the API was down.
-      .catch(() => setOffline(true))
-    // The open-data backdrop: OSM candidates as dots, never pins.
-    fetch(`/api/places/candidates?bbox=${bbox}`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { candidates: [] }))
-      .then((data: { candidates: CandidatePlace[] }) => setCandidates(data.candidates ?? []))
-      .catch(() => {})
-  }, [center])
+      .catch(() => { if (!controller.signal.aborted) setOffline(true) })
+      .finally(() => { if (!controller.signal.aborted) setPlacesLoading(false) })
+    return () => controller.abort()
+  }, [center, placesRetry])
 
   // Saved places ride the session.
   // Zone demand — the scheduler's snapshot, SCOPED to the selected area:
@@ -819,7 +827,7 @@ export function TouristView() {
 
   const sharePlace = (p: ApiPlace) =>
     waShare(
-      `${p.name} — ${t.shareVia}${p.spotter_name ? ` (${t.verifiedBy} ${p.spotter_name})` : ''}. ${APP_URL}/map?place=${p.id}`,
+      `${p.name} — ${t.shareVia}${p.spotter_name ? ` (${t.verifiedBy} ${p.spotter_name})` : ''}. ${appUrl()}/map?place=${p.id}`,
     )
 
   const directionsTo = (p: ApiPlace) =>
@@ -877,6 +885,9 @@ export function TouristView() {
   }
 
   const toggleFavorite = (p: ApiPlace) => {
+    if (favoritePending.current.has(p.id)) return
+    favoritePending.current.add(p.id)
+    setFavoriteError(false)
     const saved = favIds.has(p.id)
     setFavorites((prev) =>
       saved
@@ -886,7 +897,14 @@ export function TouristView() {
     fetch(`/api/places/${p.id}/favorite`, {
       method: saved ? 'DELETE' : 'POST',
       credentials: 'include',
-    }).catch(() => {})
+    }).then((response) => { if (!response.ok) throw new Error('Save failed') })
+      .catch(() => {
+        setFavoriteError(true)
+        setFavorites((previous) => saved
+          ? [...previous.filter((f) => f.placeId !== p.id), { placeId: p.id, name: p.name, category: p.category, lat: p.lat, lon: p.lon }]
+          : previous.filter((f) => f.placeId !== p.id))
+      })
+      .finally(() => favoritePending.current.delete(p.id))
   }
 
   const submitPost = async () => {
@@ -924,7 +942,7 @@ export function TouristView() {
   const sharePlanWa = () => {
     if (!plan) return
     const stops = plan.placeIds.map((id) => placeById(id)?.name).filter(Boolean).join(' → ')
-    waShare(`${t.planTitle}: ${stops} — ${t.shareVia}. ${APP_URL}`)
+    waShare(`${t.planTitle}: ${stops} — ${t.shareVia}. ${appUrl()}`)
   }
 
   const savePlanFromAnswer = (question: string, text: string, placeIds: string[]) => {
@@ -992,7 +1010,7 @@ export function TouristView() {
         .join(' → ')
       return `${t.tripDay} ${d + 1}: ${stops}`
     })
-    waShare(`${t.tripsTitle} — ${lines.join(' | ')} ${APP_URL}/t/${trip.shareSlug}`)
+    waShare(`${t.tripsTitle} — ${lines.join(' | ')} ${appUrl()}/t/${trip.shareSlug}`)
   }
 
   const ask = async () => {
@@ -1254,13 +1272,15 @@ export function TouristView() {
   }
 
   const openPlace = (id: string) => {
-    const known = places.find((p) => p.id === id) ?? planPlaces[id]
+    const request = ++placeRequest.current
+    const candidate = candidates.find((p) => p.id === id)
+    const known = places.find((p) => p.id === id) ?? planPlaces[id] ?? (candidate ? { ...candidate, verification_status: 'candidate', landmark_description: null, description: null, spotter_name: null, spotter_photo_url: null, verified_at: null } : null)
     if (known) setSelected(known)
     fetch(`/api/places/${id}`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((full: ApiPlace | null) => {
         // Merge over what we knew: the detail route has no review stats.
-        if (full) setSelected((prev) => (prev && prev.id === full.id ? { ...prev, ...full } : full))
+        if (full && request === placeRequest.current) setSelected((prev) => (prev && prev.id === full.id ? { ...prev, ...full } : full))
       })
       .catch(() => {})
   }
@@ -1330,15 +1350,18 @@ export function TouristView() {
     window.location.href = '/'
   }
 
+  const placeById = (id: string): ApiPlace | undefined => {
+    const known = places.find((p) => p.id === id) ?? planPlaces[id]
+    if (known) return known
+    const listed = candidates.find((p) => p.id === id)
+    return listed ? { ...listed, verification_status: 'candidate', landmark_description: null, description: null, spotter_name: null, spotter_photo_url: null, verified_at: null } : undefined
+  }
+
   const answerPlaces =
     askState.kind === 'answer'
-      ? (askState.placeIds.map((id) => places.find((p) => p.id === id)).filter(Boolean) as ApiPlace[])
+      ? (askState.placeIds.map(placeById).filter(Boolean) as ApiPlace[])
       : []
 
-  const placeById = (id: string): ApiPlace | undefined =>
-    places.find((p) => p.id === id) ?? planPlaces[id]
-
-  const [discoverAll, setDiscoverAll] = useState(false)
   /** The day around the map centre: weather, sea, sunset, holiday, rates. */
   const [now, setNow] = useState<AreaNow | null>(null)
   useEffect(() => {
@@ -1361,20 +1384,16 @@ export function TouristView() {
     return bits.join(' · ')
   }, [now, t])
   const ratesLine = now?.rates ? Object.entries({ official: now.rates.official, currency: now.rates.currency, parallel: now.rates.parallel ?? '' }).reduce((acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)), t.nowRates).replace(/ · \s*(paralelo|parallel)$/, '') : null
-  /** Verified places by distance from the map centre, for the desktop column. */
-  const nearbyVerified = useMemo(() => {
-    const [clng, clat] = center
-    const kmOf = (lat: number, lon: number) => {
-      const dLat = (lat - clat) * 111.32
-      const dLon = (lon - clng) * 111.32 * Math.cos((clat * Math.PI) / 180)
-      return Math.hypot(dLat, dLon)
+  const discoveryPlaces = useMemo(() => {
+    const all = new Map<string, ApiPlace>(places.map((p) => [p.id, p]))
+    for (const p of candidates) {
+      if (!all.has(p.id)) all.set(p.id, {
+        ...p, verification_status: 'candidate', landmark_description: null,
+        description: null, spotter_name: null, spotter_photo_url: null, verified_at: null,
+      })
     }
-    return places
-      .filter((p) => !catFilter || p.category === catFilter)
-      .map((p) => ({ place: p, km: kmOf(p.lat, p.lon) }))
-      .sort((a, b) => a.km - b.km)
-  }, [places, center, catFilter])
-  const discoverPlaces = discoverAll ? nearbyVerified.slice(0, 12) : nearbyVerified.slice(0, 3)
+    return [...all.values()].filter((p) => (!catFilter || p.category === catFilter) && (!trendOnly || p.trendBadge != null))
+  }, [places, candidates, catFilter, trendOnly])
 
   const renderMap = () => (
     <>
@@ -1388,12 +1407,12 @@ export function TouristView() {
           onZoneSelect={handleZoneSelect}
           onCountrySelect={handleCountrySelect}
           zoneOutlines={zoneOutlines}
-          flyTo={selectedArea ? { lat: (selectedArea.bbox[1]! + selectedArea.bbox[3]!) / 2, lng: (selectedArea.bbox[0]! + selectedArea.bbox[2]!) / 2, zoom: zoomForSpan(selectedArea.bbox), nonce: flyNonce } : undefined}
+          flyTo={selectedArea ? { lat: (selectedArea.bbox[1]! + selectedArea.bbox[3]!) / 2, lng: (selectedArea.bbox[0]! + selectedArea.bbox[2]!) / 2, zoom: selectedArea.slug === 'puerto-cabello' ? 13.2 : zoomForSpan(selectedArea.bbox), nonce: flyNonce } : undefined}
           selectedPinId={selected?.id ?? null}
           onPinClick={(id) => { setSelectedCandidate(null); openPlace(id) }}
           onDotClick={(id) => {
-            const c = candidates.find((x) => x.id === id)
-            if (c) { setSelected(null); setSelectedCandidate(c) }
+            setSelectedCandidate(null)
+            openPlace(id)
           }}
           mapStyle="streets"
           center={center}
@@ -1406,6 +1425,7 @@ export function TouristView() {
           {t.offline}
         </p>
       )}
+      {favoriteError && <p role="alert" className="absolute inset-x-4 top-36 z-[750] rounded-xl bg-guaca-paper p-3 text-center text-sm text-guaca-coral-dark shadow-lg">{lang === 'es' ? 'No se guardó el cambio. Toca el corazón para intentar de nuevo.' : 'Your change wasn’t saved. Tap the heart to try again.'}</p>}
 
       {!geoAsked && (
         <div className="absolute inset-0 z-[900] flex items-end bg-guaca-ocean-deep/45 p-4">
@@ -1424,7 +1444,7 @@ export function TouristView() {
         </div>
       )}
 
-      <div className="absolute inset-x-0 top-0 z-[400] bg-gradient-to-b from-guaca-ocean-deep/55 via-guaca-ocean/12 to-transparent px-4 pb-12 pt-8 lg:inset-x-auto lg:left-0 lg:w-[820px] lg:bg-none lg:px-6 lg:pb-0 lg:pt-6">
+      <div className="map-search-tools absolute inset-x-0 top-0 z-[400] px-4 pb-6 pt-5 lg:inset-x-auto lg:left-0 lg:right-[360px] lg:px-6 lg:pb-0 lg:pt-6">
         <form
           onSubmit={(e) => { e.preventDefault(); void ask() }}
           className="flex items-center gap-2 rounded-full border border-white/65 bg-guaca-sand-light/95 px-3 py-2 shadow-xl shadow-guaca-ocean-deep/14 backdrop-blur-md lg:max-w-[600px] lg:gap-3 lg:border-white lg:bg-white lg:px-5 lg:py-2.5 lg:shadow-[0_12px_40px_-12px_rgba(12,74,92,0.35)]"
@@ -1443,7 +1463,7 @@ export function TouristView() {
           </Button>
         </form>
         {/* Category filter — browse without typing. */}
-        <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] lg:mt-4 lg:flex-wrap lg:gap-2 lg:overflow-visible">
+        <div className="map-categories mt-2.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] lg:mt-3 lg:gap-2">
           <button
             type="button"
             onClick={() => setCatFilter(null)}
@@ -1605,73 +1625,27 @@ export function TouristView() {
         </div>
       )}
 
-      {/* Desktop only: what the map promises, in one line, beside the demand card. */}
-      {!selected && !selectedCandidate && (
-        <div className="absolute bottom-8 right-[352px] z-[600] hidden items-center gap-4 rounded-[26px] bg-white/95 p-4 pr-6 shadow-[0_16px_40px_-16px_rgba(12,74,92,0.4)] backdrop-blur-md lg:flex">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-guaca-teal/12">
-            <MapPin className="h-6 w-6 text-guaca-teal" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[15px] font-black text-guaca-ink">{t.coverageTitle}</p>
-            <p className="mt-0.5 max-w-[260px] text-[12px] font-semibold leading-snug text-guaca-ink/60">{t.coverageBody}</p>
-          </div>
-          <Palmtree className="h-9 w-9 shrink-0 text-guaca-teal/70" />
-        </div>
-      )}
-
-      {/* Desktop only: the nearest verified places as a column, so a wide
-          screen browses the map and the list at once. Category tiles, not
-          photos: places carry no photo yet, and a stock image would be a
-          claim about a place nobody made. */}
-      <aside className="absolute bottom-6 right-6 top-6 z-[600] hidden w-[320px] flex-col rounded-[28px] bg-white/96 p-4 shadow-[0_20px_60px_-20px_rgba(12,74,92,0.45)] backdrop-blur-md lg:flex">
-        <p className="flex items-center gap-2 text-[18px] font-black text-guaca-ink"><Sparkles className="h-5 w-5 text-guaca-teal" /> {t.discoverTitle}</p>
-        <p className="mt-0.5 text-[13px] font-semibold text-guaca-ink/55">{t.discoverSub}{nowLine ? ` · ${nowLine}` : ''}</p>
-        {ratesLine && <p className="mt-1 text-[11px] font-bold text-guaca-ink/45">{ratesLine}</p>}
-        <div className="mt-3 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [scrollbar-width:thin]">
-          {discoverPlaces.length === 0 && <p className="rounded-2xl bg-guaca-sand-light p-4 text-[12px] font-semibold text-guaca-ink/55">{t.emptyMapBody}</p>}
-          {discoverPlaces.map(({ place: p, km }) => {
-            const glyph = CATEGORY_GLYPH[p.category] ?? { emoji: '📍', color: '#0D8B8B' }
-            const saved = favIds.has(p.id)
-            return (
-              <div key={p.id} className="relative overflow-hidden rounded-[22px] bg-white shadow-[0_8px_24px_-12px_rgba(12,74,92,0.35)] ring-1 ring-guaca-sand/70">
-                <button type="button" onClick={() => { setSelectedCandidate(null); openPlace(p.id) }} className="block w-full text-left">
-                  <div className="relative h-24" style={{ background: `linear-gradient(135deg, ${glyph.color}33, ${glyph.color}99)` }}>
-                    <span className="absolute left-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white text-[18px] shadow-sm">{glyph.emoji}</span>
-                    {p.trendBadge === 'trending' && <span className="absolute bottom-3 left-3 rounded-full bg-guaca-teal px-2 py-0.5 text-[10px] font-black text-white">🔥 {t.trendChip}</span>}
-                  </div>
-                  <div className="px-3.5 pb-3.5 pt-2.5">
-                    <p className="truncate text-[15px] font-black text-guaca-ink">{p.name}</p>
-                    <p className="mt-0.5 text-[12px] font-semibold text-guaca-ink/55">{t.categoryLabels[p.category] ?? p.category} · {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`}</p>
-                    <p className="mt-1 flex items-center gap-1 text-[12px] font-bold text-guaca-teal"><BadgeCheck className="h-3.5 w-3.5" /> {p.spotter_name ? `${t.verifiedBy} ${p.spotter_name}` : t.verifiedBySpotters}</p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  aria-label={saved ? t.favSaved : t.favSave}
-                  aria-pressed={saved}
-                  onClick={() => toggleFavorite(p)}
-                  className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-xl bg-white shadow-sm ${saved ? 'text-guaca-coral' : 'text-guaca-ink/60 hover:text-guaca-ink'}`}
-                  style={{ position: 'absolute' }}
-                >
-                  <Heart className={`h-4 w-4 ${saved ? 'fill-guaca-coral' : ''}`} />
-                </button>
-              </div>
-            )
-          })}
-        </div>
-        {nearbyVerified.length > 3 && (
-          <button type="button" onClick={() => setDiscoverAll((v) => !v)} className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-guaca-teal text-[14px] font-black text-guaca-teal hover:bg-guaca-teal/8">
-            {discoverAll ? t.discoverLess : t.discoverMore} <ArrowRight className="h-4 w-4" />
-          </button>
-        )}
-      </aside>
+      <PlaceDiscovery
+        places={discoveryPlaces}
+        areaName={selectedArea?.name ?? 'Puerto Cabello'}
+        center={center}
+        categories={t.categoryLabels}
+        loading={placesLoading}
+        error={offline}
+        onRetry={() => setPlacesRetry((n) => n + 1)}
+        onSelect={(id) => { setSelectedCandidate(null); openPlace(id) }}
+        savedIds={favIds}
+        onSave={(p) => { const full = discoveryPlaces.find((place) => place.id === p.id); if (full) toggleFavorite(full) }}
+        context={[nowLine, ratesLine].filter(Boolean).join(' · ') || null}
+        hiddenOnMobile={Boolean(selected || selectedCandidate || askState.kind !== 'idle')}
+      />
 
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
       {selected && (
         <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
-          <div className="guaca-card rounded-[30px] p-5">
+          <div className="guaca-card place-detail-sheet rounded-2xl p-5">
             <div className="flex items-start justify-between gap-3">
-              <h3 className="text-lg font-black leading-tight text-guaca-ink">{selected.name}</h3>
+              <h2 className="text-2xl font-bold leading-tight tracking-tight text-guaca-ink">{selected.name}</h2>
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
@@ -1682,7 +1656,7 @@ export function TouristView() {
                 >
                   <Heart className={`h-4 w-4 ${favIds.has(selected.id) ? 'fill-guaca-coral' : ''}`} />
                 </button>
-                <button type="button" aria-label={t.close} onClick={() => setSelected(null)} className="grid h-8 w-8 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10">
+                <button type="button" aria-label={t.close} onClick={() => { placeRequest.current++; setSelected(null) }} className="grid h-8 w-8 place-items-center rounded-full bg-guaca-ink/6 text-guaca-ink/60 hover:bg-guaca-ink/10">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -1706,9 +1680,10 @@ export function TouristView() {
                 <p className="mt-1 text-[15px] font-bold leading-snug text-guaca-ink">{selected.landmark_description}</p>
               </>
             )}
-            {selected.description && (
+            {selected.description && !selected.public_profile && (
               <p className="mt-2 text-[11px] font-medium leading-relaxed text-guaca-ink/60">{selected.description}</p>
             )}
+            {selected.public_profile && <PublicPlaceProfile profile={selected.public_profile} name={selected.name} />}
             {renderPublicInfo(selected)}
             {selected.verification_status === 'candidate' ? (
               <div className="mt-4 rounded-2xl bg-guaca-ink/5 p-3">
@@ -1949,17 +1924,6 @@ export function TouristView() {
             </div>
           )}
 
-          {askState.kind === 'idle' && places.length === 0 && (
-            <div className="guaca-card rounded-[30px] p-4">
-              <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-guaca-teal/10 text-guaca-teal"><MapPin aria-hidden="true" className="h-5 w-5" /></div>
-                <div>
-                  <h3 className="text-[14px] font-black text-guaca-ink">{t.emptyMapTitle}</h3>
-                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-guaca-ink/52">{t.emptyMapBody}</p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </>
@@ -2202,7 +2166,7 @@ export function TouristView() {
         <p className="mt-2 text-sm font-semibold leading-relaxed text-white/88">{t.planLede}</p>
       </div>
 
-      {!plan ? (
+      {!plan ? (trips.length === 0 &&
         <div className="mt-5 rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/70 p-6 text-center">
           <Route aria-hidden="true" className="mx-auto h-8 w-8 text-guaca-teal/55" />
           <h3 className="mt-3 text-[14px] font-black text-guaca-ink">{t.planEmptyTitle}</h3>
@@ -2666,11 +2630,11 @@ export function TouristView() {
   }
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-guaca-paper lg:flex-row">
+    <div className="tourist-workspace relative flex h-dvh flex-col overflow-hidden bg-guaca-paper lg:flex-row">
       {/* min-h-0 lets this region scroll instead of growing the page and
           pushing the tab bar past the fold. */}
       <div className="relative min-h-0 flex-1 lg:order-2">{tabScreens[activeTab]()}</div>
-      <div className="relative z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light/96 px-4 pb-5 pt-2 backdrop-blur-md lg:order-1 lg:flex lg:w-28 lg:flex-col lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
+      <div className="tourist-navigation relative z-[500] shrink-0 border-t border-guaca-sand/70 bg-guaca-sand-light px-3 pb-3 pt-2 lg:order-1 lg:flex lg:w-24 lg:flex-col lg:border-r lg:border-t-0 lg:px-2 lg:py-6">
         <a href="/" className="mb-6 hidden flex-col items-center gap-1 lg:flex" aria-label="Guaca">
           <img src="/brand/guaca-mark.png" alt="" className="h-12 w-12 object-contain" />
           <span className="text-[15px] font-black lowercase tracking-tight text-guaca-teal">guaca</span>
@@ -2684,7 +2648,7 @@ export function TouristView() {
           ].map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.id
-            return <Button key={tab.id} type="button" variant="ghost" onClick={() => setActiveTab(tab.id)} aria-label={tab.label} aria-current={active ? 'page' : undefined} className={`relative h-14 min-w-16 flex-col gap-1 rounded-2xl px-3 text-[10px] font-bold hover:bg-transparent lg:h-[76px] lg:w-[88px] lg:text-[13px] ${active ? 'text-guaca-teal lg:bg-guaca-teal/10' : 'text-guaca-ink/42 lg:hover:bg-guaca-sand'}`}><Icon className={`h-5 w-5 lg:h-7 lg:w-7 ${active ? 'fill-guaca-teal/10' : ''}`} />{tab.label}{tab.id === 'guaca' && unreadFirst > 0 && <span aria-label={String(unreadFirst)} className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-guaca-coral ring-2 ring-white lg:right-5 lg:top-3" />}</Button>
+            return <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} aria-label={tab.label} aria-current={active ? 'page' : undefined} className={`relative inline-flex h-14 min-w-16 flex-col items-center justify-center gap-1 rounded-xl px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-guaca-teal lg:h-[76px] lg:w-20 ${active ? 'bg-guaca-teal/10 text-guaca-teal' : 'text-guaca-ink-light hover:bg-guaca-sand'}`}><Icon className={`h-5 w-5 lg:h-6 lg:w-6 ${active ? 'fill-guaca-teal/10' : ''}`} />{tab.label}{tab.id === 'guaca' && unreadFirst > 0 && <span aria-label={String(unreadFirst)} className="absolute right-3 top-2 h-2.5 w-2.5 rounded-full bg-guaca-coral ring-2 ring-white lg:right-5 lg:top-3" />}</button>
           })}
         </div>
         <RailArt />

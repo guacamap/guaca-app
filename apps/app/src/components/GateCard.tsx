@@ -31,14 +31,14 @@ export function GateCard({
         <JoinBrand compact />
         <section
           aria-labelledby="gate-title"
-          className={`mt-6 rounded-[22px] border-[1.5px] bg-[rgba(40,110,130,0.26)] p-5 backdrop-blur-lg md:p-7 ${g.card}`}
+          className={`mt-6 rounded-2xl border bg-guaca-ocean-deep p-6 md:p-8 ${g.card}`}
         >
           <div className="flex items-center gap-4">
-            <span className="grid h-[60px] w-[60px] shrink-0 place-items-center rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,0.18),0_0_0_7px_rgba(255,255,255,0.06)]">
-              <Icon aria-hidden="true" className={`h-7 w-7 ${g.text}`} strokeWidth={1.9} />
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10">
+              <Icon aria-hidden="true" className={`h-6 w-6 ${g.text}`} strokeWidth={1.9} />
             </span>
             <div className="min-w-0">
-              <h1 id="gate-title" className={`text-[21px] font-extrabold leading-tight ${g.text}`}>{title}</h1>
+              <h1 id="gate-title" className="text-2xl font-semibold leading-tight tracking-tight text-white">{title}</h1>
             </div>
           </div>
           <p className="mt-3 text-[13.5px] font-medium leading-6 text-white/85">{lede}</p>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Compass, MailPlus } from 'lucide-react'
+import { Compass, Loader2, MailPlus } from 'lucide-react'
 import { Button, Input, useLanguage } from '@guaca/ui'
 import { appCopy, loadAttribution } from '../lib/copy'
 import { GateCard } from './GateCard'
@@ -29,7 +29,7 @@ export function TouristGate({ children }: { children: ReactNode }) {
 
   if (step === 'authed') return <>{children}</>
   if (step === 'checking') {
-    return <div className="flex min-h-full flex-1 items-center justify-center p-8" aria-busy="true" />
+    return <div className="flex min-h-full flex-1 items-center justify-center gap-3 p-8 text-guaca-ink-light" role="status"><Loader2 className="h-5 w-5 animate-spin" />{lang === 'es' ? 'Preparando tu mapa…' : 'Getting your map ready…'}</div>
   }
 
   const requestCode = async (e: FormEvent) => {
@@ -64,13 +64,17 @@ export function TouristGate({ children }: { children: ReactNode }) {
     setBusy(true)
     setError(null)
     try {
-      const devEmail = 'dev@guaca.live'
-      await fetch('/api/tourist/auth/request-code', {
+      const devEmail = 'viajero@guaca.live'
+      const requested = await fetch('/api/tourist/auth/request-code', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ email: devEmail, language: lang }),
       })
+      if (!requested.ok) {
+        setError(requested.status === 429 ? t.rateLimited : t.networkError)
+        return
+      }
       const res = await fetch('/api/tourist/auth/verify', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

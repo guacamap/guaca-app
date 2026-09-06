@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PlaceSchema,
   PlaceCategory,
+  PublicPlaceProfileSchema,
   TAXONOMY,
   TAXONOMY_BY_CATEGORY,
   targetDensityFor,
@@ -74,6 +75,65 @@ describe('PlaceSchema', () => {
       }),
     );
     expect(parsed.success).toBe(true);
+  });
+});
+
+describe('PublicPlaceProfileSchema', () => {
+  const licensedImage = {
+    url: '/demo/puerto-cabello/fortin-solano.jpg',
+    credit: 'Periergeia / Wikimedia Commons · 2007',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Fortinpuertocabello.jpg',
+    license: 'CC BY-SA 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+  };
+
+  function baseProfile(overrides: Record<string, unknown> = {}) {
+    return {
+      demo: true,
+      researchedAt: '2026-09-06',
+      summary: { en: 'A public square.', es: 'Una plaza pública.' },
+      sources: [{ label: 'OpenStreetMap', url: 'https://www.openstreetmap.org/way/157189923' }],
+      ...overrides,
+    };
+  }
+
+  it('accepts a profile without an image', () => {
+    expect(PublicPlaceProfileSchema.safeParse(baseProfile()).success).toBe(true);
+  });
+
+  it('accepts a redistributably licensed image with its licence URL', () => {
+    const parsed = PublicPlaceProfileSchema.safeParse(baseProfile({ image: licensedImage }));
+    expect(parsed.success).toBe(true);
+  });
+
+  it('accepts an explicitly unverified demo-only image and reports its rights status', () => {
+    const parsed = PublicPlaceProfileSchema.safeParse(
+      baseProfile({
+        image: { ...licensedImage, license: undefined, licenseUrl: undefined, rights: 'unverified-demo-only' },
+      }),
+    );
+    expect(parsed.success).toBe(true);
+  });
+
+  it('rejects "Demo use only" as a licence value', () => {
+    const parsed = PublicPlaceProfileSchema.safeParse(
+      baseProfile({ image: { ...licensedImage, license: 'Demo use only', licenseUrl: undefined } }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects a licence without a licence URL', () => {
+    const parsed = PublicPlaceProfileSchema.safeParse(
+      baseProfile({ image: { ...licensedImage, licenseUrl: undefined } }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects an image that states neither a licence nor unverified demo-only rights', () => {
+    const parsed = PublicPlaceProfileSchema.safeParse(
+      baseProfile({ image: { ...licensedImage, license: undefined, licenseUrl: undefined } }),
+    );
+    expect(parsed.success).toBe(false);
   });
 });
 
