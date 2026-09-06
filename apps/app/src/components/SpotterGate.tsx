@@ -20,6 +20,7 @@ export function SpotterGate({ children }: { children: ReactNode }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [accessCode, setAccessCode] = useState(false)
 
   useEffect(() => {
     fetch('/api/spotter/me', { credentials: 'include' })
@@ -43,7 +44,11 @@ export function SpotterGate({ children }: { children: ReactNode }) {
         credentials: 'include',
         body: JSON.stringify({ email }),
       })
-      if (res.ok) setStep('code')
+      if (res.ok) {
+        const result = await res.json() as { delivery?: string }
+        setAccessCode(result.delivery === 'access-code')
+        setStep('code')
+      }
       else if (res.status === 403) setError(t.notRegistered)
       else setError(t.error)
     } catch {
@@ -134,9 +139,9 @@ export function SpotterGate({ children }: { children: ReactNode }) {
       {step === 'code' && (
         <form onSubmit={verify} className="mt-5 space-y-3">
           <p className="text-[13px] font-semibold text-white/75">
-            {t.codeSentTo} <span className="font-black text-white">{email}</span>
+            {accessCode ? (lang === 'es' ? 'Ingresa tu código de acceso para' : 'Enter your access code for') : t.codeSentTo} <span className="font-black text-white">{email}</span>
           </p>
-          {process.env.NODE_ENV !== 'production' && (
+          {process.env.NODE_ENV !== 'production' && !accessCode && (
             <p className="text-xs font-bold text-guaca-mango-light">{t.devCodeHint}</p>
           )}
           <label className="block text-[12px] font-black uppercase tracking-[.08em] text-white/70" htmlFor="sp-code">

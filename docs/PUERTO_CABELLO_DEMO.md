@@ -91,6 +91,25 @@ The free-text planner is live, not a prerecorded response. Keep the browsing and
 saved-place sequence as the reliable fallback if the provider or venue Wi-Fi
 fails. Do not promise live payments or actual local verification from this seed.
 
+### Deployed presentation access (optional)
+
+The fixed development code does not exist in production, so presenting from the
+deployed instance needs the optional access code. It is server-side only and off
+by default:
+
+- Enable with `SHOWCASE_ACCESS_ENABLED=true`, `SHOWCASE_ACCESS_CODE` (six random
+  digits, not all identical), and a `SESSION_SECRET` of at least 32 characters.
+  The compose file passes both showcase variables to the API container; any real
+  deployment must list them in its environment too.
+- Request a code for `viajero@guaca.live` in either gate. The screen then asks
+  for the access code instead of reporting a sent email; enter the configured
+  code. Keep it at hand: five wrong attempts lock both roles for fifteen minutes.
+- The tourist session may ask, plan, save places, receive the greeting, and edit
+  its own profile; every other write is refused. The Spotter session is read-only
+  with a synthesized profile and never joins the real mission roster.
+- Changing the code (or switching the mechanism off) expires existing showcase
+  sessions immediately; sign in again with the new code.
+
 ## Provenance and media
 
 The map snapshot was retrieved from OpenStreetMap via Overpass on 2026-09-06.
@@ -134,3 +153,10 @@ profile images and source credits, removal of presentation-only demo text,
 eight saved places, save/reload persistence, the four-stop stored itinerary,
 logged-out sharing with accurate place tiers, and the landing handoff. No page
 errors or API 5xx responses were recorded in that browser pass.
+
+The deployed presentation access passed the API build plus its full suites
+(76 unit and 54 integration tests, including six showcase access tests covering
+disabled inertness, access-code delivery without email, the shared wrong-code
+rate limit, tourist write scoping, the read-only Spotter profile with no roster
+row, and session expiry when the code is rotated or the mechanism is switched
+off) and the app typecheck and production build.

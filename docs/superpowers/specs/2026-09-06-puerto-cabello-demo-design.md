@@ -19,6 +19,15 @@ production authentication bypass was added. The shared-trip page no longer
 claims all stops are locally verified. These updates supersede the old photo
 conflict and missing-account items recorded below.
 
+An optional deployed presentation access (`SHOWCASE_ACCESS_ENABLED` with a
+six-digit `SHOWCASE_ACCESS_CODE`, server-side only, off by default) lets the
+deployed instance sign `viajero@guaca.live` into the tourist gate for the
+presentation and a read-only Spotter view. It is not a bypass: no universal
+code, no roster membership, tourist writes limited to ask/plan/hello/saves/
+profile, wrong attempts rate-limited across both roles, and sessions expire the
+moment the code is rotated or the mechanism is disabled. It is covered by
+integration tests and documented in the demo guide.
+
 ## 1. User intent and decisions
 
 Improve the project's overall design and make Puerto Cabello sufficiently
