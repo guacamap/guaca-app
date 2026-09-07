@@ -15,7 +15,12 @@
     "migrate": "pnpm --filter @guaca/db migrate",
     "seed": "pnpm --filter @guaca/db seed",
     "seed:puerto-cabello": "pnpm --filter @guaca/db seed:puerto-cabello",
+    "seed:cartagena": "pnpm --filter @guaca/db seed:cartagena",
     "seed:demo-account": "pnpm --filter @guaca/db seed:demo-account",
-    "demo:prepare": "pnpm --filter @guaca/api... build && pnpm migrate && pnpm seed:puerto-cabello && pnpm seed:demo-account"
+    "seed:scenario": "pnpm --filter @guaca/db seed:scenario",
+    "demo:prepare": "pnpm --filter @guaca/api... build && pnpm migrate && pnpm seed:puerto-cabello && pnpm seed:cartagena && pnpm seed:demo-account",
+    "demo:reset": "pnpm --filter @guaca/db demo:reset",
+    "demo:check": "pnpm --filter @guaca/db demo:check",
+    "demo:rehearse": "pnpm --filter @guaca/db demo:rehearse"
   }
 }

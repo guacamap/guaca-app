@@ -19,7 +19,12 @@
     "migrate": "tsx src/migrate-cli.ts",
     "seed": "tsx src/seed-cli.ts",
     "seed:puerto-cabello": "tsx src/seed-puerto-cabello-cli.ts",
-    "seed:demo-account": "tsx src/seed-demo-account-cli.ts"
+    "seed:cartagena": "tsx src/seed-cartagena-cli.ts",
+    "seed:demo-account": "tsx src/seed-demo-account-cli.ts",
+    "seed:scenario": "tsx src/seed-scenario-cli.ts",
+    "demo:reset": "tsx src/demo-reset-cli.ts",
+    "demo:check": "tsx src/demo-check-cli.ts",
+    "demo:rehearse": "tsx src/demo-rehearse-cli.ts"
   },
   "dependencies": {
     "@guaca/agents": "workspace:*",
