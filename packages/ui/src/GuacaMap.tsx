@@ -16,6 +16,15 @@ interface MapPin {
   spotterColor: string
   spotterInitials: string
   verified: boolean
+  /** A place photograph: the pin becomes a round photo chip (color stays as
+   *  the ring and the load-failure fallback). Verified places only; a
+   *  candidate keeps its lighter category dot. */
+  photoUrl?: string
+  /** A curated PUBLIC LISTING, not a local verification: a photo-backed or
+   *  category-glyph marker that never shows the green check, a witness
+   *  avatar, a rating or a trend badge. A photo describes a place; it is
+   *  not evidence anyone stood there. */
+  listed?: boolean
   /** e.g. "4.5" — shown as a small ★ badge when review activity exists. */
   ratingBadge?: string
   /** Trend-engine badge — shown as a small 🔥 mark on the pin. */
@@ -340,12 +349,28 @@ function installDataLayers(map: mapboxgl.Map, dots: MapDot[], heat: HeatPoint[],
   }
 }
 
-function createPinHTML(_emoji: string, iconSvg: string | undefined, color: string, verified: boolean, isSelected: boolean, ratingBadge?: string, trendBadge?: string | null) {
-  const size = isSelected ? 46 : 40
+/** The Globe mark a public-listing pin carries where a verified pin carries
+ *  its green check — the same glyph the discovery list uses for "listed ·
+ *  unconfirmed", drawn as a badge, never as a checkmark. */
+const LISTED_BADGE_SVG = `<svg width="8.5" height="8.5" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`
+
+function createPinHTML(pin: Pick<MapPin, 'emoji' | 'iconSvg' | 'spotterColor' | 'verified' | 'listed' | 'ratingBadge' | 'trendBadge' | 'photoUrl'>, isSelected: boolean) {
+  const { iconSvg, spotterColor: color, verified, listed, ratingBadge, trendBadge, photoUrl } = pin
+  const size = listed ? (isSelected ? 50 : 44) : isSelected ? 46 : 40
   const border = isSelected ? '3px solid #D97E00' : '2.5px solid #fff'
   const iconContent = iconSvg
     ? `<span style="display:flex;align-items:center;justify-content:center">${iconSvg}</span>`
     : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.8 7-11.3a7 7 0 1 0-14 0C5 15.2 12 21 12 21Z"/><circle cx="12" cy="9.7" r="2.4"/></svg>'
+  // A photo pin keeps the spotter color as its ring-side tail and as the
+  // behind-the-photo fallback; the image layers on top so a failed load
+  // degrades to the ordinary colored pin.
+  // With a photo the face keeps only the category color behind the glyph;
+  // attachPhotoFallback layers the actual <img> over it (and away again if
+  // it fails to load).
+  const face = photoUrl
+    ? `background-color:${color};display:flex;align-items:center;justify-content:center;`
+    : `background: ${color};display:flex;align-items:center;justify-content:center;font-size:${isSelected ? 20 : 17}px;`
+  const inner = iconContent
   return `
     <div class="guaca-map-marker" style="
       display: flex;
@@ -360,15 +385,11 @@ function createPinHTML(_emoji: string, iconSvg: string | undefined, color: strin
         width: ${size}px;
         height: ${size}px;
         border-radius: 50%;
-        background: ${color};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: ${isSelected ? 20 : 17}px;
+        ${face}
         border: ${border};
         box-sizing: border-box;
-      ">${iconContent}</div>
-      ${ratingBadge ? `
+      ">${inner}</div>
+      ${ratingBadge && !listed ? `
       <div style="
         position: absolute;
         top: -7px;
@@ -383,7 +404,7 @@ function createPinHTML(_emoji: string, iconSvg: string | undefined, color: strin
         border: 1.5px solid white;
         box-shadow: 0 1px 3px rgba(0,0,0,0.25);
       ">★ ${ratingBadge}</div>` : ''}
-      ${trendBadge ? `
+      ${trendBadge && !listed ? `
       <div style="
         position: absolute;
         top: -7px;
@@ -416,7 +437,21 @@ function createPinHTML(_emoji: string, iconSvg: string | undefined, color: strin
         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
-      </div>` : ''}
+      </div>` : listed ? `
+      <div style="
+        position: absolute;
+        bottom: -1px;
+        right: -1px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #17272B;
+        border: 2px solid white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      ">${LISTED_BADGE_SVG}</div>` : ''}
       <div style="
         width: 0;
         height: 0;
@@ -489,6 +524,22 @@ function makeMarkerInteractive(el: HTMLElement, label: string, activate?: () => 
   })
 }
 
+/** Layers the pin's photograph over the face as a real <img>, so a failed
+ *  load can remove it and reveal the category glyph underneath instead of an
+ *  empty colored disc. The face is the marker's first element. */
+function attachPhotoFallback(markerEl: HTMLElement, photoUrl: string) {
+  const face = markerEl.firstElementChild as HTMLElement | null
+  if (!face) return
+  face.style.position = 'relative'
+  face.style.overflow = 'hidden'
+  const img = document.createElement('img')
+  img.src = photoUrl
+  img.alt = ''
+  img.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;'
+  img.addEventListener('error', () => img.remove(), { once: true })
+  face.appendChild(img)
+}
+
 function createTreasureHTML() {
   return `
     <div style="
@@ -546,6 +597,24 @@ export function GuacaMap({
   const markersRef = useRef<Map<string, mapboxgl.Marker>>(new Map())
   // De-collided pin positions — recomputed whenever the pin set changes.
   const pinPositions = useMemo(() => deCollide(pins), [pins])
+
+  // Public-listing photo markers are a near-street-zoom layer: below z11.5
+  // (basin- and country-level views) the curated set would tile the canvas,
+  // so the backdrop keeps speaking in dots and the featured faces wait for a
+  // closer look. Verified pins are always shown — they are the product's
+  // claim, not its decoration.
+  const LISTED_MIN_ZOOM = 11.5
+  const applyListedVisibility = () => {
+    const map = mapRef.current
+    if (!map) return
+    const show = map.getZoom() >= LISTED_MIN_ZOOM
+    for (const pin of pins) {
+      if (!pin.listed) continue
+      const el = markersRef.current.get(pin.id)?.getElement()
+      if (el) el.style.display = show ? 'flex' : 'none'
+    }
+  }
+
   const dotsRef = useRef<MapDot[]>(dots ?? [])
   const zoneOutlinesRef = useRef<readonly ZoneOutline[] | undefined>(zoneOutlines)
   const heatRef = useRef<HeatPoint[]>(heat ?? [])
@@ -642,10 +711,11 @@ export function GuacaMap({
 
       pins.forEach((pin) => {
         const wrapper = document.createElement('div')
-        wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge, pin.trendBadge)
+        wrapper.innerHTML = createPinHTML(pin, pin.id === selectedPinId)
         const el = wrapper.firstElementChild as HTMLElement
         if (!el) return
         makeMarkerInteractive(el, pin.label, () => onPinClick?.(pin.id))
+        if (pin.photoUrl) attachPhotoFallback(el, pin.photoUrl)
         const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
           .setLngLat(pinPositions.get(pin.id) ?? [pin.lng, pin.lat])
           .addTo(map)
@@ -665,6 +735,8 @@ export function GuacaMap({
           markersRef.current.set(gap.id, marker)
         })
       }
+      // Rebuilt elements start visible; restore the street-zoom band.
+      applyListedVisibility()
     })
   }, [styleUrl])
 
@@ -679,11 +751,12 @@ export function GuacaMap({
 
     pins.forEach((pin) => {
       const wrapper = document.createElement('div')
-      wrapper.innerHTML = createPinHTML(pin.emoji, pin.iconSvg, pin.spotterColor, pin.verified, pin.id === selectedPinId, pin.ratingBadge, pin.trendBadge)
+      wrapper.innerHTML = createPinHTML(pin, pin.id === selectedPinId)
       const el = wrapper.firstElementChild as HTMLElement
       if (!el) return
 
       makeMarkerInteractive(el, pin.label, () => onPinClick?.(pin.id))
+      if (pin.photoUrl) attachPhotoFallback(el, pin.photoUrl)
 
       const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat(pinPositions.get(pin.id) ?? [pin.lng, pin.lat])
@@ -691,6 +764,8 @@ export function GuacaMap({
 
       markersRef.current.set(pin.id, marker)
     })
+    applyListedVisibility()
+    map.on('zoom', applyListedVisibility)
 
     // Add gap markers
     if (gapPins) {
@@ -724,6 +799,10 @@ export function GuacaMap({
           .addTo(map)
         markersRef.current.set(m.id, marker)
       })
+    }
+
+    return () => {
+      map.off('zoom', applyListedVisibility)
     }
   }, [pins, gapPins, markers, selectedPinId, selectedGapId, selectedMarkerId, onPinClick, onGapClick, onMarkerClick])
 
