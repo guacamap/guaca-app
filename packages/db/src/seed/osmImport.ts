@@ -58,7 +58,25 @@ const TAG_TO_CATEGORY: Record<string, string> = {
   bus_station: 'practical',
   ferry_terminal: 'practical',
   taxi: 'practical',
+  // lodging
+  hotel: 'lodging',
+  hostel: 'lodging',
+  guest_house: 'lodging',
+  motel: 'lodging',
+  chalet: 'lodging',
+  alpine_hut: 'lodging',
+  apartment: 'lodging',
 };
+
+interface OsmTag {
+  '@_k'?: string;
+  '@_v'?: string;
+}
+
+/** First taxonomy match among OSM tag values. */
+export function categoryForOsmTags(tags: OsmTag[]): string | undefined {
+  return tags.map((t) => TAG_TO_CATEGORY[t['@_v'] ?? '']).find((c) => c !== undefined);
+}
 
 const NODE_KEYS = new Set(['node', 'way', 'relation']);
 
@@ -84,11 +102,6 @@ export function subcategoryForOsmTags(tags: OsmTag[]): string | null {
     : null;
   if (brand && cuisineLabel) return `${brand} · ${cuisineLabel}`;
   return brand ?? cuisineLabel;
-}
-
-interface OsmTag {
-  '@_k'?: string;
-  '@_v'?: string;
 }
 
 interface OsmNode {
@@ -199,9 +212,7 @@ export async function importOsmCandidates(
       const name = tags.find((t) => t['@_k'] === 'name')?.['@_v'];
       if (!name) continue;
 
-      const category = tags
-        .map((t) => TAG_TO_CATEGORY[t['@_v'] ?? ''])
-        .find((c) => c !== undefined);
+      const category = categoryForOsmTags(tags);
       if (!category) continue;
 
       const osmId = Number(id);

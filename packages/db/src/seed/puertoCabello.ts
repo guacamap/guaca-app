@@ -54,7 +54,31 @@ export const PUERTO_CABELLO_PROFILES: ProfileSeed[] = [
       es: 'Restaurante de pescados y mariscos en Marina Punta Brava, cerca del Teatro Municipal. La información pública describe espacios al aire libre junto a la marina.',
     },
     address: 'Marina Punta Brava, Puerto Cabello, Carabobo',
-    sources: [{ label: 'El Siglo · Blue Marine', url: 'https://elsiglo.com.ve/frescura-del-mar-siente-blue-marine-restaurante-seafood/' }],
+    phone: '+58 414-4091092',
+    sources: [
+      { label: 'El Siglo · Blue Marine', url: 'https://elsiglo.com.ve/frescura-del-mar-siente-blue-marine-restaurante-seafood/' },
+      { label: 'Restaurant Guru · ficha pública', url: 'https://es.restaurantguru.com/BlueMarineRestaurant-Puerto-Cabello' },
+    ],
+  },
+  {
+    osmType: 'node', osmId: 7754397389, name: 'Picua Seafood & Bar',
+    image: { url: '/demo/puerto-cabello/picua-seafood-bar.jpg', credit: 'Restaurant Guru · ficha pública de Picua Seafood & Bar', sourceUrl: 'https://es.restaurantguru.com/Picua-Seafood-and-Bar-Puerto-Cabello', rights: 'unverified-demo-only' },
+    summary: {
+      en: 'A seafood restaurant and bar just off Avenida Bolívar, in the centre of Puerto Cabello. Public listings describe fish and shellfish dishes, a terrace and a decorated dining room.',
+      es: 'Restaurante de mariscos y bar cerca de la Avenida Bolívar, en el centro de Puerto Cabello. Sus fichas públicas describen platos de pescado y marisco, una terraza y un comedor de decoración cuidada.',
+    },
+    address: 'Av. Bolívar, esquina Av. 5, Calle Ricaurte, Puerto Cabello, Carabobo',
+    sources: [{ label: 'Restaurant Guru · ficha pública', url: 'https://es.restaurantguru.com/Picua-Seafood-and-Bar-Puerto-Cabello' }],
+  },
+  {
+    osmType: 'node', osmId: 5241000521, name: 'La Cueva del Mar',
+    image: { url: '/demo/puerto-cabello/la-cueva-del-mar.jpg', credit: 'Restaurant Guru · ficha pública de La Cueva del Mar', sourceUrl: 'https://es.restaurantguru.com/Restaurant-La-Cueva-del-Mar-Puerto-Cabello-2', rights: 'unverified-demo-only' },
+    summary: {
+      en: 'A seafood restaurant at the end of Calle Miranda, serving in vaulted stone dining rooms. Public listings describe outdoor seating as well as the stone interior.',
+      es: 'Restaurante de pescados y mariscos al final de la calle Miranda, con salones abovedados de piedra. Sus fichas públicas describen mesas al aire libre además del interior de piedra.',
+    },
+    phone: '+58 242-3620102', address: 'Final Calle Miranda, Puerto Cabello, Carabobo',
+    sources: [{ label: 'Restaurant Guru · ficha pública', url: 'https://es.restaurantguru.com/Restaurant-La-Cueva-del-Mar-Puerto-Cabello-2' }],
   },
   {
     osmType: 'way', osmId: 203615814, name: 'Fortín Solano',
@@ -74,6 +98,36 @@ export const PUERTO_CABELLO_PROFILES: ProfileSeed[] = [
     },
   },
   {
+    osmType: 'way', osmId: 161501174, name: 'Catedral de San José',
+    image: { url: '/demo/puerto-cabello/catedral-san-jose.jpg', credit: 'Jennifer Varela / Wikimedia Commons · 2014', sourceUrl: 'https://commons.wikimedia.org/wiki/File:Catedral_San_Jos%C3%A9,_Puerto_Cabello.jpg', license: 'CC BY-SA 3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/' },
+    summary: {
+      en: 'A stone Catholic cathedral beside the Malecón, at the edge of Puerto Cabello’s old town. It is also known as Catedral de Puerto Cabello.',
+      es: 'Catedral católica de piedra junto al Malecón, a un lado del casco viejo de Puerto Cabello. También se le conoce como Catedral de Puerto Cabello.',
+    },
+    sources: [
+      { label: 'Wikipedia ES · Catedral de San José', url: 'https://es.wikipedia.org/wiki/Catedral_de_San_Jos%C3%A9_(Puerto_Cabello)' },
+      { label: 'Wikidata · Q25414204', url: 'https://www.wikidata.org/wiki/Q25414204' },
+    ],
+  },
+  {
+    osmType: 'way', osmId: 161006207, name: 'Iglesia Nuestra Señora del Rosario',
+    image: { url: '/demo/puerto-cabello/iglesia-rosario.jpg', credit: 'Alvaro Jesús Hernández Arteaga / Wikimedia Commons · 2009', sourceUrl: 'https://commons.wikimedia.org/wiki/File:Nuestra_Se%C3%B1ora_Del_Rosario,_Puerto_Cabello.jpg', license: 'CC BY-SA 3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/' },
+    summary: {
+      en: 'A white colonial church whose clock tower closes the view along Calle Miranda. Wikidata records it as a national historical monument of Venezuela.',
+      es: 'Iglesia colonial blanca cuya torre con reloj cierra la vista de la calle Miranda. Wikidata la registra como monumento histórico nacional de Venezuela.',
+    },
+    sources: [{ label: 'Wikidata · Iglesia Del Rosario', url: 'https://www.wikidata.org/wiki/Q42901428' }],
+  },
+  {
+    osmType: 'node', osmId: 1734748797, name: 'Monumento a Simón Bolívar',
+    image: { url: '/demo/puerto-cabello/monumento-bolivar.jpg', credit: 'Roger Stiven / Wikimedia Commons · 2014', sourceUrl: 'https://commons.wikimedia.org/wiki/File:El_Padre_Libertador.jpg', license: 'CC BY-SA 3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/' },
+    summary: {
+      en: 'The equestrian statue of Simón Bolívar in Plaza Bolívar, on the Malecón. OpenStreetMap records it as a historic monument to the Libertador.',
+      es: 'La estatua ecuestre de Simón Bolívar preside la Plaza Bolívar del Malecón. OpenStreetMap la registra como monumento histórico al Libertador.',
+    },
+    sources: [{ label: 'Wikimedia Commons · Plaza Bolívar (Puerto Cabello)', url: 'https://commons.wikimedia.org/wiki/Category:Plaza_Bol%C3%ADvar_(Puerto_Cabello)' }],
+  },
+  {
     osmType: 'way', osmId: 1323862255, name: 'Playa Delfín',
     summary: {
       en: 'A beach on the Puerto Cabello coast, listed on public maps. Sea conditions, access and services have not been checked by a Guaca Spotter.',
@@ -83,10 +137,12 @@ export const PUERTO_CABELLO_PROFILES: ProfileSeed[] = [
   },
   {
     osmType: 'relation', osmId: 12166419, name: 'Castillo San Felipe',
+    image: { url: '/demo/puerto-cabello/castillo-san-felipe.jpg', credit: 'Marylin Torres / Wikimedia Commons · 2012', sourceUrl: 'https://commons.wikimedia.org/wiki/File:Castillo_libertador.JPG', license: 'CC BY-SA 3.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/' },
     summary: {
-      en: 'A historic coastal fortification by Puerto Cabello’s harbour. Its map listing does not establish public access; confirm entry arrangements before going.',
-      es: 'Fortificación histórica junto al puerto de Puerto Cabello. Su presencia en el mapa no garantiza el acceso al público; confirma las condiciones de entrada antes de ir.',
+      en: 'An 18th century coastal fortification, also known as Castillo Libertador, beside the harbour and naval base. Its map listing does not establish public access; confirm entry arrangements before going.',
+      es: 'Fortificación costera del siglo XVIII, también conocida como Castillo Libertador, junto al puerto y la base naval. Su presencia en el mapa no garantiza el acceso al público; confirma las condiciones de entrada antes de ir.',
     },
+    sources: [{ label: 'Wikipedia ES · Castillo San Felipe', url: 'https://es.wikipedia.org/wiki/Castillo_San_Felipe' }],
   },
   {
     osmType: 'way', osmId: 157189923, name: 'Plaza Flores',

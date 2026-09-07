@@ -5,7 +5,8 @@ describe('overture import helpers', () => {
   it('maps Overture categories onto the taxonomy, alternates included', () => {
     expect(categoryForOverture('restaurant', ['mexican_restaurant'])).toBe('eat_drink');
     expect(categoryForOverture('beach')).toBe('beach_water');
-    expect(categoryForOverture('hotel')).toBe('practical');
+    expect(categoryForOverture('hotel')).toBe('lodging');
+    expect(categoryForOverture('bus_station')).toBe('practical');
     expect(categoryForOverture('landmark_and_historical_building')).toBe('culture_history');
     expect(categoryForOverture('auto_parts_and_supply_store')).toBe('market_shop');
     expect(categoryForOverture(null)).toBeNull();

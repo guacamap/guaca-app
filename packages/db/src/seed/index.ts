@@ -18,7 +18,7 @@ const ZONES = [
   { id: 'la-guaricha', name: 'La Guaricha', access: 0, geom: 'POLYGON((-68.0040 10.4750,-67.9960 10.4750,-67.9960 10.4850,-68.0040 10.4850,-68.0040 10.4750))' },
 ];
 
-const SPOTTERS = [
+export const SPOTTERS = [
   { name: 'Yorman Salazar', phone: '+58 412 000 0001', zone: 'malecon' },
   { name: 'María Fernanda', phone: '+58 412 000 0002', zone: 'casco-historico' },
   { name: 'Carlos Pirela', phone: '+58 412 000 0003', zone: 'playa-quizandal' },
@@ -87,15 +87,38 @@ export async function seed(pool: Pool, options: SeedOptions = {}): Promise<void>
       .slice(0, 12)}`;
     await pool.query(
       `insert into areas (id, name, slug, country, timezone, geom)
-       select $1, $2, $3, $4, 'America/Caracas', ST_GeogFromText($5)
+       select $1, $2, $3, $4, $5, ST_GeogFromText($6)
         where not exists (select 1 from areas where slug = $3)`,
       [
         id,
         city.name,
         city.slug,
         city.countryCode,
+        city.tz ?? 'America/Caracas',
         `POLYGON((${lon - span} ${lat - span},${lon + span} ${lat - span},${lon + span} ${lat + span},${lon - span} ${lat + span},${lon - span} ${lat - span}))`,
       ],
+    );
+  }
+
+  // Targeted, idempotent corrections for area rows that predate a researched
+  // fix — the insert above only fires on a fresh database. Keyed by slug,
+  // never by name; each entry states the corrected timezone and bbox so the
+  // area, and every question asked inside it, resolve to the right town.
+  const AREA_CORRECTIONS = [
+    {
+      slug: 'cartagena',
+      timezone: 'America/Bogota',
+      // Researched 2026-09-06: the first frame (10.391, -75.479) centred on
+      // the inner bay and missed the walled city entirely. This frame holds
+      // Centro Histórico, Getsemaní, the Castillo and Bocagrande.
+      geom: 'POLYGON((-75.577 10.3915,-75.517 10.3915,-75.517 10.4515,-75.577 10.4515,-75.577 10.3915))',
+    },
+  ];
+  for (const fix of AREA_CORRECTIONS) {
+    await pool.query(
+      `update areas set timezone = $2, geom = ST_GeogFromText($3)
+        where slug = $1 and (timezone <> $2 or geom <> ST_GeogFromText($3))`,
+      [fix.slug, fix.timezone, fix.geom],
     );
   }
 

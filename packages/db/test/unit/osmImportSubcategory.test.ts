@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 // subcategoryFor is not exported (osmImport.ts keeps it module-private, same
 // as landmarkDescriptionFor); this test drives it indirectly is unnecessary
 // complexity for a pure string function, so it is exported for testing.
-import { subcategoryForOsmTags } from '../../src/seed/osmImport.js';
+import { subcategoryForOsmTags, categoryForOsmTags } from '../../src/seed/osmImport.js';
 
 describe('osm subcategory extraction', () => {
   it('prefers a human-written description tag over everything else', () => {
@@ -19,5 +19,14 @@ describe('osm subcategory extraction', () => {
 
   it('is null with nothing descriptive on the tag list', () => {
     expect(subcategoryForOsmTags([{ '@_k': 'name', '@_v': 'Kiosko' }])).toBeNull();
+  });
+});
+
+describe('osm taxonomy mapping', () => {
+  it('files hotels and guest houses as lodging, not practical services', () => {
+    expect(categoryForOsmTags([{ '@_k': 'tourism', '@_v': 'hotel' }])).toBe('lodging');
+    expect(categoryForOsmTags([{ '@_k': 'tourism', '@_v': 'guest_house' }])).toBe('lodging');
+    expect(categoryForOsmTags([{ '@_k': 'tourism', '@_v': 'hostel' }])).toBe('lodging');
+    expect(categoryForOsmTags([{ '@_k': 'amenity', '@_v': 'restaurant' }])).toBe('eat_drink');
   });
 });

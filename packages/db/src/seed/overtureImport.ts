@@ -16,7 +16,8 @@ const CATEGORY: Array<[RegExp, string]> = [
   [/park|trail|hiking|nature|garden|mountain|waterfall|lagoon|river|island|zoo|botanical/, 'nature_walk'],
   [/market|grocery|supermarket|shop|store|mall|boutique|souvenir|crafts/, 'market_shop'],
   [/hospital|clinic|pharmacy|doctor|dentist|bank|atm|laundry|gas_station|fuel|car_repair|auto|police|veterinar/, 'services'],
-  [/hotel|lodging|hostel|motel|resort|posada|bed_and_breakfast|bus|taxi|ferry|port|airport|terminal|parking/, 'practical'],
+  [/hotel|lodging|hostel|motel|resort|posada|bed_and_breakfast|guest_house|inn/, 'lodging'],
+  [/bus|taxi|ferry|port|airport|terminal|parking/, 'practical'],
 ];
 
 export interface OvertureFeature {

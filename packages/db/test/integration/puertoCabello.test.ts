@@ -22,10 +22,11 @@ describe('Puerto Cabello demo preparation', () => {
   }, 30000);
   afterAll(async () => { await dropTempDb(name, pool); });
 
-  it('loads the bundled map and eight sourced profiles without fictional witnesses', async () => {
+  it('loads the bundled map and the sourced profiles without fictional witnesses', async () => {
     const result = await seedPuertoCabello(pool);
     expect(result.inserted).toBeGreaterThanOrEqual(40);
     expect(result.profiles).toBe(PUERTO_CABELLO_PROFILES.length);
+    expect(PUERTO_CABELLO_PROFILES.length).toBeGreaterThanOrEqual(13);
     const people = await pool.query('select count(*)::int n from spotters');
     expect(people.rows[0].n).toBe(0);
     const places = await pool.query('select verification_status, witness_count, verified_at, corroboration from places');
@@ -36,8 +37,10 @@ describe('Puerto Cabello demo preparation', () => {
       expect(p.corroboration).toBe(1);
     }
     const catalog = await findPlannableNear(pool, 10.477, -68.01, 6000);
-    expect(catalog.map((p) => p.name)).toContain('Fortín Solano');
-    expect(catalog.map((p) => p.name)).toContain('Teatro Municipal de Puerto Cabello');
+    for (const name of ['Fortín Solano', 'Teatro Municipal de Puerto Cabello', 'Catedral de San José',
+      'Iglesia Nuestra Señora del Rosario', 'Monumento a Simón Bolívar', 'Picua Seafood & Bar', 'La Cueva del Mar']) {
+      expect(catalog.map((p) => p.name)).toContain(name);
+    }
     expect(catalog.find((p) => p.name === 'Casa Rosada')?.public_profile?.demo).toBe(true);
   });
 
@@ -64,7 +67,7 @@ describe('Puerto Cabello demo preparation', () => {
   it('creates a real reusable account with saved places and a grounded shareable trip', async () => {
     const first = await seedDemoAccount(pool);
     expect(first.email).toBe(DEMO_TRAVELLER_EMAIL);
-    expect(await listFavorites(pool, first.touristId)).toHaveLength(8);
+    expect(await listFavorites(pool, first.touristId)).toHaveLength(PUERTO_CABELLO_PROFILES.length);
     const trips = await listTrips(pool, first.touristId);
     expect(trips).toHaveLength(1);
     expect(trips[0]!.stops).toHaveLength(4);
@@ -76,7 +79,15 @@ describe('Puerto Cabello demo preparation', () => {
     expect(await listTrips(pool, first.touristId)).toHaveLength(1);
     const row = (await pool.query('select language, login_code_hash, last_login_at from tourists where id=$1', [first.touristId])).rows[0];
     expect(row).toEqual({ language: 'en', login_code_hash: null, last_login_at: null });
-    expect((await pool.query('select count(*)::int n from spotters')).rows[0].n).toBe(0);
+    // The demo account seed now also provisions the demo cast (see
+    // demoCast.test.ts): every spotter row it creates carries the hidden
+    // @demo.guaca.live designation and a clean name.
+    const cast = await pool.query(`select name, email from spotters`);
+    expect(cast.rows.length).toBeGreaterThan(0);
+    for (const s of cast.rows) {
+      expect(s.name).not.toMatch(/dev/i);
+      expect(s.email).toMatch(/@demo\.guaca\.live$/);
+    }
   });
 
   it('does not overwrite an existing local verification or confirmed details', async () => {
@@ -94,7 +105,7 @@ describe('Puerto Cabello demo preparation', () => {
 
   it('ships every referenced photograph locally with its original source credit', async () => {
     const profiles = PUERTO_CABELLO_PROFILES.filter((p) => p.image);
-    expect(profiles.length).toBeGreaterThanOrEqual(5);
+    expect(profiles.length).toBeGreaterThanOrEqual(10);
     for (const p of profiles) {
       const file = await readFile(new URL(`../../../../apps/app/public${p.image!.url}`, import.meta.url));
       const isJpeg = file[0] === 0xff && file[1] === 0xd8;
@@ -102,6 +113,12 @@ describe('Puerto Cabello demo preparation', () => {
       expect(isJpeg || isWebp).toBe(true);
       expect(p.image!.credit.length).toBeGreaterThan(5);
       expect(p.image!.sourceUrl).toMatch(/^https:\/\//);
+      expect(p.image!.url).toMatch(/^\/demo\/[a-z-]+\/[a-z-]+\.(jpg|webp)$/);
+      if ('license' in p.image!) {
+        expect(p.image!.licenseUrl).toMatch(/^https:\/\/creativecommons\.org\//);
+      } else {
+        expect(p.image!.rights).toBe('unverified-demo-only');
+      }
     }
   });
 
