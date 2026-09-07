@@ -6,6 +6,8 @@ import {
   TAXONOMY,
   TAXONOMY_BY_CATEGORY,
   targetDensityFor,
+  observationIsCurrent,
+  CreateStayReservationRequestSchema,
 } from '../src/index.js';
 
 const CATEGORIES = PlaceCategory.options;
@@ -101,6 +103,23 @@ describe('PublicPlaceProfileSchema', () => {
     expect(PublicPlaceProfileSchema.safeParse(baseProfile()).success).toBe(true);
   });
 
+  it('parses a profile with gettingThere knowledge', () => {
+    const parsed = PublicPlaceProfileSchema.safeParse(
+      baseProfile({
+        gettingThere: {
+          en: 'Shared taxis from the centre leave when full, roughly every 20 minutes.',
+          es: 'Los taxis compartidos desde el centro salen llenos, aproximadamente cada 20 minutos.',
+        },
+      }),
+    );
+    expect(parsed.success).toBe(true);
+  });
+
+  it('keeps gettingThere optional', () => {
+    const parsed = PublicPlaceProfileSchema.safeParse(baseProfile());
+    expect(parsed.success && parsed.data.gettingThere).toBeUndefined();
+  });
+
   it('accepts a redistributably licensed image with its licence URL', () => {
     const parsed = PublicPlaceProfileSchema.safeParse(baseProfile({ image: licensedImage }));
     expect(parsed.success).toBe(true);
@@ -150,5 +169,34 @@ describe('taxonomy', () => {
 
   it('targetDensityFor throws on unknown category', () => {
     expect(() => targetDensityFor('unknown' as PlaceCategory)).toThrow();
+  });
+
+  it('includes lodging as a first-class stay category', () => {
+    expect(CATEGORIES).toContain('lodging');
+    expect(TAXONOMY_BY_CATEGORY.get('lodging')?.emoji).toBe('🛏️');
+    expect(TAXONOMY_BY_CATEGORY.get('lodging')?.labelEn).toBe('Stay');
+    expect(TAXONOMY_BY_CATEGORY.get('lodging')?.labelEs).toBe('Alojamiento');
+  });
+});
+
+describe('observation freshness', () => {
+  it('treats expired status and past validUntil as not current', () => {
+    const now = '2026-09-12T14:00:00.000Z';
+    expect(observationIsCurrent({ status: 'active', validUntil: '2026-09-14T00:00:00.000Z' }, now)).toBe(true);
+    expect(observationIsCurrent({ status: 'expired', validUntil: '2026-09-11T00:00:00.000Z' }, now)).toBe(false);
+    expect(observationIsCurrent({ status: 'active', validUntil: '2026-09-11T00:00:00.000Z' }, now)).toBe(false);
+    expect(observationIsCurrent({ status: 'active', validUntil: null }, now)).toBe(true);
+  });
+});
+
+describe('stay reservation request', () => {
+  it('accepts half-open local dates with an idempotency key', () => {
+    const parsed = CreateStayReservationRequestSchema.safeParse({
+      checkIn: '2026-09-12',
+      checkOut: '2026-09-14',
+      guests: 2,
+      idempotencyKey: 'rec-stay-0001',
+    });
+    expect(parsed.success).toBe(true);
   });
 });

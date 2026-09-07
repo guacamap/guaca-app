@@ -1,6 +1,43 @@
 export { PlaceSchema, PlaceCategory, MissionSchema, GapSchema, QuestionSchema, VerificationStatus } from './schemas.js';
 export type { Place, Mission, Gap, Question } from './schemas.js';
 export {
+  ObservationKind,
+  ObservationSourceKind,
+  ObservationStatus,
+  PlaceObservationSchema,
+  observationIsCurrent,
+  TravelMode,
+  ActivityInterestTag,
+  ActivitySchema,
+  StaySchema,
+  ReservationStatus,
+  ReservationSchema,
+  CreateStayReservationRequestSchema,
+  RewardCatalogItemSchema,
+  RewardLedgerEntrySchema,
+  RedemptionSchema,
+  TouristEntitlementSchema,
+  MerchantMembershipSchema,
+} from './recording.js';
+export type {
+  ObservationKind as ObservationKindType,
+  ObservationSourceKind as ObservationSourceKindType,
+  ObservationStatus as ObservationStatusType,
+  PlaceObservation,
+  TravelMode as TravelModeType,
+  ActivityInterestTag as ActivityInterestTagType,
+  Activity,
+  Stay,
+  ReservationStatus as ReservationStatusType,
+  Reservation,
+  CreateStayReservationRequest,
+  RewardCatalogItem,
+  RewardLedgerEntry,
+  Redemption,
+  TouristEntitlement,
+  MerchantMembership,
+} from './recording.js';
+export {
   TripSchema,
   TripRequestSchema,
   TripStopSchema,

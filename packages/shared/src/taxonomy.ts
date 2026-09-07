@@ -83,6 +83,14 @@ export const TAXONOMY: readonly TaxonomyEntry[] = [
     emoji: '🚌',
     color: '#5B7C99',
   },
+  {
+    category: 'lodging',
+    labelEs: 'Alojamiento',
+    labelEn: 'Stay',
+    targetDensity: 6,
+    emoji: '🛏️',
+    color: '#8B5E3C',
+  },
 ];
 
 export function targetDensityFor(category: PlaceCategory): number {

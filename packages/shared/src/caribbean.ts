@@ -85,6 +85,8 @@ export interface CaribbeanCity {
   lon: number;
   /** bbox half-size in degrees (~0.05 ≈ 5–6 km). */
   span: number;
+  /** IANA timezone when it is NOT America/Caracas (Colombia is Bogota). */
+  tz?: string;
 }
 
 export const CARIBBEAN_CITIES: readonly CaribbeanCity[] = [
@@ -120,10 +122,12 @@ export const CARIBBEAN_CITIES: readonly CaribbeanCity[] = [
   { countryCode: 'CU', slug: 'la-habana', name: 'La Habana', lat: 23.113, lon: -82.366, span: 0.05 },
   { countryCode: 'CU', slug: 'varadero', name: 'Varadero', lat: 23.2, lon: -81.3, span: 0.05 },
   { countryCode: 'CU', slug: 'trinidad-cuba', name: 'Trinidad', lat: 21.8, lon: -79.98, span: 0.04 },
-  // Colombia
-  { countryCode: 'CO', slug: 'cartagena', name: 'Cartagena', lat: 10.391, lon: -75.479, span: 0.05 },
-  { countryCode: 'CO', slug: 'santa-marta', name: 'Santa Marta', lat: 11.24, lon: -74.21, span: 0.05 },
-  { countryCode: 'CO', slug: 'san-andres', name: 'San Andrés', lat: 12.58, lon: -81.7, span: 0.05 },
+  // Colombia — the visitor core, not the municipal centroid: the researched
+  // Cartagena frame runs from Bocagrande across the walled city to the
+  // Castillo, so every curated place and the candidate backdrop sit inside.
+  { countryCode: 'CO', slug: 'cartagena', name: 'Cartagena', lat: 10.4215, lon: -75.5470, span: 0.03, tz: 'America/Bogota' },
+  { countryCode: 'CO', slug: 'santa-marta', name: 'Santa Marta', lat: 11.24, lon: -74.21, span: 0.05, tz: 'America/Bogota' },
+  { countryCode: 'CO', slug: 'san-andres', name: 'San Andrés', lat: 12.58, lon: -81.7, span: 0.05, tz: 'America/Bogota' },
   // Costa Rica — the Caribbean side only.
   { countryCode: 'CR', slug: 'puerto-viejo', name: 'Puerto Viejo', lat: 9.65, lon: -82.75, span: 0.05 },
   { countryCode: 'CR', slug: 'san-jose', name: 'San José', lat: 9.928, lon: -84.091, span: 0.05 },

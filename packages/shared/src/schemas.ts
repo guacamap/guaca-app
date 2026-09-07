@@ -10,6 +10,7 @@ export const PlaceCategory = z.enum([
   'services',
   'nightlife_music',
   'practical',
+  'lodging',
 ]);
 export type PlaceCategory = z.infer<typeof PlaceCategory>;
 

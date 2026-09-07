@@ -29,6 +29,8 @@ export const PublicPlaceProfileSchema = z.object({
   demo: z.literal(true),
   researchedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   summary: z.object({ en: z.string(), es: z.string() }),
+  /** How the place is usually reached: approximate public knowledge, never a confirmed timetable. */
+  gettingThere: z.object({ en: z.string(), es: z.string() }).optional(),
   image: z.union([LicensedImageSchema, UnverifiedDemoImageSchema]).optional(),
   sources: z.array(z.object({ label: z.string(), url: z.string().url().regex(/^https:\/\//) })).min(1),
 });
