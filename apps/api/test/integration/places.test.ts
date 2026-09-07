@@ -117,6 +117,14 @@ describe('GET /api/places', () => {
       [AREA_ID, `Listed ${source}`, source, index + 1, JSON.stringify({demo:true, researchedAt:'2026-09-06', summary:{en:'Public profile',es:'Perfil público'},sources:[{label:'OSM',url:'https://www.openstreetmap.org/'}]})]);
       ids.push(inserted.rows[0].id);
     }
+    // The backdrop the researched listings must outrank: a stronger
+    // corroboration and an alphabetically first name, so the old ordering
+    // would put it ahead of every profiled row and the cap could then hide
+    // them in a dense city.
+    const unlisted = await pool.query(`insert into places (area_id, name, category, landmark_description, location, h3_8, source, verification_status, corroboration)
+      values ($1, 'Aaa Unlisted', 'culture_history', 'Public map location', ST_SetSRID(ST_MakePoint(-68.006, 10.472),4326)::geography,
+      '8a0000000000000', 'osm_candidate', 'candidate', 9) returning id`, [AREA_ID]);
+    const unlistedId = unlisted.rows[0]!.id;
     try {
       const res = await app.inject({ method: 'GET', url: '/api/places/candidates?bbox=-68.03,10.44,-67.98,10.52' });
       expect(res.statusCode).toBe(200);
@@ -128,11 +136,16 @@ describe('GET /api/places', () => {
         expect(detail.json().public_profile.summary.en).toBe('Public profile');
       }
       expect(candidates.every((p: {verification_status:string}) => p.verification_status === 'candidate')).toBe(true);
+      // Researched listings sort ahead of the anonymous backdrop, so the
+      // response cap can never be the reason a curated marker is missing.
+      expect(candidates).toHaveLength(5);
+      for (const listed of candidates.slice(0, 4)) expect(listed.public_profile).toBeTruthy();
+      expect(candidates[4]!.id).toBe(unlistedId);
       for (const bbox of ['a,b,c,d', '-68.03,10.44', '-67.98,10.52,-68.03,10.44', '-68.03,10.44,-67.98,10.52,0']) {
         expect((await app.inject({ method:'GET', url:`/api/places/candidates?bbox=${bbox}` })).statusCode).toBe(400);
       }
     } finally {
-      await pool.query('delete from places where id=any($1::uuid[])', [ids]);
+      await pool.query('delete from places where id=any($1::uuid[])', [[...ids, unlistedId]]);
       await app.close();
     }
   });

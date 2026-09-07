@@ -49,7 +49,14 @@ export function installShowcaseAccess(app: FastifyInstance, pool: Pool) {
           return reply.send({ id: SHOWCASE_SPOTTER_ID, name: 'Viajero', language: 'es', photoUrl: null, level: 1, totalPoints: 0, readOnly: true });
         }
       } else if (payload.role === 'tourist' && !['GET', 'HEAD'].includes(req.method)) {
-        const safeWrite = (req.method === 'POST' && ['/api/ask', '/api/plan', '/api/tourist/hello'].includes(path))
+        const safeWrite = (req.method === 'POST' && [
+          '/api/ask',
+          '/api/plan',
+          '/api/tourist/hello',
+          '/api/questions/:id/mission',
+          '/api/stays/:id/reservations',
+          '/api/places/:id/observations/request-check',
+        ].includes(path))
           || (['POST', 'DELETE'].includes(req.method) && path === '/api/places/:id/favorite')
           || (req.method === 'PATCH' && path === '/api/tourist/me');
         if (!safeWrite) return reply.code(403).send({ error: 'This action is not available for this account.' });

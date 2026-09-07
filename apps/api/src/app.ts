@@ -6,11 +6,13 @@ import { takeInbox, recordStopFeedback } from '@guaca/db';
 import { welcome } from './travellerTick.js';
 import { randomUUID, createHash, timingSafeEqual, randomInt } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
-import { q, storePhoto, missionsForSpotter, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
+import { q, storePhoto, missionsForSpotter, missionsOnSpotterMap, acceptMission, spotterEarnings, sessionForQr, recordRegistration, recordQuestion, upsertTouristLoginCode, consumeTouristLoginCode, touristById, submitPlace, confirmSecondLocal, pendingProvisionalNear, propertyByQrToken, deleteTourist, addPlacePost, postsForPlace, addFavorite, removeFavorite, listFavorites, listTrips, tripById, tripBySlug, deleteTrip, trendsForPlaces, zoneDemand, areaSummaries, unenrichedCandidates, saveDraft, stewardDrafts, approveDraft, rejectDraft, rankedGaps, operatorCommission, listMissions, cancelMission, payMission, addSpotter, listSpotters, issueLoginCode, pendingOperatorQueue, operatorVerify, operatorMapData, recentActivity, operatorConflicts, listIssues, createIssue, resolveIssue,
   upsertOperator, setOperatorLoginCode, consumeOperatorLoginCode, operatorByEmail, listOperators,
-  findSpotterByEmail, setSpotterLoginCode, clearSpotterLoginCode } from '@guaca/db';
+  findSpotterByEmail, setSpotterLoginCode, clearSpotterLoginCode, rewardBalance } from '@guaca/db';
 import { createObjectStore, type ObjectStore } from './objectStore.js';
 import { runSubmissionVerification, confirmAllowed } from './verificationService.js';
+import { registerScenarioApi } from './scenarioApi.js';
+import { creditVerifiedMissionsForPlace } from './rewardService.js';
 import type { Inference } from '@guaca/agents';
 import { ask, planTrip } from './plannerService.js';
 import { draftCandidate } from '@guaca/agents';
@@ -24,6 +26,8 @@ import { recordingInference } from './aiRecorder.js';
 import { installShowcaseAccess } from './showcaseAccess.js';
 
 export interface AppOptions {
+  /** Supplied only by the isolated recording server, never normal hosting. */
+  recordingTraveller?: { email: string; name: string; avatarUrl: string; bioEn: string; bioEs: string; home: string };
   pool: Pool;
   inference?: Inference;
   minCandidates?: number;
@@ -220,6 +224,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(400).send({ error: 'invalid bbox' });
     }
     const res = await options.pool.query(
+      // Researched listings sort ahead of the anonymous backdrop: a dense
+      // city (Cartagena) overflows the cap, and an alphabetical cut must
+      // never be the reason a curated marker is missing from the map.
       `select id, name, category, source,
               ST_Y(location::geometry) as lat, ST_X(location::geometry) as lon,
               public_phone, public_website, public_socials, public_address, public_source, public_subcategory,
@@ -227,7 +234,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
        from places
        where verification_status = 'candidate' and corroboration >= 1
          and ST_Intersects(location::geometry, ST_MakeEnvelope($1, $2, $3, $4, 4326))
-       order by corroboration desc, name, id
+       order by (public_profile is not null) desc, corroboration desc, name, id
        limit 800`,
       [lonMin, latMin, lonMax, latMax],
     );
@@ -542,7 +549,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
       ]);
       propertyName = (r.rows[0]?.name as string) ?? null;
     }
-    return { email: tourist.email, language: tourist.language, propertyName };
+    const profile = options.recordingTraveller?.email === tourist.email ? options.recordingTraveller : null;
+    return { email: tourist.email, language: tourist.language, propertyName, ...(profile ? { profile } : {}) };
   });
 
   app.patch('/api/tourist/me', async (req, reply) => {
@@ -1968,7 +1976,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     );
     const { spotterId } = await verifySpotterToken(token, secret);
     if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
-    const missions = await missionsForSpotter(options.pool, spotterId);
+    const missions = await missionsOnSpotterMap(options.pool, spotterId);
     return { missions };
   });
 
@@ -2003,22 +2011,21 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const { spotterId } = await verifySpotterToken(token, sessionSecret());
     if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
     const res = await options.pool.query(
-      `select s.id, s.name, s.language, s.photo_url, s.level,
-              coalesce((select sum(m.reward_minor)::int from missions m
-                        where m.spotter_id = s.id and m.status in ('verified','paid')), 0)
-                as total_points
+      `select s.id, s.name, s.language, s.photo_url, s.level
        from spotters s where s.id = $1 and s.active`,
       [spotterId],
     );
     const row = res.rows[0];
     if (!row) return reply.code(401).send({ error: 'unauthorized' });
+    const points = await rewardBalance(options.pool, spotterId);
     return {
       id: row.id,
       name: row.name,
       language: row.language,
       photoUrl: row.photo_url ?? null,
       level: row.level,
-      totalPoints: row.total_points,
+      totalPoints: points,
+      rewardBalance: points,
     };
   });
 
@@ -2035,13 +2042,28 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(400).send({ error: 'invalid lat/lon' });
     }
     const pending = await pendingProvisionalNear(options.pool, latN, lonN, 5000, spotterId);
-    return { pending };
+    const witness = await missionsOnSpotterMap(options.pool, spotterId);
+    const waiting = witness.filter((m) => m.status === 'submitted' && !m.mine);
+    return {
+      pending,
+      missions: waiting.map((m) => ({
+        id: m.id,
+        name: m.placeName ?? m.brief,
+        landmark_description: m.brief,
+        category: m.targetCategory,
+        distanceM: 0,
+        lat: m.lat ?? latN,
+        lon: m.lon ?? lonN,
+        missionId: m.id,
+        photoUrl: m.photoUrl,
+      })),
+    };
   });
 
   /*
-   * Monthly ranking — spotters compete on POINTS, not money. Points are
-   * the mission reward values of verified/paid missions, attributed to
-   * the month they were completed in. Rank is computed over the whole
+   * Ranking is POINTS from the append-only reward ledger, not money and
+   * not a second total derived from missions.reward_minor. Profile,
+   * redeem, and rank share that sum. Rank is computed over the whole
    * roster so "me" is correct even outside the top list.
    */
   app.get('/api/spotter/ranking', async (req, reply) => {
@@ -2050,20 +2072,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
     const { spotterId } = await verifySpotterToken(token, sessionSecret());
     if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
     const res = await options.pool.query(
-      `with month_points as (
-         select m.spotter_id, sum(m.reward_minor)::int as points, count(*)::int as missions
-         from missions m
-         where m.status in ('verified', 'paid')
-           and coalesce(m.paid_at, m.submitted_at, m.offered_at) >= date_trunc('month', now())
-         group by m.spotter_id
+      `with ledger_points as (
+         select rl.spotter_id,
+                sum(rl.delta)::int as points,
+                count(*) filter (where rl.delta > 0)::int as missions
+         from reward_ledger rl
+         group by rl.spotter_id
        ),
        ranked as (
          select s.id, s.name, s.photo_url, s.level,
-                coalesce(mp.points, 0) as points,
-                coalesce(mp.missions, 0) as missions,
-                rank() over (order by coalesce(mp.points, 0) desc) as rank
+                coalesce(lp.points, 0) as points,
+                coalesce(lp.missions, 0) as missions,
+                rank() over (order by coalesce(lp.points, 0) desc) as rank
          from spotters s
-         left join month_points mp on mp.spotter_id = s.id
+         left join ledger_points lp on lp.spotter_id = s.id
          where s.active
        )
        select * from ranked where rank <= 10 or id = $1
@@ -2203,17 +2225,63 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!token) return reply.code(401).send({ error: 'unauthorized' });
     const { spotterId } = await verifySpotterToken(token, sessionSecret());
     if (!spotterId) return reply.code(401).send({ error: 'unauthorized' });
-    const res = await options.pool.query(
-      `select m.id, m.status, m.target_category as category, m.reward_minor,
-              g.question_count,
-              (h3_cell_to_lat_lng(g.h3_8::h3index))[1] as lat,
-              (h3_cell_to_lat_lng(g.h3_8::h3index))[0] as lon
-       from missions m
-       join gaps g on g.id = m.gap_id
-       where m.spotter_id = $1 and m.status in ('offered', 'accepted')`,
+    const missions = await missionsOnSpotterMap(options.pool, spotterId);
+    const area = await options.pool.query<{ area_id: string }>(
+      `select area_id from spotters where id = $1`,
       [spotterId],
     );
-    return { opportunities: res.rows };
+    const listings = area.rows[0]
+      ? await options.pool.query<{
+          id: string; name: string; category: string; lat: number; lon: number;
+          photo_url: string | null; verification_status: string; posts: number;
+        }>(
+          `select p.id, p.name, p.category,
+                  ST_Y(p.location::geometry) as lat, ST_X(p.location::geometry) as lon,
+                  p.public_profile->'image'->>'url' as photo_url,
+                  p.verification_status,
+                  (select count(*)::int from place_posts pp where pp.place_id = p.id) as posts
+             from places p
+            where p.area_id = $1
+              and p.public_profile->'image'->>'url' is not null`,
+          [area.rows[0].area_id],
+        )
+      : { rows: [] };
+    const heat = listings.rows.flatMap((row) => {
+      const openMission = missions.some((m) => m.placeId === row.id && (m.status === 'offered' || m.status === 'accepted' || m.status === 'submitted'));
+      const weight = Math.min(
+        2
+          + (row.verification_status === 'verified' ? 3 : 1)
+          + (openMission ? 4 : 0)
+          + Math.min(row.posts, 4),
+        10,
+      );
+      const points = [{ lat: row.lat, lng: row.lon, weight }];
+      // A short ribbon so the Malecón and beach read as areas, not single dots.
+      if (weight >= 5) {
+        points.push({ lat: row.lat + 0.0012, lng: row.lon - 0.0014, weight: weight * 0.6 });
+        points.push({ lat: row.lat - 0.0009, lng: row.lon + 0.0011, weight: weight * 0.5 });
+      }
+      return points;
+    });
+    return {
+      opportunities: missions.map((m) => ({
+        id: m.id,
+        status: m.status,
+        category: m.targetCategory,
+        reward_minor: m.rewardMinor,
+        question_count: 1,
+        lat: m.lat,
+        lon: m.lon,
+        taskKind: m.taskKind,
+        placeName: m.placeName,
+        photoUrl: m.photoUrl,
+        placeId: m.placeId,
+        mine: m.mine,
+        brief: m.brief,
+      })),
+      listings: listings.rows,
+      heat,
+    };
   });
 
   // The submission is complete — run the check ladder (§7.4). The cheap
@@ -2356,6 +2424,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         `update missions set status = 'verified' where result_place_id = $1 and status = 'submitted'`,
         [id],
       );
+      await creditVerifiedMissionsForPlace(client, id);
       // Close the loop: the gap that demanded this place is now filled.
       await client.query(
         `update gaps set status = 'filled', updated_at = now()
@@ -2459,6 +2528,17 @@ export function buildApp(options: AppOptions): FastifyInstance {
       return reply.code(404).send({ error: 'not found' });
     }
     return res.rows[0];
+  });
+
+  registerScenarioApi(app, {
+    pool: options.pool,
+    objectStore,
+    emailSender,
+    sessionSecret,
+    tokenFrom,
+    sessionCookie,
+    codeLimiter,
+    ...(options.inference ? { inference: options.inference } : {}),
   });
 
   // The traveller tick (Guaca speaking first) runs on the same inference

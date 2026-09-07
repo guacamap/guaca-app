@@ -203,6 +203,35 @@ describe('showcase access — optional deployed presentation login', () => {
     });
     expect(doubt.statusCode).toBe(403);
     expect((doubt.json() as { error: string }).error).toBe('This action is not available for this account.');
+
+    // Commissioning a check from a question the account asked is part of the
+    // presentation path.
+    const mission = await app.inject({
+      method: 'POST',
+      url: '/api/questions/00000000-0000-4000-8000-0000000000e1/mission',
+      headers: { cookie: touristCookie },
+    });
+    expect(mission.statusCode).not.toBe(403);
+
+    const stayRequest = await app.inject({
+      method: 'POST',
+      url: '/api/stays/00000000-0000-4000-8000-00000000ab03/reservations',
+      headers: { cookie: touristCookie },
+      payload: {
+        checkIn: '2026-09-12',
+        checkOut: '2026-09-14',
+        guests: 2,
+        idempotencyKey: 'showcase-stay-request',
+      },
+    });
+    expect(stayRequest.statusCode).not.toBe(403);
+
+    const requestCheck = await app.inject({
+      method: 'POST',
+      url: `/api/places/${PLACE_ID}/observations/request-check`,
+      headers: { cookie: touristCookie },
+    });
+    expect(requestCheck.statusCode).not.toBe(403);
     await app.close();
   });
 

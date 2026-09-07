@@ -9,6 +9,7 @@ import {
   narrateRefusal,
   guessLang,
   classifiesIntent,
+  categoryHits,
   classifyWithModel,
   extractIntent,
   groundFromVerifiedRows,
@@ -191,6 +192,7 @@ const CANONICAL: Record<string, Record<'en' | 'es', string>> = {
   market_shop: { en: 'a market nearby', es: 'mercado cerca' },
   services: { en: 'a pharmacy nearby', es: 'una farmacia cerca' },
   nightlife_music: { en: 'live music nearby', es: 'musica en vivo cerca' },
+  lodging: { en: 'a place to stay nearby', es: 'dónde alojarme cerca' },
 };
 const CATEGORY_LABEL: Record<string, Record<'en' | 'es', string>> = {
   eat_drink: { en: 'places to eat', es: 'lugares para comer' },
@@ -200,6 +202,7 @@ const CATEGORY_LABEL: Record<string, Record<'en' | 'es', string>> = {
   market_shop: { en: 'markets', es: 'mercados' },
   services: { en: 'services', es: 'servicios' },
   nightlife_music: { en: 'music spots', es: 'sitios con música' },
+  lodging: { en: 'places to stay', es: 'alojamiento' },
 };
 
 /**
@@ -433,14 +436,18 @@ export async function ask(
       },
     };
   }
-  const askText = turn.askText?.trim() || input.text;
+  const rewritten = turn.askText?.trim() || input.text;
+  // A model rewrite may clarify a follow-up, but must not erase a topic.
+  const originalTopics = categoryHits(input.text);
+  const rewrittenTopics = categoryHits(rewritten);
+  const askText = originalTopics.some((topic) => !rewrittenTopics.includes(topic)) ? input.text : rewritten;
   // Outside every area the context provider still knows the local time of
   // the point itself; the area's zone is the source only when there is one.
   // The context provider's local time is the one clock (tests set it, and
   // it already knows the zone of a bare point); the area's zone is the
   // fallback when there is no context at all.
   const nowMin = ctx ? Number(ctx.localTime.slice(11, 13)) * 60 + Number(ctx.localTime.slice(14, 16)) : localNowMin(area?.timezone);
-  const wantsPlan = /plan|day|día|dia|itinerar/i.test(`${input.text} ${askText}`);
+  const wantsPlan = /\b(plan|itinerary|schedule|itinerario|ruta)\b|planifica|planear|todo el día|whole day/i.test(input.text);
   const saysTomorrow = turn.tomorrow === true || /\b(tomorrow|mañana|manana)\b/i.test(input.text);
   const planForTomorrow = wantsPlan && (saysTomorrow || nowMin >= 17 * 60);
   const spoken = guessLang(input.text, lang);
@@ -454,6 +461,7 @@ export async function ask(
   // the render-boundary re-mint all live in answerFromCatalog, which the
   // benchmark runs on a fixed catalog. Same code, so the score means this.
   const outcome = await answerFromCatalog({
+    recommendations: !wantsPlan,
     text: askText,
     language: input.language,
     lat: input.lat,
@@ -477,7 +485,7 @@ export async function ask(
     // morning, said so in the header. Before that, the day left from now.
     nowMin: planForTomorrow ? 8 * 60 : nowMin,
     ...(rain ? { rain } : {}),
-    ...(turn.kind?.trim() ? { kind: turn.kind.trim() } : {}),
+    ...(turn.kind?.trim() && categoryHits(askText).length <= 1 && !/\b(breakfast|desayuno)\b/i.test(input.text) ? { kind: turn.kind.trim() } : {}),
     ...(ctx?.sun ? { daylight: { sunrise: ctx.sun.sunrise, sunset: ctx.sun.sunset } } : {}),
   });
 
@@ -540,7 +548,7 @@ export async function ask(
   const travelled = await applyTravel(outcome.artifact, new Map(rows.map((r) => [r.id, { lat: r.lat, lon: r.lon }])), opts.router ?? estimatingRouter());
   // A plan of two or more stops is one Guaca keeps: the tick watches it
   // against the rain and the clock, and the evening check-in asks about it.
-  if (input.touristId && travelled.artifact.stops.length >= 2 && todayLocal) {
+  if (wantsPlan && input.touristId && travelled.artifact.stops.length >= 2 && todayLocal) {
     const byId = new Map(rows.map((r) => [r.id, r]));
     const planDate = planForTomorrow ? nextLocalDate(todayLocal) : todayLocal;
     void setActivePlan(pool, input.touristId, {
@@ -554,9 +562,9 @@ export async function ask(
   }
   return {
     kind: 'answer',
-    text: renderItinerary(travelled.artifact, places, spoken, { tomorrow: planForTomorrow, legs: travelled.legs }),
+    text: renderItinerary(travelled.artifact, places, spoken, { tomorrow: planForTomorrow, legs: travelled.legs, recommendations: !wantsPlan, breakfast: /\b(breakfast|desayuno)\b/i.test(input.text), evening: nowMin >= 17 * 60 }),
     placeIds: ids,
-    ...lead,
+    ...(wantsPlan ? lead : {}),
     ...withNotes,
     ...withCtx,
     ...(questionId ? { questionId } : {}),

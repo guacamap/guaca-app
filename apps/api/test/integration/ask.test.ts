@@ -65,6 +65,23 @@ describe('POST /api/ask', () => {
     await pool.end();
   });
 
+  it('shows a recording profile only for its intended account and server', async () => {
+    const cap = captureSender();
+    const profile = { email: 'recording-profile@test.guaca.live', name: 'Alejandro Ríos', avatarUrl: '/demo/people/alejandro-rios.png', home: 'Valencia, Venezuela', bioEn: 'Travelling', bioEs: 'Viajando' };
+    const app = buildApp({ pool, emailSender: cap.sender, recordingTraveller: profile });
+    try {
+      const headers = await authTourist(app, cap.codes, profile.email);
+      expect((await app.inject({ method: 'GET', url: '/api/tourist/me', headers })).json().profile).toEqual(profile);
+      const other = await authTourist(app, cap.codes, 'ordinary@test.guaca.live');
+      expect((await app.inject({ method: 'GET', url: '/api/tourist/me', headers: other })).json()).not.toHaveProperty('profile');
+      const normal = buildApp({ pool, emailSender: cap.sender });
+      try {
+        const normalHeaders = await authTourist(normal, cap.codes, profile.email);
+        expect((await normal.inject({ method: 'GET', url: '/api/tourist/me', headers: normalHeaders })).json()).not.toHaveProperty('profile');
+      } finally { await normal.close(); }
+    } finally { await app.close(); }
+  });
+
   it('rejects an unauthenticated ask — §4.1: demand signals belong to accounts', async () => {
     const app = buildApp({ pool, inference: new FakeInference({}), minCandidates: 1 });
     const res = await app.inject({

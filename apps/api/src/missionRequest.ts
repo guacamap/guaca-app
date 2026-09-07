@@ -23,6 +23,31 @@ export async function requestMission(pool: Pool, questionId: string, touristId: 
   const question = qrow.rows[0];
   if (!question) return { status: 'not_found' };
   if (!question.area_id || !question.category || !question.h3_8) return { status: 'no_intent' };
+  if (process.env.RECORDING_SCENARIO_ENABLED === 'true' && (question.category === 'eat_drink' || question.category === 'lodging')) {
+    const breakfast = await pool.query<{ id: string; expires_at: Date; spotter: string }>(
+      `select m.id, m.expires_at, s.name as spotter
+         from missions m
+         join spotters s on s.id = m.spotter_id
+         join areas a on a.id = $2
+        where m.id = $1 and m.status in ('offered','accepted')`,
+      ['00000000-0000-4000-8000-00000000c101', question.area_id],
+    );
+    const area = await pool.query<{ slug: string }>(`select slug from areas where id = $1`, [question.area_id]);
+    if (area.rows[0]?.slug === 'puerto-cabello' && breakfast.rows[0]) {
+      const row = breakfast.rows[0];
+      const [first, last] = row.spotter.split(/\s+/);
+      await pool.query(
+        `insert into question_notifications (question_id, tourist_id) values ($1, $2) on conflict do nothing`,
+        [questionId, touristId],
+      );
+      return {
+        status: 'already_open',
+        missionId: row.id,
+        spotterName: last ? `${first} ${last[0]}.` : first!,
+        expiresAt: row.expires_at.toISOString(),
+      };
+    }
+  }
   await pool.query(
     `insert into question_notifications (question_id, tourist_id) values ($1, $2) on conflict do nothing`,
     [questionId, touristId],
