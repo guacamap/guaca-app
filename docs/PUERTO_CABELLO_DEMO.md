@@ -21,21 +21,32 @@ pnpm demo:prepare
 
 `demo:prepare` builds the backend packages, runs migrations, and imports the
 bundled Puerto Cabello OpenStreetMap snapshot. No live Overpass call is needed.
-The eight enriched profiles are Casa Rosada, Da Franco, Blue Marine Restaurant,
-Fortín Solano, Teatro Municipal de Puerto Cabello, Playa Delfín, Castillo San
-Felipe, and Plaza Flores. Other public map listings fill out discovery.
+The thirteen enriched profiles are Casa Rosada, Da Franco, Blue Marine Restaurant,
+Picua Seafood & Bar, La Cueva del Mar, Fortín Solano, Teatro Municipal de Puerto
+Cabello, Catedral de San José, Iglesia Nuestra Señora del Rosario, Monumento a
+Simón Bolívar, Playa Delfín, Castillo San Felipe, and Plaza Flores; eleven of
+them carry a photograph, six under a Creative Commons licence. Other public
+map listings fill out discovery.
 
-Preparation also creates `viajero@guaca.live` with eight saved places and one
+Preparation also creates `viajero@guaca.live` with the thirteen saved places and one
 four-stop itinerary referencing real Puerto Cabello listings. It does not create
 reviews, ratings, or local verifications. The account and trip persist in Postgres;
 re-running preserves the account's language, login state, and existing trip link.
-To prepare just the account after seeding places, run `pnpm seed:demo-account`.
+The same step provisions the demo cast and demo-authored content: eleven spotters
+with clean names whose logins live on `@demo.guaca.live` (request a code, then use
+`000000` locally), three business posts published through the real posts mechanism
+as business commentary that no Spotter has checked, and the Casa Rosada operator
+`casarosada@demo.guaca.live` on the admin panel allowlist, with its waitlist
+registration already handled. To prepare just the account after seeding places,
+run `pnpm seed:demo-account`.
 
 Re-running is safe: existing records, local verifications, and confirmed contact
-details are preserved; the same OSM source never counts twice. Preparation does
-not erase old `[DEV]` fixtures. If your database contains those, identify them as
-fictional during the presentation, or prepare a separate empty development
-database using `DATABASE_URL`. Never present them as real local verifications.
+details are preserved; the same OSM source never counts twice. Preparation
+renames any visible `[DEV]` marker in place, keeping every row: names a visitor
+can see stay clean, and invented cast rows are designated only by their
+`@demo.guaca.live` email. A local API used for the operator part of the demo must
+run with `OPERATOR_TOKEN` set; without it every admin-panel route answers 501
+before the login code is even examined.
 
 Start these in separate terminals:
 

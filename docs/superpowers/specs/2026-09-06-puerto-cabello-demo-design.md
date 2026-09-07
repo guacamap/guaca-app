@@ -24,9 +24,36 @@ six-digit `SHOWCASE_ACCESS_CODE`, server-side only, off by default) lets the
 deployed instance sign `viajero@guaca.live` into the tourist gate for the
 presentation and a read-only Spotter view. It is not a bypass: no universal
 code, no roster membership, tourist writes limited to ask/plan/hello/saves/
-profile, wrong attempts rate-limited across both roles, and sessions expire the
-moment the code is rotated or the mechanism is disabled. It is covered by
-integration tests and documented in the demo guide.
+profile/question-mission, wrong attempts rate-limited across both roles, and
+sessions expire the moment the code is rotated or the mechanism is disabled.
+It is covered by integration tests and documented in the demo guide.
+
+### Recording preparation (2026-09-06, later the same day)
+
+For a live screen recording the demo was further prepared, rehearsed end to
+end with a headless browser, and documented in
+[Recording script](../../RECORDING_SCRIPT.md):
+
+- Thirteen enriched profiles, eleven photographed (six under a real Creative
+  Commons licence, the venue/listing photos marked demo-only with unverified
+  rights, per the user's authorization for this recording only).
+- The visible `[DEV]` markers are gone from place and Spotter names; the demo
+  cast's hidden designation is its `@demo.guaca.live` logins. Nothing was
+  deleted, only renamed and designated.
+- Demo-authored hours exist only as business-published place posts (Casa
+  Rosada, Blue Marine, Da Franco), through the real posts mechanism, never
+  rendered as verified facts.
+- A Casa Rosada operator account exists through the real operator flow, with
+  its waitlist registration handled.
+- `NEXT_PUBLIC_PRESENTATION_MODE` in `apps/app/.env.local` hides development
+  affordances in both gates while dev logins keep working.
+- The rehearsal proved the full loop live: geolocated Spotter confirmation
+  took a place from provisional to verified with two witnesses, a traveller
+  refusal commissioned a real mission for a named Spotter, and the operator
+  panel showed the oversight numbers and the Casa Rosada rows. Plan questions
+  are reliable through the tuned suggestion chips; free-typed two-topic plan
+  sentences intermittently draw a graceful refusal (model drift, known from
+  the planner benchmark), so the recording uses the chips.
 
 ## 1. User intent and decisions
 
