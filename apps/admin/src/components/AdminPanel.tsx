@@ -61,6 +61,7 @@ const CATEGORY_GLYPH: Record<string, { emoji: string; color: string }> = {
   services: { emoji: '🔧', color: '#455A64' },
   nightlife_music: { emoji: '🎶', color: '#8E24AA' },
   practical: { emoji: '🧭', color: '#546E7A' },
+  lodging: { emoji: '🛏️', color: '#8B5E3C' },
 };
 
 interface OverviewDeltas {
