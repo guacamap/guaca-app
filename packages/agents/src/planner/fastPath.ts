@@ -1,4 +1,4 @@
-import { extractIntent } from './intent.js';
+import { categoryHits, extractIntent } from './intent.js';
 import type { Inference } from '../inference/types.js';
 
 export interface FastPathPlace {
@@ -130,6 +130,7 @@ export async function answerDeterministic(
     ? { ...lexical, category: options.categoryOverride as typeof lexical.category }
     : lexical;
   if (intent.when !== 'now') return null;
+  if (categoryHits(options.text).length > 1) return null;
 
   // Single-topic: the lexicon must have landed on exactly one category, and
   // the question must not look like a multi-stop day plan.

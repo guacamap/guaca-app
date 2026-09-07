@@ -81,8 +81,33 @@ export function renderItinerary(
   artifact: PlanArtifact,
   places: ReadonlyMap<string, RenderPlace>,
   lang: string,
-  opts: { tomorrow?: boolean; legs?: ReadonlyMap<string, { minutes: number; mode: 'foot' | 'car' | 'boat'; estimated: boolean }> } = {},
+  opts: { tomorrow?: boolean; recommendations?: boolean; breakfast?: boolean; evening?: boolean; legs?: ReadonlyMap<string, { minutes: number; mode: 'foot' | 'car' | 'boat'; estimated: boolean }> } = {},
 ): string {
+  if (opts.recommendations) {
+    const es = lang === 'es';
+    const selected = artifact.stops.map((stop) => {
+      const place = places.get(stop.placeId);
+      if (!place) throw new Error(`renderItinerary: no verified DB row for placeId ${stop.placeId}`);
+      return place;
+    });
+    if (opts.breakfast) selected.sort((a, b) => Number(b.category === 'eat_drink') - Number(a.category === 'eat_drink'));
+    const beach = selected.some((p) => p.category === 'beach_water');
+    const lines = [opts.breakfast && beach
+      ? (es ? 'Yo empezaría con un desayuno y dejaría la playa para después. Estas son las opciones que encontré cerca:' : 'I’d start with breakfast, then head to the beach. Here are the nearby options I found:')
+      : (es ? 'Estas son las opciones que encontré cerca:' : 'Here are the nearby options I found:')];
+    for (const p of selected) {
+      const label = p.category === 'eat_drink' ? (es ? 'Para comer' : 'Food') : p.category === 'beach_water' ? (es ? 'Playa' : 'Beach') : (es ? 'Para explorar' : 'Explore');
+      const trust = (p.tier ?? 'verified') === 'verified' ? (es ? 'visitado por un local' : 'visited by a local') : tierWords(p.tier!, lang, { corroboration: p.corroboration ?? 0, verifiedAt: null, spotter: null });
+      lines.push(`${label}: ${p.name} — ${trust}.`);
+    }
+    if (selected.some(p => p.tier && p.tier !== 'verified')) lines.push(es ? 'Las paradas sin verificar vienen de mapas abiertos; un local puede confirmarlas.' : 'Unverified stops come from open maps; a local can confirm them.');
+    if (opts.breakfast) lines.push(es ? 'Para el desayuno, falta confirmar el menú y el horario de apertura.' : 'For breakfast, the menu and opening hours still need confirming.');
+    if (beach) lines.push(es ? 'La playa la dejaría para las horas de luz; las condiciones actuales aún necesitan confirmación.' : 'I’d keep the beach visit to daylight hours; current conditions still need checking.');
+    lines.push(opts.evening && (beach || opts.breakfast)
+      ? (es ? 'Como ya es tarde, ¿lo pensamos para mañana por la mañana?' : 'Since it’s already late, shall we make this a morning outing tomorrow?')
+      : (es ? '¿Vas a pie o tienes transporte?' : 'Will you be walking or do you have transport?'));
+    return lines.join('\n\n');
+  }
   const t = TEMPLATES[lang] ?? TEMPLATES.en!;
   // Single-day plans render exactly as they always have — no day header.
   // A day header only appears when the plan actually spans days.

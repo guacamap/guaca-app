@@ -53,6 +53,11 @@ describe('extractIntent', () => {
     expect(intent.category).toBe('services');
   });
 
+  it('classifies a lodging question', () => {
+    expect(extractIntent('where can I stay near the walls?').category).toBe('lodging');
+    expect(extractIntent('un hotel o posada en Getsemaní').category).toBe('lodging');
+  });
+
   it('degrades to a broad category on unparseable input, never fails', () => {
     const intent = extractIntent('zzzz qqqq xxxx');
     expect(intent.category).toBe('eat_drink'); // broad default

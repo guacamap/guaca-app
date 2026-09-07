@@ -6,7 +6,7 @@ import {
   type PlanArtifact,
 } from '../guard/assertGrounded.js';
 import type { Inference } from '../inference/types.js';
-import { answerDeterministic, type FastPathPlace } from './fastPath.js';
+import { answerDeterministic, greedyRoute, type FastPathPlace } from './fastPath.js';
 import { runGroundedPlanner } from './groundedPlanner.js';
 import {
   categoryHits,
@@ -52,6 +52,8 @@ export type PipelineOutcome =
     };
 
 export interface PipelineOptions {
+  /** Suggestions are alternatives, not a committed timed itinerary. */
+  recommendations?: boolean;
   text: string;
   language: string;
   lat: number;
@@ -127,6 +129,18 @@ export async function answerFromCatalog(options: PipelineOptions): Promise<Pipel
   if (kind && places.length === 0) return refuse('INSUFFICIENT_COVERAGE', 'coverage');
 
   const verifiedIds = new Set(places.map((p) => p.id));
+
+  if (options.recommendations && days === 1) {
+    const hits = categoryHits(options.text);
+    const categories = hits.length ? hits : [category];
+    // Cover every requested topic, never silently answer only the first.
+    if (categories.some((c) => !places.some((p) => p.category === c))) return refuse('INSUFFICIENT_COVERAGE', 'coverage');
+    const ranked = places.map((p) => ({ ...p, landmarkDescription: p.landmarkDescription ?? '', openAt: 0, closeAt: 1440, tierRank: TIER_RANK[p.tier ?? 'verified'] }));
+    const stops = categories.flatMap((c) => greedyRoute({ places: ranked, category: c, startMin: 480, partySize: categories.length > 1 ? 1 : 2, lat: options.lat, lon: options.lon }));
+    const artifact = groundFromVerifiedRows(stops, verifiedIds);
+    if (!artifact.stops.length) return refuse('NO_GROUNDED_STOPS', 'fast');
+    return { kind: 'answer', path: 'fast', artifact, placeIds: [...artifact.placeIds], category };
+  }
 
   // Deterministic fast path, zero inference. A single day only: a trip is a
   // composition question by definition.

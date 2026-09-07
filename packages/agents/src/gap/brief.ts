@@ -7,6 +7,7 @@ const CATEGORY_ES: Record<string, string> = {
   services: 'Servicios',
   nightlife_music: 'Vida nocturna y música',
   practical: 'Práctico',
+  lodging: 'Alojamiento',
 };
 
 const CATEGORY_EN: Record<string, string> = {
@@ -18,6 +19,7 @@ const CATEGORY_EN: Record<string, string> = {
   services: 'Services',
   nightlife_music: 'Nightlife & music',
   practical: 'Practical',
+  lodging: 'Stay',
 };
 
 export interface BriefInput {

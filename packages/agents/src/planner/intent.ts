@@ -68,6 +68,10 @@ const LEXICON: Record<string, PlaceCategory> = {
   // practical
   bus: 'practical', autobus: 'practical', ferry: 'practical', taxi: 'practical',
   wifi: 'practical', estacion: 'practical', station: 'practical',
+  // lodging
+  hotel: 'lodging', hotels: 'lodging', hostel: 'lodging', stay: 'lodging',
+  lodging: 'lodging', alojamiento: 'lodging', hospedaje: 'lodging',
+  posada: 'lodging', inn: 'lodging', dormir: 'lodging',
 };
 
 const WHEN: Record<string, Intent['when']> = {
@@ -158,10 +162,7 @@ export function extractIntent(text: string): Intent {
  * questions — "fresh seafood by the water", "algo dulce para la merienda" —
  * which reads as broken coverage rather than honest uncertainty.
  */
-const CATEGORY_VALUES = [
-  'eat_drink', 'beach_water', 'nature_walk', 'culture_history',
-  'market_shop', 'services', 'nightlife_music', 'practical',
-] as const;
+const CATEGORY_VALUES = PlaceCategory.options;
 
 const ClassificationSchema = z
   .object({
