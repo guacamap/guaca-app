@@ -7,6 +7,7 @@ build/
 *.tsbuildinfo
 .next/
 .next-build/
+.next-recording-build/
 out/
 
 # Environment & secrets — never commit
