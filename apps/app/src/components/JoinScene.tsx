@@ -56,6 +56,12 @@ export const GLASS = {
     button: 'bg-guaca-coral hover:bg-guaca-coral-dark',
     ring: 'focus-visible:ring-guaca-coral/70',
   },
+  navy: {
+    card: 'border-white/15',
+    text: 'text-guaca-lagoon',
+    button: 'bg-guaca-ocean hover:bg-guaca-ocean-deep',
+    ring: 'focus-visible:ring-guaca-lagoon/70',
+  },
 } as const
 export type GlassTone = keyof typeof GLASS
 

@@ -29,11 +29,12 @@
     }
   },
   "include": [
+    ".next-build/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
-    ".next-build/types/**/*.ts"
+    ".next-recording-build/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

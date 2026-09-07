@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, BadgeCheck, Bell, CalendarRange, Check, ChevronDown, ChevronRight, Clock3, Flag, Globe, Heart, Loader2, LogOut, MapPin, Megaphone, MessageCircle, Navigation, Palmtree, Plus, Radio, RefreshCcw, Route, Search, Send, Share2, Sparkles, Star, Store, Sun, Trash2, TrendingUp, Trophy, UserRound, UsersRound, X } from 'lucide-react'
-import { Avatar, Button, GuacaMap, GuacaMark, Input, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
-import { CARIBBEAN_COUNTRIES, TAXONOMY, type PublicPlaceProfile as PublicProfile } from '@guaca/shared'
-import { PlaceDiscovery } from './PlaceDiscovery'
+import { Avatar, Button, GuacaMap, GuacaMark, Input, categoryIconSvg, formatUpdateTime, useInfoStore, useLanguage, type CountryMarker, type ZoneMarker, type ZoneOutline } from '@guaca/ui'
+import { CARIBBEAN_COUNTRIES, TAXONOMY, type Activity, type ActivityInterestTagType as ActivityInterestTag, type PublicPlaceProfile as PublicProfile } from '@guaca/shared'
+import { PlaceDiscovery, PLACE_ICONS, type DiscoveryMode } from './PlaceDiscovery'
 import { PublicPlaceProfile } from './PublicPlaceProfile'
+import { ActivitiesRail } from './ActivitiesRail'
+import { StayDiscovery } from './StayDiscovery'
+import { ReserveStay } from './ReserveStay'
+import { PlaceObservations } from './PlaceObservations'
+import { PlanInterests } from './PlanInterests'
+import { ItineraryTimeline, type TimelineStop } from './ItineraryTimeline'
+import { TouristReservations } from './TouristReservations'
+import { TouristEntitlement } from './TouristEntitlement'
 import { appCopy } from '../lib/copy'
 import { InstallApp } from './InstallApp'
 import { RailArt } from './RailArt'
+import { MobileViewport } from './MobileViewport'
+import { fetchActivities, fetchReservations, fetchStays, type LoadStatus, type ReservationCard, type StayCard } from '../lib/recordingApi'
+import { categoriesForInterests } from '../lib/recordingUi'
 
 /** Puerto Cabello — the pilot area; also the geolocation fallback. */
 const PILOT_CENTER: [number, number] = [-68.0056, 10.4716]
@@ -16,6 +27,10 @@ const appUrl = () => process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin
 
 const THREAD_KEY = 'guaca:thread'
 const PLAN_KEY = 'guaca:plan'
+const INTERESTS_KEY = 'guaca:interests'
+/** Which city the stored conversation belongs to, so an answer written in
+ *  one destination never greets a session opened on another. */
+const THREAD_AREA_KEY = 'guaca:thread-area'
 
 /** ISO code → flag emoji (regional indicators). 'VE' → 🇻🇪. */
 function flagOf(code: string): string {
@@ -183,6 +198,7 @@ interface Me {
   email: string
   language: string
   propertyName: string | null
+  profile?: { name: string; avatarUrl: string; bioEn: string; bioEs: string; home: string }
 }
 
 interface PlacePost {
@@ -285,6 +301,8 @@ export function TouristView() {
   const [query, setQuery] = useState('')
   const [askText, setAskText] = useState('')
   const [activeTab, setActiveTab] = useState<Tab>('map')
+  const [deletingTrip, setDeletingTrip] = useState<string | null>(null)
+  const [tripDeleteError, setTripDeleteError] = useState(false)
   const [center, setCenter] = useState<[number, number]>(PILOT_CENTER)
   // A real device fix, or null. `center` falls back to the pilot centre for
   // display; sending that as evidence let a 5-star "Visited" review be
@@ -348,6 +366,18 @@ export function TouristView() {
   const [geoAsked, setGeoAsked] = useState(true)
   const threadEndRef = useRef<HTMLDivElement | null>(null)
   const favIds = useMemo(() => new Set(favorites.map((f) => f.placeId)), [favorites])
+  const [discoverMode, setDiscoverMode] = useState<DiscoveryMode>('places')
+  const [interests, setInterests] = useState<ActivityInterestTag[]>([])
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [actStatus, setActStatus] = useState<LoadStatus>('loading')
+  const [actRetry, setActRetry] = useState(0)
+  const [stays, setStays] = useState<StayCard[]>([])
+  const [stayStatus, setStayStatus] = useState<LoadStatus>('loading')
+  const [stayRetry, setStayRetry] = useState(0)
+  const [reservations, setReservations] = useState<ReservationCard[]>([])
+  const [bookStatus, setBookStatus] = useState<LoadStatus>('loading')
+  const [bookRetry, setBookRetry] = useState(0)
+  const [reserveStay, setReserveStay] = useState<StayCard | null>(null)
 
   // A shared link (?place=<id>) opens straight onto that place.
   useEffect(() => {
@@ -359,11 +389,120 @@ export function TouristView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // A city link (?area=<slug|id>) picks the destination outright — explicit
+  // entry beats the last saved selection, and replaces it. Read once, before
+  // /api/areas answers, so the initial framing already lands on that city.
+  const linkedAreaRef = useRef<string | null>(null)
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('area')
+    if (wanted) {
+      linkedAreaRef.current = wanted
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  /** City switch: everything on screen that belongs to the previous city —
+   *  the open place sheet, an answer card, the category filter, the
+   *  pilot-anchored suggestions, and the conversation and plan written there
+   *  — goes away, so no Puerto Cabello selection, distance or answer leaks
+   *  into a Cartagena session (or back). The conversation is dropped only
+   *  when the city actually changes: reloading the same city keeps it. */
+  const clearCityState = (areaId: string) => {
+    setSelected(null)
+    setSelectedCandidate(null)
+    setAskState({ kind: 'idle' })
+    setCatFilter(null)
+    setRecs([])
+    setAskText('')
+    setGuacaText('')
+    let seen: string | null = null
+    try { seen = localStorage.getItem(THREAD_AREA_KEY) } catch { /* best-effort */ }
+    if (seen && seen !== areaId) {
+      setThread([])
+      setPlan(null)
+      try {
+        localStorage.removeItem(THREAD_KEY)
+        localStorage.removeItem(PLAN_KEY)
+      } catch { /* best-effort */ }
+    }
+    try { localStorage.setItem(THREAD_AREA_KEY, areaId) } catch { /* best-effort */ }
+  }
+
   useEffect(() => {
     setThread(loadJson<ChatMsg[]>(THREAD_KEY) ?? [])
     setPlan(loadJson<SavedPlan>(PLAN_KEY))
     setStats(loadJson<LocalStats>(STATS_KEY) ?? { asked: 0, commissioned: 0 })
+    const storedInterests = loadJson<ActivityInterestTag[]>(INTERESTS_KEY) ?? []
+    setInterests(storedInterests.filter((tag) => tag === 'relax' || tag === 'adventure' || tag === 'culture' || tag === 'food'))
   }, [])
+
+  useEffect(() => {
+    if (catFilter === 'lodging') setDiscoverMode('stays')
+  }, [catFilter])
+
+  useEffect(() => {
+    let cancelled = false
+    setActStatus('loading')
+    void fetchActivities(selectedAreaId).then((result) => {
+      if (cancelled) return
+      if (!result.ok) {
+        setActStatus('error')
+        return
+      }
+      setActivities(result.activities)
+      setActStatus(result.activities.length > 0 ? 'ready' : 'empty')
+    })
+    return () => { cancelled = true }
+  }, [selectedAreaId, actRetry])
+
+  useEffect(() => {
+    let cancelled = false
+    setStayStatus('loading')
+    void fetchStays({ areaId: selectedAreaId }).then((result) => {
+      if (cancelled) return
+      if (!result.ok) {
+        setStayStatus('error')
+        return
+      }
+      setStays(result.stays)
+      setStayStatus(result.stays.length > 0 ? 'ready' : 'empty')
+    })
+    return () => { cancelled = true }
+  }, [selectedAreaId, stayRetry])
+
+  useEffect(() => {
+    let cancelled = false
+    if (reservations.length === 0) setBookStatus('loading')
+    void fetchReservations().then((result) => {
+      if (cancelled) return
+      if (!result.ok) {
+        setBookStatus('error')
+        return
+      }
+      setReservations(result.reservations)
+      setBookStatus(result.reservations.length > 0 ? 'ready' : 'empty')
+    })
+    return () => { cancelled = true }
+    // Retry and tab focus refetch. Existing rows stay on screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookRetry, activeTab])
+
+  useEffect(() => {
+    const pending = reservations.some((row) => row.status === 'requested')
+    if (!pending) return
+    const timer = window.setInterval(() => {
+      void fetchReservations().then((result) => {
+        if (!result.ok) return
+        setReservations((prev) => {
+          const same = prev.length === result.reservations.length
+            && prev.every((row, i) => row.id === result.reservations[i]?.id && row.status === result.reservations[i]?.status)
+          return same ? prev : result.reservations
+        })
+        setBookStatus(result.reservations.length > 0 ? 'ready' : 'empty')
+      })
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [reservations])
 
   const bumpStats = (refused: boolean) => {
     setStats((prev) => {
@@ -475,7 +614,8 @@ export function TouristView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
-  // Areas for the country→city picker, with the persisted selection.
+  // Areas for the country→city picker, with the persisted selection. An
+  // ?area= link wins over the saved city, then the pilot stays the default.
   useEffect(() => {
     fetch('/api/areas', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
@@ -483,12 +623,20 @@ export function TouristView() {
         if (!d) return
         setAreas(d.areas)
         try {
+          const linked = linkedAreaRef.current
+            ? d.areas.find((a) => a.slug === linkedAreaRef.current || a.id === linkedAreaRef.current)
+            : undefined
           const saved = localStorage.getItem('guaca:area')
           const found = saved ? d.areas.find((a) => a.id === saved) : undefined
           const pilot = d.areas.find((a) => a.slug === 'puerto-cabello')
-          const chosen = found ?? pilot ?? null
+          const chosen = linked ?? found ?? pilot ?? null
+          if (linked) {
+            // The explicit entry becomes the new saved city.
+            try { localStorage.setItem('guaca:area', linked.id) } catch { /* best-effort */ }
+          }
           setSelectedAreaId(chosen?.id ?? null)
           if (chosen) {
+            clearCityState(chosen.id)
             const midLng = (chosen.bbox[0]! + chosen.bbox[2]!) / 2
             const midLat = (chosen.bbox[1]! + chosen.bbox[3]!) / 2
             setCenter([midLng, midLat])
@@ -572,7 +720,7 @@ export function TouristView() {
     }
   }, [plan, thread, places, planPlaces])
 
-  const pins = useMemo(
+  const verifiedPins = useMemo(
     () =>
       (catFilter ? places.filter((p) => p.category === catFilter) : places)
         .filter((p) => (trendOnly ? p.trendBadge != null : true))
@@ -587,6 +735,7 @@ export function TouristView() {
           spotterColor: glyph.color,
           spotterInitials: initials(p.spotter_name),
           verified: true,
+          ...(p.public_profile?.image?.url ? { photoUrl: p.public_profile.image.url } : {}),
           ...(p.trendBadge ? { trendBadge: p.trendBadge } : {}),
           ...(p.avgRating != null && (p.ratingCount ?? 0) > 0
             ? { ratingBadge: p.avgRating.toFixed(1) }
@@ -596,15 +745,50 @@ export function TouristView() {
     [places, catFilter, trendOnly],
   )
 
+  // Curated public listings: a researched candidate that carries its own
+  // photo becomes a photo-backed listed marker — an explicit public-listing
+  // treatment with the globe mark, never the verified check, a witness, a
+  // rating or a trend badge. A photo describes a place; it is not
+  // verification evidence.
+  const listedPins = useMemo(
+    () =>
+      (catFilter ? candidates.filter((c) => c.category === catFilter) : candidates)
+        .filter((c) => c.public_profile?.image?.url)
+        .map((c) => {
+          const glyph = CATEGORY_GLYPH[c.category] ?? { emoji: '📍', color: '#0D8B8B' }
+          return {
+            id: c.id,
+            lat: c.lat,
+            lng: c.lon,
+            emoji: glyph.emoji,
+            iconSvg: categoryIconSvg(c.category, 18),
+            label: c.name,
+            spotterColor: glyph.color,
+            spotterInitials: initials(null),
+            verified: false,
+            listed: true,
+            photoUrl: c.public_profile!.image!.url,
+          }
+        }),
+    [candidates, catFilter],
+  )
+
+  const pins = useMemo(() => [...verifiedPins, ...listedPins], [verifiedPins, listedPins])
+
+  // Ordinary unconfirmed candidates stay small dots — and anything promoted
+  // to a listed marker above leaves this layer, so no place renders twice or
+  // competes with itself for the tap.
   const dots = useMemo(
     () =>
-      (catFilter ? candidates.filter((c) => c.category === catFilter) : candidates).map((c) => ({
-        id: c.id,
-        lat: c.lat,
-        lng: c.lon,
-        label: c.name,
-        category: c.category,
-      })),
+      (catFilter ? candidates.filter((c) => c.category === catFilter) : candidates)
+        .filter((c) => !c.public_profile?.image?.url)
+        .map((c) => ({
+          id: c.id,
+          lat: c.lat,
+          lng: c.lon,
+          label: c.name,
+          category: c.category,
+        })),
     [candidates, catFilter],
   )
 
@@ -739,8 +923,10 @@ export function TouristView() {
   }
 
   const selectArea = (a: ApiArea) => {
-    setSelectedAreaId(a.id)
     setPickerOpen(false)
+    if (a.id === selectedAreaId) return
+    clearCityState(a.id)
+    setSelectedAreaId(a.id)
     try { localStorage.setItem('guaca:area', a.id) } catch { /* best-effort */ }
     const midLng = (a.bbox[0]! + a.bbox[2]!) / 2
     const midLat = (a.bbox[1]! + a.bbox[3]!) / 2
@@ -868,6 +1054,43 @@ export function TouristView() {
     })
   }
 
+  const addPlacesToPlan = (placeIds: string[]) => {
+    setPlan((prev) => {
+      const existing = prev?.placeIds ?? []
+      const merged = [...existing]
+      for (const id of placeIds) {
+        if (!merged.includes(id)) merged.push(id)
+      }
+      const next: SavedPlan = {
+        question: prev?.question ?? '',
+        text: '',
+        placeIds: merged,
+        savedAt: new Date().toISOString(),
+      }
+      saveJson(PLAN_KEY, next)
+      return next
+    })
+    setActiveTab('plan')
+  }
+
+  const substituteStop = (fromId: string, toId: string) => {
+    setPlan((prev) => {
+      if (!prev) return prev
+      const next: SavedPlan = {
+        ...prev,
+        text: '',
+        placeIds: prev.placeIds.map((id) => (id === fromId ? toId : id)),
+      }
+      saveJson(PLAN_KEY, next)
+      return next
+    })
+  }
+
+  const setInterestsPersist = (next: ActivityInterestTag[]) => {
+    setInterests(next)
+    saveJson(INTERESTS_KEY, next)
+  }
+
   const removeStop = (id: string) => {
     setPlan((prev) => {
       if (!prev) return prev
@@ -970,6 +1193,7 @@ export function TouristView() {
           lon: center[0],
           days: tripDays,
           pace: tripPace,
+          ...(interests.length > 0 ? { interests: categoriesForInterests(interests) } : {}),
         }),
       })
       if (!res.ok) {
@@ -994,9 +1218,19 @@ export function TouristView() {
     }
   }
 
-  const deleteTripCall = (id: string) => {
-    setTrips((prev) => prev.filter((x) => x.id !== id))
-    fetch(`/api/trips/${id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+  const deleteTripCall = async (id: string) => {
+    if (deletingTrip || !window.confirm(lang === 'es' ? '¿Eliminar este viaje guardado? No se puede deshacer.' : 'Delete this saved trip? This cannot be undone.')) return
+    setDeletingTrip(id)
+    setTripDeleteError(false)
+    try {
+      const res = await fetch(`/api/trips/${id}`, { method: 'DELETE', credentials: 'include' })
+      if (!res.ok) throw new Error('Trip deletion failed')
+      setTrips((prev) => prev.filter((x) => x.id !== id))
+    } catch {
+      setTripDeleteError(true)
+    } finally {
+      setDeletingTrip(null)
+    }
   }
 
   const shareTripWa = (trip: ApiTrip) => {
@@ -1357,6 +1591,42 @@ export function TouristView() {
     return listed ? { ...listed, verification_status: 'candidate', landmark_description: null, description: null, spotter_name: null, spotter_photo_url: null, verified_at: null } : undefined
   }
 
+  const timelineStops = (placeIds: string[], timed?: Array<{ placeId: string; startMin: number; durationMin: number }>): TimelineStop[] => {
+    let cursor = 9 * 60
+    return placeIds.map((id) => {
+      const place = placeById(id)
+      const timedStop = timed?.find((row) => row.placeId === id)
+      const durationMin = timedStop?.durationMin ?? 60
+      const startMin = timedStop?.startMin ?? cursor
+      cursor = startMin + durationMin + 15
+      const glyph = CATEGORY_GLYPH[place?.category ?? ''] ?? { emoji: '📍', color: '#0D8B8B' }
+      return {
+        placeId: id,
+        name: place?.name ?? (lang === 'es' ? 'Ver lugar' : 'View place'),
+        category: place?.category ?? 'culture_history',
+        thumbnail: place?.public_profile?.image?.url ?? null,
+        icon: glyph.emoji,
+        startMin,
+        durationMin,
+        lat: place?.lat ?? null,
+        lon: place?.lon ?? null,
+        gettingThere: place?.public_profile?.gettingThere?.[lang] ?? null,
+      }
+    })
+  }
+
+  const selectedStay = selected ? stays.find((stay) => stay.placeId === selected.id) ?? null : null
+  const activityPlaceNames = useMemo(() => {
+    const names: Record<string, string> = {}
+    for (const activity of activities) {
+      for (const id of activity.placeIds) {
+        const place = places.find((row) => row.id === id) ?? candidates.find((row) => row.id === id) ?? planPlaces[id]
+        if (place) names[id] = place.name
+      }
+    }
+    return names
+  }, [activities, places, candidates, planPlaces])
+
   const answerPlaces =
     askState.kind === 'answer'
       ? (askState.placeIds.map(placeById).filter(Boolean) as ApiPlace[])
@@ -1449,7 +1719,7 @@ export function TouristView() {
           onSubmit={(e) => { e.preventDefault(); void ask() }}
           className="flex items-center gap-2 rounded-full border border-white/65 bg-guaca-sand-light/95 px-3 py-2 shadow-xl shadow-guaca-ocean-deep/14 backdrop-blur-md lg:max-w-[600px] lg:gap-3 lg:border-white lg:bg-white lg:px-5 lg:py-2.5 lg:shadow-[0_12px_40px_-12px_rgba(12,74,92,0.35)]"
         >
-          <Search aria-hidden="true" className="h-4 w-4 shrink-0 text-guaca-ocean/55 lg:h-6 lg:w-6 lg:text-guaca-ocean-deep" strokeWidth={2.2} />
+          <Sparkles aria-hidden="true" className="h-5 w-5 shrink-0 text-guaca-teal" />
           <Input
             value={askText}
             onChange={(event) => setAskText(event.target.value)}
@@ -1457,7 +1727,10 @@ export function TouristView() {
             aria-label={t.askPlaceholder}
             className="h-7 flex-1 border-0 bg-transparent px-0 text-[12px] shadow-none placeholder:text-guaca-ink/35 focus-visible:ring-0 lg:h-10 lg:text-[16px] lg:placeholder:text-guaca-ink/40"
           />
-          <Button type="button" size="icon" variant="ghost" aria-label={t.profileUpdates} onClick={() => setActiveTab('updates')} className="relative h-10 w-10 rounded-full bg-white/70 text-guaca-ocean hover:bg-white lg:h-11 lg:w-11 lg:bg-guaca-sand-light lg:text-guaca-ocean-deep lg:ring-1 lg:ring-guaca-sand">
+          <Button type="submit" size="icon" disabled={askState.kind === 'asking' || !askText.trim()} aria-label={lang === 'es' ? 'Enviar pregunta' : 'Send question'} className="h-11 w-11 shrink-0 rounded-full bg-guaca-teal text-white hover:bg-guaca-teal-dark">
+            {askState.kind === 'asking' ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+          </Button>
+          <Button type="button" size="icon" variant="ghost" aria-label={t.profileUpdates} onClick={() => setActiveTab('updates')} className="relative h-11 w-11 shrink-0 rounded-full bg-guaca-sand-light text-guaca-ocean hover:bg-white">
             <Bell aria-hidden="true" className="h-3.5 w-3.5 lg:h-5 lg:w-5" />
             {updates.length > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-guaca-coral ring-2 ring-white" />}
           </Button>
@@ -1467,18 +1740,20 @@ export function TouristView() {
           <button
             type="button"
             onClick={() => setCatFilter(null)}
+            aria-pressed={catFilter === null}
             className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md lg:px-4 lg:py-2.5 lg:text-[14px] lg:shadow-[0_8px_24px_-10px_rgba(12,74,92,0.35)] ${catFilter === null ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70 lg:bg-white lg:text-guaca-ink'}`}
           >
             {t.allCategories}
           </button>
-          {Object.entries(CATEGORY_GLYPH).map(([key, glyph]) => (
+          {Object.keys(CATEGORY_GLYPH).map((key) => (
             <button
               key={key}
               type="button"
               onClick={() => setCatFilter((prev) => (prev === key ? null : key))}
+              aria-pressed={catFilter === key}
               className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md lg:px-4 lg:py-2.5 lg:text-[14px] lg:shadow-[0_8px_24px_-10px_rgba(12,74,92,0.35)] ${catFilter === key ? 'bg-guaca-ocean-deep text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70 lg:bg-white lg:text-guaca-ink'}`}
             >
-              {glyph.emoji} {t.categoryLabels[key] ?? key}
+              {(() => { const Icon = PLACE_ICONS[key] ?? MapPin; return <Icon aria-hidden="true" className="mr-1.5 inline-block h-4 w-4" /> })()} {t.categoryLabels[key] ?? key}
             </button>
           ))}
           <button
@@ -1487,7 +1762,7 @@ export function TouristView() {
             onClick={() => setTrendOnly((prev) => !prev)}
             className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur-md lg:px-4 lg:py-2.5 lg:text-[14px] lg:shadow-[0_8px_24px_-10px_rgba(12,74,92,0.35)] ${trendOnly ? 'bg-guaca-coral text-white' : 'bg-guaca-sand-light/92 text-guaca-ink/70 lg:bg-white lg:text-guaca-ink'}`}
           >
-            🔥 {t.trendChip}
+            <TrendingUp aria-hidden="true" className="mr-1.5 inline-block h-4 w-4" /> {t.trendChip}
           </button>
         </div>
         {/* Location pill — the country→city picker entry point. */}
@@ -1637,14 +1912,39 @@ export function TouristView() {
         savedIds={favIds}
         onSave={(p) => { const full = discoveryPlaces.find((place) => place.id === p.id); if (full) toggleFavorite(full) }}
         context={[nowLine, ratesLine].filter(Boolean).join(' · ') || null}
-        hiddenOnMobile={Boolean(selected || selectedCandidate || askState.kind !== 'idle')}
+        hiddenOnMobile={Boolean(selected || selectedCandidate || reserveStay || askState.kind !== 'idle')}
+        mode={discoverMode}
+        onModeChange={(mode) => {
+          setDiscoverMode(mode)
+          if (mode === 'stays') setCatFilter('lodging')
+        }}
+        activitiesPanel={
+          <ActivitiesRail
+            activities={activities}
+            status={actStatus}
+            onRetry={() => setActRetry((n) => n + 1)}
+            interests={interests}
+            placeNames={activityPlaceNames}
+            onOpenPlace={(id) => { setSelectedCandidate(null); openPlace(id) }}
+            onAddPlaces={addPlacesToPlan}
+          />
+        }
+        staysPanel={
+          <StayDiscovery
+            stays={stays}
+            status={stayStatus}
+            onRetry={() => setStayRetry((n) => n + 1)}
+            onOpenPlace={(id) => { setSelectedCandidate(null); openPlace(id) }}
+            onReserve={(stay) => setReserveStay(stay)}
+          />
+        }
       />
 
       {/* Place sheet — landmark first, the Spotter's face on the record. */}
       {selected && (
-        <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
+        <div className="place-detail-position absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
           <div className="guaca-card place-detail-sheet rounded-2xl p-5">
-            <div className="flex items-start justify-between gap-3">
+            <div className="place-detail-heading flex items-start justify-between gap-3">
               <h2 className="text-2xl font-bold leading-tight tracking-tight text-guaca-ink">{selected.name}</h2>
               <div className="flex shrink-0 items-center gap-1.5">
                 <button
@@ -1685,6 +1985,17 @@ export function TouristView() {
             )}
             {selected.public_profile && <PublicPlaceProfile profile={selected.public_profile} name={selected.name} />}
             {renderPublicInfo(selected)}
+            <PlaceObservations placeId={selected.id} />
+            {selectedStay?.visibility === 'promoted' && (
+              <p className="mt-3 inline-flex rounded-full bg-guaca-mango/20 px-3 py-2 text-[11px] font-black text-guaca-ocean-deep">{t.stayPromoted}</p>
+            )}
+            {selectedStay?.merchantId ? (
+              <Button type="button" onClick={() => setReserveStay(selectedStay)} className="mt-3 h-11 w-full rounded-xl bg-guaca-teal text-[12px] font-black text-white hover:bg-guaca-teal-dark">
+                {t.stayReserve}
+              </Button>
+            ) : selected?.category === 'lodging' && selectedStay ? (
+              <p className="mt-3 text-[11px] font-semibold text-guaca-ink/55">{t.stayNotBookable}</p>
+            ) : null}
             {selected.verification_status === 'candidate' ? (
               <div className="mt-4 rounded-2xl bg-guaca-ink/5 p-3">
                 <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[.1em] text-guaca-ink/55">
@@ -1839,6 +2150,24 @@ export function TouristView() {
         </div>
       )}
 
+      {reserveStay && (
+        <div className="place-detail-position absolute bottom-4 left-4 right-4 z-[660] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
+          <div className="guaca-card place-detail-sheet rounded-2xl p-5">
+            <ReserveStay
+              stay={reserveStay}
+              onClose={() => setReserveStay(null)}
+              onBooked={(reservation) => {
+                setReservations((prev) => {
+                  const rest = prev.filter((row) => row.id !== reservation.id)
+                  return [reservation, ...rest]
+                })
+                setBookStatus('ready')
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Candidate card — an OSM dot: known to open data, unknown to us. */}
       {!selected && selectedCandidate && (
         <div className="absolute bottom-4 left-4 right-4 z-[650] lg:bottom-6 lg:left-auto lg:right-[352px] lg:w-[440px]">
@@ -1858,6 +2187,7 @@ export function TouristView() {
             </div>
             <p className="mt-2 text-[11px] font-semibold leading-relaxed text-guaca-ink/60">{t.candidateBody}</p>
             {renderPublicInfo(selectedCandidate)}
+            <PlaceObservations placeId={selectedCandidate.id} />
             <Button
               type="button"
               onClick={() => {
@@ -1930,15 +2260,15 @@ export function TouristView() {
   )
 
   const renderGuaca = () => (
-    <div className="flex h-full flex-col bg-guaca-sand-light lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
-      <div className="shrink-0 bg-gradient-to-br from-guaca-teal to-guaca-ocean px-5 pb-4 pt-12 text-white lg:mt-12 lg:rounded-[32px] lg:p-6 lg:shadow-xl">
+    <div className="guaca-conversation flex h-full flex-col bg-guaca-sand-light lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
+      <div className="guaca-conversation-heading shrink-0 bg-gradient-to-br from-guaca-teal to-guaca-ocean px-5 pb-4 pt-12 text-white lg:mt-12 lg:rounded-[32px] lg:p-6 lg:shadow-xl">
         <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-white/80">
           <Sparkles className="h-3.5 w-3.5" /> {t.guacaTitle}
         </p>
         <p className="mt-1 text-[12px] font-semibold leading-relaxed text-white/88">{t.guacaLede}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-4">
         {thread.length === 0 && (
           <div className={thread.length === 0 ? 'rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/70 p-5 text-center' : 'order-last mt-1 px-1'}>
             {thread.length === 0 && (<>
@@ -2109,8 +2439,9 @@ export function TouristView() {
             ),
           )}
           {guacaBusy && (
-            <div className="guaca-card max-w-[70%] rounded-3xl rounded-bl-lg p-4">
-              <p className="text-[12px] font-black text-guaca-ink/50">{t.asking}</p>
+            <div role="status" className="max-w-[85%] rounded-2xl bg-white p-4 text-sm text-guaca-ink-light">
+              <p className="flex items-center gap-2 font-semibold text-guaca-teal-dark"><Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />{t.asking}</p>
+              <p className="mt-2 leading-relaxed">{lang === 'es' ? 'Estoy consultando los lugares y sus fuentes. Puede tomar un momento.' : 'I’m checking places and their sources. This may take a moment.'}</p>
             </div>
           )}
         </div>
@@ -2138,18 +2469,19 @@ export function TouristView() {
 
       <form
         onSubmit={(e) => { e.preventDefault(); void askGuaca() }}
-        className="shrink-0 px-4 pb-4"
+        className="guaca-composer shrink-0 px-4 pb-4"
       >
-        <div className="flex items-center gap-2 rounded-full border border-guaca-sand bg-white px-3 py-2 shadow-lg shadow-guaca-ocean-deep/8">
+        <div className="flex items-end gap-2 rounded-2xl border border-guaca-sand bg-white px-3 py-2 shadow-lg shadow-guaca-ocean-deep/8">
           <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0 text-guaca-teal/60" />
-          <Input
+          <textarea
+            rows={2}
             value={guacaText}
             onChange={(e) => setGuacaText(e.target.value)}
             placeholder={t.guacaPlaceholder}
             aria-label={t.guacaPlaceholder}
-            className="h-8 flex-1 border-0 bg-transparent px-0 text-[13px] shadow-none placeholder:text-guaca-ink/35 focus-visible:ring-0"
+            className="min-w-0 flex-1 resize-none border-0 bg-transparent py-1 text-base leading-6 text-guaca-ink outline-none placeholder:text-guaca-ink-light"
           />
-          <Button type="submit" size="icon" disabled={guacaBusy || !guacaText.trim()} aria-label={t.guacaPlaceholder} className="h-9 w-9 rounded-full bg-guaca-teal text-white hover:bg-guaca-teal-dark">
+          <Button type="submit" size="icon" disabled={guacaBusy || !guacaText.trim()} aria-label={lang === 'es' ? 'Enviar mensaje' : 'Send message'} className="h-11 w-11 shrink-0 rounded-full bg-guaca-teal text-white hover:bg-guaca-teal-dark">
             <Send className="h-4 w-4" />
           </Button>
         </div>
@@ -2158,13 +2490,28 @@ export function TouristView() {
   )
 
   const renderPlan = () => (
-    <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
-      <div className="rounded-[32px] bg-gradient-to-br from-guaca-ocean to-guaca-ocean-deep p-6 text-white shadow-xl">
-        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[.14em] text-white/75">
-          <Route className="h-3.5 w-3.5" /> {t.planTitle}
-        </p>
-        <p className="mt-2 text-sm font-semibold leading-relaxed text-white/88">{t.planLede}</p>
+    <div className="trip-workspace h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
+      <div className="text-guaca-ocean-deep">
+        <h1 className="text-3xl font-semibold tracking-tight">{t.planTitle}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-guaca-ink-light">{t.planLede}</p>
       </div>
+
+      <PlanInterests selected={interests} onChange={setInterestsPersist} />
+
+      <TouristReservations
+        reservations={reservations}
+        status={bookStatus}
+        onRetry={() => setBookRetry((n) => n + 1)}
+        onOpenPlace={openPlaceOnMap}
+        onDirections={(reservation) => {
+          const stay = reservation.stay
+          const known = stay ? placeById(stay.placeId) : undefined
+          if (known) directionsTo(known)
+        }}
+        onChanged={(reservation) => {
+          setReservations((prev) => prev.map((row) => (row.id === reservation.id ? reservation : row)))
+        }}
+      />
 
       {!plan ? (trips.length === 0 &&
         <div className="mt-5 rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/70 p-6 text-center">
@@ -2185,39 +2532,14 @@ export function TouristView() {
             )}
           </div>
 
-          <div className="mt-4 space-y-2.5">
-            {plan.placeIds.map((id, i) => {
-              const p = placeById(id)
-              const glyph = p ? CATEGORY_GLYPH[p.category] ?? { emoji: '📍', color: '#0D8B8B' } : { emoji: '📍', color: '#0D8B8B' }
-              return (
-                <div key={id} className="flex items-center gap-3 rounded-[24px] bg-white p-3.5 shadow-sm ring-1 ring-guaca-sand/75">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg" style={{ backgroundColor: `${glyph.color}18` }}>
-                    {glyph.emoji}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-black text-guaca-ink/40">{i + 1}</p>
-                    <p className="truncate text-[13px] font-black text-guaca-ink">{p?.name ?? '…'}</p>
-                    {p?.spotter_name && (
-                      <p className="flex items-center gap-1 text-[10px] font-bold text-guaca-teal">
-                        <BadgeCheck className="h-3 w-3" /> {p.spotter_name}
-                      </p>
-                    )}
-                  </div>
-                  <button type="button" onClick={() => openPlaceOnMap(id)} className="shrink-0 rounded-full bg-guaca-teal/8 px-3 py-2 text-[10px] font-black text-guaca-teal hover:bg-guaca-teal/15">
-                    {t.planViewOnMap}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t.removeStop}
-                    title={t.removeStop}
-                    onClick={() => removeStop(id)}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-guaca-ink/5 text-guaca-ink/45 hover:bg-guaca-coral/12 hover:text-guaca-coral-dark"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              )
-            })}
+          <div className="mt-4">
+            <ItineraryTimeline
+              stops={timelineStops(plan.placeIds)}
+              substitutes={discoveryPlaces.map((place) => ({ id: place.id, name: place.name, category: place.category }))}
+              onOpen={openPlaceOnMap}
+              onRemove={removeStop}
+              onSubstitute={substituteStop}
+            />
           </div>
 
           <Button type="button" onClick={sharePlanWa} className="mt-4 h-11 w-full rounded-2xl bg-guaca-teal text-xs font-black text-white hover:bg-guaca-teal-dark">
@@ -2236,9 +2558,9 @@ export function TouristView() {
 
       {/* Saved trips — multi-day itineraries the server keeps per account. */}
       <div className="mt-7">
-        <p className="flex items-center gap-1.5 px-1 text-[11px] font-black uppercase tracking-[.1em] text-guaca-ink/50">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-guaca-ink">
           <CalendarRange className="h-3.5 w-3.5 text-guaca-teal" /> {t.tripsTitle}
-        </p>
+        </h2>
         <p className="mt-1 px-1 text-[11px] font-semibold leading-relaxed text-guaca-ink/45">{t.tripsLede}</p>
 
         {trips.length === 0 ? (
@@ -2248,36 +2570,22 @@ export function TouristView() {
             {trips.map((trip) => {
               const days = [...new Set(trip.stops.map((s) => s.dayIndex))].sort((a, b) => a - b)
               return (
-                <div key={trip.id} className="rounded-[28px] bg-white p-4 shadow-sm ring-1 ring-guaca-sand/75">
-                  <p className="text-[13px] font-black leading-snug text-guaca-ink">“{trip.question}”</p>
+                <div key={trip.id} className="saved-trip rounded-2xl bg-white p-5">
+                  <h3 className="text-lg font-semibold leading-snug text-guaca-ink">{trip.question}</h3>
                   {days.map((d) => (
                     <div key={d} className="mt-2.5">
                       <p className="text-[9px] font-black uppercase tracking-[.12em] text-guaca-teal">{t.tripDay} {d + 1}</p>
-                      <div className="mt-1 space-y-1">
-                        {trip.stops
-                          .filter((s) => s.dayIndex === d)
-                          .sort((a, b) => a.startMin - b.startMin)
-                          .map((s, i, arr) => {
-                            const p = placeById(s.placeId)
-                            const hh = String(Math.floor(s.startMin / 60)).padStart(2, '0')
-                            const mm = String(s.startMin % 60).padStart(2, '0')
-                            return (
-                              <button
-                                key={`${s.placeId}-${d}-${i}`}
-                                type="button"
-                                onClick={() => openPlaceOnMap(s.placeId)}
-                                className="flex w-full items-center gap-2 rounded-2xl bg-guaca-sand-light/70 px-3 py-2 text-left hover:bg-guaca-teal/10"
-                              >
-                                <span className="text-[10px] font-black tabular-nums text-guaca-ink/40">{hh}:{mm}</span>
-                                <span className="min-w-0 flex-1 truncate text-[12px] font-black text-guaca-ink">
-                                  {p ? `${(CATEGORY_GLYPH[p.category] ?? { emoji: '📍' }).emoji} ${p.name}` : '…'}
-                                </span>
-                                {p?.spotter_name && <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-guaca-teal" />}
-                                {i === arr.length - 1 ? null : <span className="sr-only">→</span>}
-                              </button>
-                            )
-                          })}
-                      </div>
+                      <ItineraryTimeline
+                        stops={timelineStops(
+                          trip.stops.filter((s) => s.dayIndex === d).sort((a, b) => a.startMin - b.startMin).map((s) => s.placeId),
+                          trip.stops.filter((s) => s.dayIndex === d),
+                        )}
+                        substitutes={[]}
+                        onOpen={openPlaceOnMap}
+                        onRemove={() => {}}
+                        onSubstitute={() => {}}
+                        editable={false}
+                      />
                     </div>
                   ))}
                   <div className="mt-3 flex gap-2">
@@ -2287,11 +2595,12 @@ export function TouristView() {
                     <button
                       type="button"
                       aria-label={t.tripDelete}
+                      disabled={deletingTrip !== null}
                       title={t.tripDelete}
-                      onClick={() => deleteTripCall(trip.id)}
+                      onClick={() => void deleteTripCall(trip.id)}
                       className="grid h-9 w-9 place-items-center rounded-2xl bg-guaca-ink/5 text-guaca-ink/45 hover:bg-guaca-coral/12 hover:text-guaca-coral-dark"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      {deletingTrip === trip.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
@@ -2300,6 +2609,7 @@ export function TouristView() {
           </div>
         )}
 
+        {tripDeleteError && <p role="alert" className="mt-3 text-sm text-guaca-coral-dark">{lang === 'es' ? 'No se pudo eliminar el viaje. Sigue guardado; inténtalo de nuevo.' : 'The trip couldn’t be deleted. It is still saved; please try again.'}</p>}
         {/* Plan a trip — days, pace, and the same guarded pipeline. */}
         <div className="mt-4 rounded-[28px] border border-dashed border-guaca-teal/28 bg-white/70 p-4">
           <div className="flex items-center gap-2">
@@ -2308,6 +2618,7 @@ export function TouristView() {
               onChange={(e) => setTripText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void planTripCall() }}
               placeholder={t.guacaPlaceholder}
+              aria-label={lang === 'es' ? 'Describe tu viaje' : 'Describe your trip'}
               className="min-w-0 flex-1 rounded-2xl border border-guaca-sand bg-white px-3.5 py-2.5 text-[12px] font-bold text-guaca-ink outline-none placeholder:text-guaca-ink/30 focus:border-guaca-teal/50"
             />
           </div>
@@ -2319,6 +2630,8 @@ export function TouristView() {
                   key={d}
                   type="button"
                   onClick={() => setTripDays(d)}
+                  aria-pressed={tripDays === d}
+                  aria-label={`${d} ${t.tripDaysLabel.toLowerCase()}`}
                   className={`h-7 w-7 rounded-full text-[11px] font-black ${tripDays === d ? 'bg-guaca-teal text-white' : 'bg-guaca-teal/8 text-guaca-teal hover:bg-guaca-teal/15'}`}
                 >
                   {d}
@@ -2332,6 +2645,7 @@ export function TouristView() {
                   key={value}
                   type="button"
                   onClick={() => setTripPace(value)}
+                  aria-pressed={tripPace === value}
                   className={`rounded-full px-3 py-1.5 text-[10px] font-black ${tripPace === value ? 'bg-guaca-ocean text-white' : 'bg-guaca-ocean/8 text-guaca-ocean hover:bg-guaca-ocean/15'}`}
                 >
                   {label}
@@ -2386,10 +2700,17 @@ export function TouristView() {
   const renderProfile = () => (
     <div className="h-full overflow-y-auto bg-guaca-sand-light px-5 pb-8 pt-12 lg:px-[max(1.25rem,calc((100%-44rem)/2))]">
       <div className="rounded-[32px] bg-white p-6 text-center shadow-sm ring-1 ring-guaca-sand/75">
-        <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-guaca-teal text-2xl font-black text-white">
+        {me?.profile ? (
+          <img src={me.profile.avatarUrl} alt={me.profile.name} width={96} height={96} className="mx-auto h-24 w-24 rounded-full object-cover" />
+        ) : <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-guaca-teal text-2xl font-black text-white">
           {(me?.email?.[0] ?? '·').toUpperCase()}
-        </span>
-        <h2 className="mt-3 truncate text-[15px] font-black text-guaca-ink">{me?.email ?? '…'}</h2>
+        </span>}
+        <h2 className="mt-3 truncate text-xl font-black text-guaca-ink">{me?.profile?.name ?? me?.email ?? '…'}</h2>
+        {me?.profile && <>
+          <p className="mt-1 text-sm text-guaca-teal-dark">{me.profile.home}</p>
+          <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-guaca-ink">{lang === 'es' ? me.profile.bioEs : me.profile.bioEn}</p>
+          <p className="mt-3 text-sm text-guaca-ink/70">{me.email}</p>
+        </>}
         {me?.propertyName && (
           <p className="mt-1 text-[11px] font-bold text-guaca-teal">{t.profileGuestOf} {me.propertyName}</p>
         )}
@@ -2398,6 +2719,8 @@ export function TouristView() {
       <div className="mt-4">
         <InstallApp />
       </div>
+
+      <TouristEntitlement />
 
       {/* Impact — the loop, made personal. */}
       <div className="mt-4 rounded-[28px] bg-gradient-to-br from-guaca-ocean to-guaca-ocean-deep p-5 text-white shadow-lg">
@@ -2630,7 +2953,7 @@ export function TouristView() {
   }
 
   return (
-    <div className="tourist-workspace relative flex h-dvh flex-col overflow-hidden bg-guaca-paper lg:flex-row">
+    <MobileViewport className="tourist-workspace relative flex h-dvh flex-col overflow-hidden bg-guaca-paper lg:flex-row">
       {/* min-h-0 lets this region scroll instead of growing the page and
           pushing the tab bar past the fold. */}
       <div className="relative min-h-0 flex-1 lg:order-2">{tabScreens[activeTab]()}</div>
@@ -2653,6 +2976,6 @@ export function TouristView() {
         </div>
         <RailArt />
       </div>
-    </div>
+    </MobileViewport>
   )
 }

@@ -76,6 +76,32 @@ export interface AppCopy {
     mapEmptyCandidates: string
     legendMissions: string
     legendConfirm: string
+    legendHeat: string
+    filterAll: string
+    filterAvailable: string
+    filterMine: string
+    filterWitness: string
+    filterDone: string
+    filterHours: string
+    filterAccess: string
+    filterPhoto: string
+    filterFirst: string
+    spotHereCta: string
+    cityPilot: string
+    askPlaceholder: string
+    askSend: string
+    askChipBreakfast: string
+    askChipWitness: string
+    askChipNearby: string
+    askError: string
+    taskHours: string
+    taskAccess: string
+    taskEvidence: string
+    taskWitness: string
+    taskDone: string
+    previewDistance: string
+    unverifiedInvite: string
+    confirmMissionCta: string
     missionsTitle: string
     missionsEmpty: string
     acceptCta: string
@@ -127,7 +153,128 @@ export interface AppCopy {
     confirmTooFar: string
     geoDenied: string
     alreadyDecided: string
+    statusExpired: string
+    statusCancelled: string
+    deadlineLabel: string
+    placeLabel: string
+    evidenceLabel: string
+    evidenceDefault: string
+    openMissionsTitle: string
+    inProgressTitle: string
+    completedTitle: string
+    mainMission: string
+    altMission: string
+    awaitingSecond: string
+    awaitingSecondNote: string
+    expiredNote: string
+    uploadFailed: string
+    duplicateEvidence: string
+    locationDenied: string
+    missionExpired: string
+    catalogEmpty: string
+    catalogSandbox: string
+    redeeming: string
+    redeemDisabled: string
+    redeemReceipt: string
+    redeemDone: string
+    alreadyRedeemed: string
+    ledgerTitle: string
+    ledgerEmpty: string
+    pointsNotMoney: string
+    checksPassed: string
+    checksTitle: string
+    badgesTitle: string
+    badgeNone: string
+    badgeFirstPin: string
+    badgeWitness: string
+    badgeSteady: string
+    scenarioHint: string
+    luciaCta: string
+    andresCta: string
+    confirmOtherAccount: string
+    rewardCredited: string
+    insufficientPoints: string
     reasons: Record<string, string>
+  }
+  merchant: {
+    gateTitle: string
+    gateLede: string
+    emailLabel: string
+    sendCodeCta: string
+    codeSentTo: string
+    codeLabel: string
+    loginCta: string
+    changeEmail: string
+    loginFailed: string
+    notRegistered: string
+    error: string
+    devCodeHint: string
+    devBypassCta: string
+    tabToday: string
+    tabReservations: string
+    tabPlace: string
+    tabVisibility: string
+    todayTitle: string
+    todayLede: string
+    todayEmpty: string
+    todayPending: (n: number) => string
+    todayOpenInbox: string
+    reservationsTitle: string
+    reservationsLede: string
+    reservationsEmpty: string
+    requestStay: string
+    awaitingConfirmation: string
+    confirmCta: string
+    declineCta: string
+    declineReason: string
+    declineReasonPlaceholder: string
+    confirmed: string
+    declined: string
+    guests: string
+    nights: string
+    note: string
+    reference: string
+    holdUntil: string
+    statusRequested: string
+    statusConfirmed: string
+    statusDeclined: string
+    statusExpired: string
+    statusCancelled: string
+    statusCompleted: string
+    noPayment: string
+    placeTitle: string
+    placeLede: string
+    roomTypeEn: string
+    roomTypeEs: string
+    amenities: string
+    savePlace: string
+    saving: string
+    saved: string
+    publishTitle: string
+    publishLede: string
+    publishKind: string
+    publishEn: string
+    publishEs: string
+    publishCta: string
+    published: string
+    publishedNote: string
+    kindSchedule: string
+    kindAccess: string
+    kindService: string
+    kindCondition: string
+    visibilityTitle: string
+    visibilityLede: string
+    licenseActive: string
+    licenseExpired: string
+    licenseRevoked: string
+    visibilityStandard: string
+    visibilityPromoted: string
+    promotedLabel: string
+    licenseNote: string
+    signOut: string
+    loading: string
+    retry: string
+    amenityLabels: Record<string, string>
   }
   install: {
     cta: string
@@ -317,6 +464,123 @@ export interface AppCopy {
     villaCodeBad: string
     legalPrivacy: string
     legalTerms: string
+    discoverPlaces: string
+    discoverActivities: string
+    discoverStays: string
+    interestTitle: string
+    interestHint: string
+    interestRelax: string
+    interestAdventure: string
+    interestCulture: string
+    interestFood: string
+    actTitle: string
+    actLede: string
+    actEmpty: string
+    actLoading: string
+    actError: string
+    actRetry: string
+    actDuration: string
+    actWalk: string
+    actTaxi: string
+    actMixed: string
+    actBoat: string
+    actMorning: string
+    actAfternoon: string
+    actSunset: string
+    actEvening: string
+    actPlaces: string
+    actAddPlan: string
+    actEstimate: string
+    stayTitle: string
+    stayLede: string
+    stayEmpty: string
+    stayLoading: string
+    stayError: string
+    stayRetry: string
+    stayNightly: string
+    stayGuestsMax: string
+    stayReserve: string
+    stayNotBookable: string
+    stayPromoted: string
+    stayPriceBand: string
+    stayBandBudget: string
+    stayBandMid: string
+    stayBandUpper: string
+    stayAmenities: string
+    stayAllAmenities: string
+    stayCheckIn: string
+    stayCheckOut: string
+    stayGuests: string
+    stayNote: string
+    stayNotePlaceholder: string
+    stayRequestRoom: string
+    stayRequesting: string
+    stayPending: string
+    stayHoldUntil: string
+    stayConfirmed: string
+    stayReference: string
+    stayDeclined: string
+    stayExpired: string
+    stayCancelled: string
+    stayCompleted: string
+    stayCancel: string
+    stayCancelling: string
+    stayCancelConfirm: string
+    stayUnavailable: string
+    stayBusyNights: string
+    staySuccess: string
+    stayErrorForm: string
+    stayReview: string
+    stayNoPayment: string
+    stayNights: string
+    stayOpenPlace: string
+    amenityWifi: string
+    amenityAc: string
+    amenityFan: string
+    amenityBreakfast: string
+    amenityPool: string
+    amenityOceanView: string
+    amenityRooftop: string
+    amenityCourtyard: string
+    amenitySharedCourtyard: string
+    amenityHammocks: string
+    bookTitle: string
+    bookEmpty: string
+    bookLoading: string
+    bookError: string
+    bookRetry: string
+    bookDirections: string
+    bookPrivate: string
+    obsTitle: string
+    obsEmpty: string
+    obsLoading: string
+    obsError: string
+    obsRetry: string
+    obsPublicListing: string
+    obsBusinessStatement: string
+    obsPendingCheck: string
+    obsLocallyConfirmed: string
+    obsExpired: string
+    obsObserved: string
+    obsRequestCheck: string
+    obsRequesting: string
+    obsRequested: string
+    obsNotCurrent: string
+    obsKindSchedule: string
+    obsKindAccess: string
+    obsKindService: string
+    obsKindCondition: string
+    timelineWalk: string
+    timelineTaxi: string
+    timelineBoat: string
+    timelineSubstitute: string
+    timelineDuration: string
+    timelineTravel: string
+    entitlementTitle: string
+    entitlementActive: string
+    entitlementExpired: string
+    entitlementNone: string
+    entitlementNote: string
   }
 }
 
@@ -362,11 +626,37 @@ export const appCopy: Record<Lang, AppCopy> = {
       tabMap: 'Map',
       tabConfirm: 'Confirm',
       tabEarnings: 'Profile',
-      mapLede: 'Your earning opportunities, where you are.',
+      mapLede: 'Check hours, access, and places waiting on a local.',
       mapEmpty: 'No opportunities near you right now — they appear when travellers ask about unverified places.',
       mapEmptyCandidates: 'No missions yet. Tap any small badge: open data knows the place, and you can be the first to verify it.',
       legendMissions: 'Missions',
       legendConfirm: 'To confirm',
+      legendHeat: 'Popular right now',
+      filterAll: 'All work',
+      filterAvailable: 'Available',
+      filterMine: 'My missions',
+      filterWitness: 'Needs a witness',
+      filterDone: 'Completed',
+      filterHours: 'Hours',
+      filterAccess: 'Access',
+      filterPhoto: 'Photo',
+      filterFirst: 'First visit',
+      spotHereCta: "I'm here",
+      cityPilot: 'Puerto Cabello',
+      askPlaceholder: 'Ask Guaca what to check…',
+      askSend: 'Ask Guaca',
+      askChipBreakfast: 'Breakfast hours',
+      askChipWitness: 'Who needs a second local?',
+      askChipNearby: 'What is open to check?',
+      askError: 'Guaca could not answer. Try again, or pick a pin on the map.',
+      taskHours: 'Hours to check',
+      taskAccess: 'Access or conditions',
+      taskEvidence: 'Evidence needed',
+      taskWitness: 'Second local needed',
+      taskDone: 'Completed',
+      previewDistance: 'Distance',
+      unverifiedInvite: 'Listed, not checked. Open for a first visit.',
+      confirmMissionCta: 'Confirm as second local',
       missionsTitle: 'Your missions',
       missionsEmpty: 'No missions yet — they arrive when travellers ask about places nobody has verified.',
       acceptCta: 'Accept mission',
@@ -411,13 +701,13 @@ export const appCopy: Record<Lang, AppCopy> = {
       confirmCta: 'I see it — confirm',
       confirmed: 'Confirmed — it is live on the map.',
       earningsTitle: 'Your profile',
-      rankingTitle: "This month's ranking",
-      monthPoints: 'Points this month',
+      rankingTitle: 'Ranking',
+      monthPoints: 'Points',
       rankLabel: 'Rank',
       historyTitle: 'Points history',
       pointsSuffix: 'pts',
       storeTitle: 'Points store',
-      storeNote: 'Redemptions launch after the pilot — keep earning.',
+      storeNote: 'Sandbox catalog. Redeeming writes a receipt. Nothing is shipped, and points are not money.',
       storeRedeem: 'Redeem',
       becomeTourist: 'Change to Tourist mode',
       becomeTouristNote: 'Explore the map and plan with Guaca AI.',
@@ -446,6 +736,47 @@ export const appCopy: Record<Lang, AppCopy> = {
       confirmTooFar: 'You have to be at the place to confirm it — turn on location and try again there.',
       geoDenied: 'Location denied — showing places near the pilot centre instead.',
       alreadyDecided: 'This submission was already processed.',
+      statusExpired: 'Expired',
+      statusCancelled: 'Cancelled',
+      deadlineLabel: 'Deadline',
+      placeLabel: 'Place',
+      evidenceLabel: 'Expected evidence',
+      evidenceDefault: '3 photos from the place: the entrance, a readable sign, and the street around it.',
+      openMissionsTitle: 'Available now',
+      inProgressTitle: 'In progress',
+      completedTitle: 'Completed history',
+      mainMission: 'Main mission',
+      altMission: 'Alternative',
+      awaitingSecond: 'Awaiting a second local',
+      awaitingSecondNote: 'Checks passed. A different Spotter must confirm on the ground. You cannot confirm your own submission.',
+      expiredNote: 'This mission expired. It cannot be submitted.',
+      uploadFailed: 'Upload failed. Check the connection and try again. Already uploaded photos are kept.',
+      duplicateEvidence: 'A photo matches evidence already on file. Use a new photo from this visit.',
+      locationDenied: 'Location is required and was denied. Allow location for this site and try again at the place.',
+      missionExpired: 'This mission is no longer open.',
+      catalogEmpty: 'No sandbox rewards are listed yet.',
+      catalogSandbox: 'Sandbox catalog. Redeeming writes a receipt. Nothing is shipped, and points are not money.',
+      redeeming: 'Redeeming…',
+      redeemDisabled: 'Not enough points yet. Complete a mission to raise your balance.',
+      redeemReceipt: 'Receipt',
+      redeemDone: 'Redeemed. Your points were deducted and a receipt was written.',
+      alreadyRedeemed: 'You already redeemed this reward.',
+      ledgerTitle: 'Points ledger',
+      ledgerEmpty: 'Ledger events appear here when missions complete or you redeem a reward.',
+      pointsNotMoney: 'Points are not money. They never convert to a payout in this app.',
+      checksPassed: 'Supported checks passed. Waiting for an independent local.',
+      checksTitle: 'Checks on this submission',
+      badgesTitle: 'Badges',
+      badgeNone: 'Badges appear after verified work on the map.',
+      badgeFirstPin: 'First pin',
+      badgeWitness: 'Second local',
+      badgeSteady: 'Steady record',
+      scenarioHint: 'Dev: sign in as a recording Spotter with code 000000.',
+      luciaCta: 'Enter as Lucía Castañeda',
+      andresCta: 'Enter as Andrés Pardo',
+      confirmOtherAccount: 'Confirm from a second Spotter account. The person who submitted cannot be the second local.',
+      rewardCredited: 'Mission complete. Points were added to your ledger.',
+      insufficientPoints: 'This reward costs more points than you have.',
       reasons: {
         TOO_FEW_PHOTOS: 'Fewer than 3 photos',
         STALE_CAPTURE: 'Photos taken outside the mission window',
@@ -479,6 +810,97 @@ export const appCopy: Record<Lang, AppCopy> = {
       registerNote: 'A short form. We onboard businesses one by one during the Puerto Cabello pilot.',
       backCta: 'Back to the map',
       devPreview: 'Dev build — preview the publisher',
+    },
+    merchant: {
+      gateTitle: 'Host sign in',
+      gateLede: 'Enter the email for your stay. We send a one-time code. This workspace is only for the venue you host, not the operator console.',
+      emailLabel: 'Your email',
+      sendCodeCta: 'Send me a code',
+      codeSentTo: 'We sent a 6-digit code to',
+      codeLabel: '6-digit code',
+      loginCta: 'Enter',
+      changeEmail: 'Use another email',
+      loginFailed: 'Code not recognised. Codes last 10 minutes and work once; request a new one.',
+      notRegistered: 'This email is not a host account.',
+      error: 'Connection failed. Try again.',
+      devCodeHint: 'Dev build: the code is always 000000.',
+      devBypassCta: 'Enter as Elena Vargas',
+      tabToday: 'Today',
+      tabReservations: 'Reservations',
+      tabPlace: 'My place',
+      tabVisibility: 'Visibility',
+      todayTitle: 'Today at your stay',
+      todayLede: 'Requests hold a room until you confirm or decline. No payment is collected here.',
+      todayEmpty: 'No stay requests waiting. When a traveller asks for dates, they appear in Reservations.',
+      todayPending: (n) => (n === 1 ? '1 stay request waiting' : `${n} stay requests waiting`),
+      todayOpenInbox: 'Open reservations',
+      reservationsTitle: 'Stay requests',
+      reservationsLede: 'Confirm or decline each request. Confirmation is not a payment.',
+      reservationsEmpty: 'No stay requests yet.',
+      requestStay: 'Request a stay',
+      awaitingConfirmation: 'Awaiting confirmation',
+      confirmCta: 'Confirm stay',
+      declineCta: 'Decline',
+      declineReason: 'Reason (optional)',
+      declineReasonPlaceholder: 'Dates no longer work, room closed, …',
+      confirmed: 'Stay confirmed. The traveller can see the same reservation.',
+      declined: 'Request declined. The held nights were released.',
+      guests: 'Guests',
+      nights: 'Nights',
+      note: 'Note',
+      reference: 'Reference',
+      holdUntil: 'Hold until',
+      statusRequested: 'Requested',
+      statusConfirmed: 'Confirmed',
+      statusDeclined: 'Declined',
+      statusExpired: 'Expired',
+      statusCancelled: 'Cancelled',
+      statusCompleted: 'Completed',
+      noPayment: 'Listed nightly rate. No payment is collected in this workspace.',
+      placeTitle: 'Your stay',
+      placeLede: 'Edit the room and amenities for this scenario listing. A business update never marks the place as locally verified.',
+      roomTypeEn: 'Room type (English)',
+      roomTypeEs: 'Room type (Spanish)',
+      amenities: 'Amenities',
+      savePlace: 'Save listing',
+      saving: 'Saving…',
+      saved: 'Listing saved.',
+      publishTitle: 'Publish an update',
+      publishLede: 'This is a business statement. Locals still have to confirm it before it reads as locally checked.',
+      publishKind: 'What changed',
+      publishEn: 'Update in English',
+      publishEs: 'Update in Spanish',
+      publishCta: 'Publish business update',
+      published: 'Update published as a business statement.',
+      publishedNote: 'Business statement. Not locally verified.',
+      kindSchedule: 'Schedule',
+      kindAccess: 'Access',
+      kindService: 'Service',
+      kindCondition: 'Condition',
+      visibilityTitle: 'Zone license',
+      visibilityLede: 'License status changes how this stay is shown as a business. It never becomes a local-verification badge.',
+      licenseActive: 'Active',
+      licenseExpired: 'Expired',
+      licenseRevoked: 'Revoked',
+      visibilityStandard: 'Standard placement',
+      visibilityPromoted: 'Promoted placement',
+      promotedLabel: 'Promoted',
+      licenseNote: 'A promoted listing is labelled promoted. It is not a locally verified pin and not an unbiased recommendation.',
+      signOut: 'Sign out',
+      loading: 'Loading…',
+      retry: 'Try again',
+      amenityLabels: {
+        fan: 'Fan',
+        shared_courtyard: 'Shared courtyard',
+        hammocks: 'Hammocks',
+        wifi: 'Wi-Fi',
+        ac: 'Air conditioning',
+        breakfast: 'Breakfast',
+        courtyard: 'Courtyard',
+        pool: 'Pool',
+        ocean_view: 'Ocean view',
+        rooftop: 'Rooftop',
+      },
     },
     tourist: {
       askPlaceholder: 'Ask Guaca about a place…',
@@ -613,6 +1035,7 @@ export const appCopy: Record<Lang, AppCopy> = {
         services: 'Services',
         nightlife_music: 'Music & nightlife',
         practical: 'Practical',
+        lodging: 'Stay',
       },
       allCategories: 'All',
       postsTitle: 'What locals say',
@@ -664,6 +1087,123 @@ export const appCopy: Record<Lang, AppCopy> = {
       villaCodeBad: 'That code is not active.',
       legalPrivacy: 'Privacy policy',
       legalTerms: 'Terms of use',
+      discoverPlaces: 'Places',
+      discoverActivities: 'To do',
+      discoverStays: 'Stays',
+      interestTitle: 'Your day',
+      interestHint: 'Pick what you feel like. Guaca uses these as hints, not a locked itinerary.',
+      interestRelax: 'Relax',
+      interestAdventure: 'Adventure',
+      interestCulture: 'Culture',
+      interestFood: 'Food',
+      actTitle: 'Things to do',
+      actLede: 'Walks and stops with sourced places. Times are estimates, not ticketed tours.',
+      actEmpty: 'No suggested activities for this city yet.',
+      actLoading: 'Loading things to do…',
+      actError: 'Could not load activities.',
+      actRetry: 'Try again',
+      actDuration: '{n} min',
+      actWalk: 'On foot',
+      actTaxi: 'By taxi',
+      actMixed: 'Walk and taxi',
+      actBoat: 'By boat',
+      actMorning: 'Morning',
+      actAfternoon: 'Afternoon',
+      actSunset: 'Sunset',
+      actEvening: 'Evening',
+      actPlaces: 'Places on this walk',
+      actAddPlan: 'Add these stops',
+      actEstimate: 'Estimated time',
+      stayTitle: 'Where to stay',
+      stayLede: 'Filter by price and amenities. Request a room from a participating stay. No payment is taken here.',
+      stayEmpty: 'No stays match those filters.',
+      stayLoading: 'Loading stays…',
+      stayError: 'Could not load stays.',
+      stayRetry: 'Try again',
+      stayNightly: '{price} / night',
+      stayGuestsMax: 'Up to {n} guests',
+      stayReserve: 'Request a room',
+      stayNotBookable: 'This listing is not taking requests here.',
+      stayPromoted: 'Promoted',
+      stayPriceBand: 'Price',
+      stayBandBudget: 'Simple',
+      stayBandMid: 'Comfort',
+      stayBandUpper: 'Wall view',
+      stayAmenities: 'Amenities',
+      stayAllAmenities: 'Any',
+      stayCheckIn: 'Check-in',
+      stayCheckOut: 'Check-out',
+      stayGuests: 'Guests',
+      stayNote: 'Note for the host',
+      stayNotePlaceholder: 'Arrival time, extra pillows…',
+      stayRequestRoom: 'Request a room',
+      stayRequesting: 'Sending request…',
+      stayPending: 'Awaiting confirmation',
+      stayHoldUntil: 'Held until {when}',
+      stayConfirmed: 'Stay confirmed',
+      stayReference: 'Reference {code}',
+      stayDeclined: 'The host declined this request',
+      stayExpired: 'This request expired',
+      stayCancelled: 'Cancelled',
+      stayCompleted: 'Completed',
+      stayCancel: 'Cancel request',
+      stayCancelling: 'Cancelling…',
+      stayCancelConfirm: 'Cancel this stay request? The hold will be released.',
+      stayUnavailable: 'Those nights are not available. Try other dates.',
+      stayBusyNights: 'Unavailable: {dates}',
+      staySuccess: 'Request sent. The host still needs to confirm.',
+      stayErrorForm: 'Could not send the request. Try again.',
+      stayReview: 'Review your request',
+      stayNoPayment: 'No payment is taken here. The host confirms the room.',
+      stayNights: '{n} nights',
+      stayOpenPlace: 'Open place',
+      amenityWifi: 'Wi-Fi',
+      amenityAc: 'Air conditioning',
+      amenityFan: 'Fan',
+      amenityBreakfast: 'Breakfast',
+      amenityPool: 'Pool',
+      amenityOceanView: 'Ocean view',
+      amenityRooftop: 'Rooftop',
+      amenityCourtyard: 'Courtyard',
+      amenitySharedCourtyard: 'Shared courtyard',
+      amenityHammocks: 'Hammocks',
+      bookTitle: 'Your stays',
+      bookEmpty: 'No stay requests yet.',
+      bookLoading: 'Loading stay requests…',
+      bookError: 'Could not load stay requests.',
+      bookRetry: 'Try again',
+      bookDirections: 'Directions',
+      bookPrivate: 'Stay requests stay on this account. Shared trips never include them.',
+      obsTitle: 'What we know right now',
+      obsEmpty: 'No current notes for this place.',
+      obsLoading: 'Loading local notes…',
+      obsError: 'Could not load local notes.',
+      obsRetry: 'Try again',
+      obsPublicListing: 'Public listing',
+      obsBusinessStatement: 'Business statement',
+      obsPendingCheck: 'Pending local check',
+      obsLocallyConfirmed: 'Locally confirmed',
+      obsExpired: 'Expired',
+      obsObserved: 'Observed {when}',
+      obsRequestCheck: 'Request a check',
+      obsRequesting: 'Requesting…',
+      obsRequested: 'A local check was requested',
+      obsNotCurrent: 'This note is no longer current.',
+      obsKindSchedule: 'Hours',
+      obsKindAccess: 'Access',
+      obsKindService: 'Service',
+      obsKindCondition: 'Condition',
+      timelineWalk: 'Walk · about {n} min',
+      timelineTaxi: 'Taxi · about {n} min',
+      timelineBoat: 'Boat transfer · about {n} min',
+      timelineSubstitute: 'Swap stop',
+      timelineDuration: '{n} min',
+      timelineTravel: 'Travel',
+      entitlementTitle: 'Your plan',
+      entitlementActive: 'Active',
+      entitlementExpired: 'Expired',
+      entitlementNone: 'No plan on this account.',
+      entitlementNote: 'Plan status for this account. Billing is not handled in the app.',
     },
   },
   es: {
@@ -705,11 +1245,37 @@ export const appCopy: Record<Lang, AppCopy> = {
       loginFailed: 'Código no reconocido. Los códigos duran 10 minutos y sirven una vez; pide uno nuevo.',
       tabMissions: 'Misiones',
       tabMap: 'Mapa',
-      mapLede: 'Tus oportunidades de ganar, donde estás.',
+      mapLede: 'Comprueba horarios, accesos y lugares que esperan a un local.',
       mapEmpty: 'No hay oportunidades cerca por ahora — aparecen cuando los viajeros preguntan por lugares sin verificar.',
       mapEmptyCandidates: 'Sin misiones todavía. Toca cualquier insignia pequeña: los datos abiertos conocen el lugar y tú puedes ser quien lo verifique primero.',
       legendMissions: 'Misiones',
       legendConfirm: 'Por confirmar',
+      legendHeat: 'Dónde hay movimiento',
+      filterAll: 'Todo',
+      filterAvailable: 'Disponibles',
+      filterMine: 'Mis misiones',
+      filterWitness: 'Falta un testigo',
+      filterDone: 'Hechas',
+      filterHours: 'Horarios',
+      filterAccess: 'Acceso',
+      filterPhoto: 'Foto',
+      filterFirst: 'Primera visita',
+      spotHereCta: 'Estoy aquí',
+      cityPilot: 'Puerto Cabello',
+      askPlaceholder: 'Pregúntale a Guaca qué comprobar…',
+      askSend: 'Preguntar a Guaca',
+      askChipBreakfast: 'Horario de desayuno',
+      askChipWitness: '¿Quién necesita un segundo local?',
+      askChipNearby: '¿Qué hay para comprobar?',
+      askError: 'Guaca no pudo responder. Inténtalo de nuevo o toca un pin.',
+      taskHours: 'Horario por comprobar',
+      taskAccess: 'Acceso o condiciones',
+      taskEvidence: 'Hace falta evidencia',
+      taskWitness: 'Falta un segundo local',
+      taskDone: 'Hecha',
+      previewDistance: 'Distancia',
+      unverifiedInvite: 'Ficha pública, sin comprobar. Ábrela para una primera visita.',
+      confirmMissionCta: 'Confirmar como segundo local',
       tabConfirm: 'Confirmar',
       tabEarnings: 'Perfil',
       missionsTitle: 'Tus misiones',
@@ -756,13 +1322,13 @@ export const appCopy: Record<Lang, AppCopy> = {
       confirmCta: 'Lo veo — confirmar',
       confirmed: 'Confirmado — ya está en vivo en el mapa.',
       earningsTitle: 'Tu perfil',
-      rankingTitle: 'Ranking del mes',
-      monthPoints: 'Puntos este mes',
+      rankingTitle: 'Ranking',
+      monthPoints: 'Puntos',
       rankLabel: 'Puesto',
       historyTitle: 'Historial de puntos',
       pointsSuffix: 'pts',
       storeTitle: 'Tienda de puntos',
-      storeNote: 'Los canjes llegan después del piloto — sigue sumando.',
+      storeNote: 'Catálogo de prueba. Canjear escribe un recibo. No se envía nada, y los puntos no son dinero.',
       storeRedeem: 'Canjear',
       becomeTourist: 'Cambiar a modo Turista',
       becomeTouristNote: 'Explora el mapa y planifica con Guaca AI.',
@@ -791,6 +1357,47 @@ export const appCopy: Record<Lang, AppCopy> = {
       confirmTooFar: 'Tienes que estar en el lugar para confirmarlo — activa la ubicación e inténtalo allí.',
       geoDenied: 'Ubicación denegada — mostrando lugares cerca del centro del piloto.',
       alreadyDecided: 'Este envío ya fue procesado.',
+      statusExpired: 'Vencida',
+      statusCancelled: 'Cancelada',
+      deadlineLabel: 'Fecha límite',
+      placeLabel: 'Lugar',
+      evidenceLabel: 'Evidencia esperada',
+      evidenceDefault: '3 fotos del lugar: la entrada, un letrero legible y la calle alrededor.',
+      openMissionsTitle: 'Disponibles ahora',
+      inProgressTitle: 'En curso',
+      completedTitle: 'Historial completado',
+      mainMission: 'Misión principal',
+      altMission: 'Alternativa',
+      awaitingSecond: 'Esperando un segundo local',
+      awaitingSecondNote: 'Los chequeos pasaron. Otro Spotter debe confirmar en el terreno. No puedes confirmar tu propio envío.',
+      expiredNote: 'Esta misión venció. Ya no se puede enviar.',
+      uploadFailed: 'Falló la subida. Revisa la conexión e inténtalo de nuevo. Las fotos ya subidas se conservan.',
+      duplicateEvidence: 'Una foto coincide con evidencia ya registrada. Usa una foto nueva de esta visita.',
+      locationDenied: 'La ubicación es obligatoria y fue denegada. Permite la ubicación en este sitio e inténtalo en el lugar.',
+      missionExpired: 'Esta misión ya no está abierta.',
+      catalogEmpty: 'Aún no hay recompensas de prueba listadas.',
+      catalogSandbox: 'Catálogo de prueba. Canjear escribe un recibo. No se envía nada, y los puntos no son dinero.',
+      redeeming: 'Canjeando…',
+      redeemDisabled: 'Aún no tienes puntos suficientes. Completa una misión para subir tu saldo.',
+      redeemReceipt: 'Recibo',
+      redeemDone: 'Canjeado. Se descontaron tus puntos y se escribió un recibo.',
+      alreadyRedeemed: 'Ya canjeaste esta recompensa.',
+      ledgerTitle: 'Libro de puntos',
+      ledgerEmpty: 'Los movimientos aparecen aquí cuando se completa una misión o canjeas una recompensa.',
+      pointsNotMoney: 'Los puntos no son dinero. En esta app no se convierten en un pago.',
+      checksPassed: 'Los chequeos admitidos pasaron. Esperando un local independiente.',
+      checksTitle: 'Chequeos de este envío',
+      badgesTitle: 'Insignias',
+      badgeNone: 'Las insignias aparecen después de trabajo verificado en el mapa.',
+      badgeFirstPin: 'Primer pin',
+      badgeWitness: 'Segundo local',
+      badgeSteady: 'Récord constante',
+      scenarioHint: 'Dev: entra como Spotter de la grabación con el código 000000.',
+      luciaCta: 'Entrar como Lucía Castañeda',
+      andresCta: 'Entrar como Andrés Pardo',
+      confirmOtherAccount: 'Confirma desde una segunda cuenta de Spotter. Quien envió no puede ser el segundo local.',
+      rewardCredited: 'Misión completa. Los puntos se sumaron a tu libro.',
+      insufficientPoints: 'Esta recompensa cuesta más puntos de los que tienes.',
       reasons: {
         TOO_FEW_PHOTOS: 'Menos de 3 fotos',
         STALE_CAPTURE: 'Fotos tomadas fuera de la ventana de la misión',
@@ -824,6 +1431,97 @@ export const appCopy: Record<Lang, AppCopy> = {
       registerNote: 'Un formulario corto. Incorporamos negocios uno por uno durante el piloto de Puerto Cabello.',
       backCta: 'Volver al mapa',
       devPreview: 'Versión de desarrollo — ver el publicador',
+    },
+    merchant: {
+      gateTitle: 'Entrada de anfitrión',
+      gateLede: 'Escribe el correo de tu alojamiento. Te enviamos un código de un solo uso. Este espacio es solo para el lugar que hospedas, no la consola del operador.',
+      emailLabel: 'Tu correo',
+      sendCodeCta: 'Enviarme un código',
+      codeSentTo: 'Enviamos un código de 6 dígitos a',
+      codeLabel: 'Código de 6 dígitos',
+      loginCta: 'Entrar',
+      changeEmail: 'Usar otro correo',
+      loginFailed: 'Código no reconocido. Los códigos duran 10 minutos y sirven una vez; pide uno nuevo.',
+      notRegistered: 'Este correo no es una cuenta de anfitrión.',
+      error: 'Falló la conexión. Intenta de nuevo.',
+      devCodeHint: 'Versión de desarrollo: el código siempre es 000000.',
+      devBypassCta: 'Entrar como Elena Vargas',
+      tabToday: 'Hoy',
+      tabReservations: 'Reservas',
+      tabPlace: 'Mi lugar',
+      tabVisibility: 'Visibilidad',
+      todayTitle: 'Hoy en tu alojamiento',
+      todayLede: 'Las solicitudes retienen una habitación hasta que confirmes o rechaces. Aquí no se cobra ningún pago.',
+      todayEmpty: 'No hay solicitudes de estadía en espera. Cuando un viajero pida fechas, aparecen en Reservas.',
+      todayPending: (n) => (n === 1 ? '1 solicitud de estadía en espera' : `${n} solicitudes de estadía en espera`),
+      todayOpenInbox: 'Abrir reservas',
+      reservationsTitle: 'Solicitudes de estadía',
+      reservationsLede: 'Confirma o rechaza cada solicitud. Confirmar no es un pago.',
+      reservationsEmpty: 'Aún no hay solicitudes de estadía.',
+      requestStay: 'Pedir una estadía',
+      awaitingConfirmation: 'En espera de confirmación',
+      confirmCta: 'Confirmar estadía',
+      declineCta: 'Rechazar',
+      declineReason: 'Motivo (opcional)',
+      declineReasonPlaceholder: 'Esas fechas ya no sirven, habitación cerrada, …',
+      confirmed: 'Estadía confirmada. El viajero ve la misma reserva.',
+      declined: 'Solicitud rechazada. Las noches retenidas quedaron libres.',
+      guests: 'Huéspedes',
+      nights: 'Noches',
+      note: 'Nota',
+      reference: 'Referencia',
+      holdUntil: 'Retenida hasta',
+      statusRequested: 'Solicitada',
+      statusConfirmed: 'Confirmada',
+      statusDeclined: 'Rechazada',
+      statusExpired: 'Vencida',
+      statusCancelled: 'Cancelada',
+      statusCompleted: 'Completada',
+      noPayment: 'Tarifa por noche listada. En este espacio no se cobra ningún pago.',
+      placeTitle: 'Tu alojamiento',
+      placeLede: 'Edita la habitación y las amenidades de este listado de escenario. Una novedad del negocio nunca marca el lugar como verificado por un local.',
+      roomTypeEn: 'Tipo de habitación (inglés)',
+      roomTypeEs: 'Tipo de habitación (español)',
+      amenities: 'Amenidades',
+      savePlace: 'Guardar listado',
+      saving: 'Guardando…',
+      saved: 'Listado guardado.',
+      publishTitle: 'Publicar una novedad',
+      publishLede: 'Esto es una declaración del negocio. Los locales aún deben confirmarla para que se lea como comprobada en el terreno.',
+      publishKind: 'Qué cambió',
+      publishEn: 'Novedad en inglés',
+      publishEs: 'Novedad en español',
+      publishCta: 'Publicar novedad del negocio',
+      published: 'Novedad publicada como declaración del negocio.',
+      publishedNote: 'Declaración del negocio. No está verificada por un local.',
+      kindSchedule: 'Horario',
+      kindAccess: 'Acceso',
+      kindService: 'Servicio',
+      kindCondition: 'Condición',
+      visibilityTitle: 'Licencia de zona',
+      visibilityLede: 'El estado de la licencia cambia cómo se muestra este alojamiento como negocio. Nunca se convierte en un sello de verificación local.',
+      licenseActive: 'Activa',
+      licenseExpired: 'Vencida',
+      licenseRevoked: 'Revocada',
+      visibilityStandard: 'Colocación estándar',
+      visibilityPromoted: 'Colocación promocionada',
+      promotedLabel: 'Promocionado',
+      licenseNote: 'Un listado promocionado se etiqueta como promocionado. No es un pin verificado por un local ni una recomendación imparcial.',
+      signOut: 'Cerrar sesión',
+      loading: 'Cargando…',
+      retry: 'Intentar de nuevo',
+      amenityLabels: {
+        fan: 'Ventilador',
+        shared_courtyard: 'Patio compartido',
+        hammocks: 'Hamacas',
+        wifi: 'Wi-Fi',
+        ac: 'Aire acondicionado',
+        breakfast: 'Desayuno',
+        courtyard: 'Patio',
+        pool: 'Piscina',
+        ocean_view: 'Vista al mar',
+        rooftop: 'Terraza',
+      },
     },
     tourist: {
       askPlaceholder: 'Pregúntale a Guaca sobre un lugar…',
@@ -958,6 +1656,7 @@ export const appCopy: Record<Lang, AppCopy> = {
         services: 'Servicios',
         nightlife_music: 'Música y vida nocturna',
         practical: 'Prácticos',
+        lodging: 'Alojamiento',
       },
       allCategories: 'Todo',
       postsTitle: 'Lo que dice la gente',
@@ -1009,6 +1708,123 @@ export const appCopy: Record<Lang, AppCopy> = {
       villaCodeBad: 'Ese código no está activo.',
       legalPrivacy: 'Política de privacidad',
       legalTerms: 'Términos de uso',
+      discoverPlaces: 'Lugares',
+      discoverActivities: 'Qué hacer',
+      discoverStays: 'Alojamiento',
+      interestTitle: 'Tu día',
+      interestHint: 'Elige lo que te apetece. Guaca lo usa como pista, no como itinerario cerrado.',
+      interestRelax: 'Relajo',
+      interestAdventure: 'Aventura',
+      interestCulture: 'Cultura',
+      interestFood: 'Comida',
+      actTitle: 'Qué hacer',
+      actLede: 'Paseos y paradas con lugares de fuente. Los horarios son estimados, no tours con boleto.',
+      actEmpty: 'Aún no hay actividades sugeridas para esta ciudad.',
+      actLoading: 'Cargando qué hacer…',
+      actError: 'No se pudieron cargar las actividades.',
+      actRetry: 'Intentar de nuevo',
+      actDuration: '{n} min',
+      actWalk: 'A pie',
+      actTaxi: 'En taxi',
+      actMixed: 'A pie y en taxi',
+      actBoat: 'En lancha',
+      actMorning: 'Mañana',
+      actAfternoon: 'Tarde',
+      actSunset: 'Atardecer',
+      actEvening: 'Noche',
+      actPlaces: 'Lugares de este recorrido',
+      actAddPlan: 'Agregar estas paradas',
+      actEstimate: 'Tiempo estimado',
+      stayTitle: 'Dónde quedarse',
+      stayLede: 'Filtra por precio y servicios. Pide una habitación en un alojamiento participante. Aquí no se cobra.',
+      stayEmpty: 'Ningún alojamiento coincide con esos filtros.',
+      stayLoading: 'Cargando alojamientos…',
+      stayError: 'No se pudieron cargar los alojamientos.',
+      stayRetry: 'Intentar de nuevo',
+      stayNightly: '{price} / noche',
+      stayGuestsMax: 'Hasta {n} huéspedes',
+      stayReserve: 'Pedir una habitación',
+      stayNotBookable: 'Este listado no recibe solicitudes aquí.',
+      stayPromoted: 'Promocionado',
+      stayPriceBand: 'Precio',
+      stayBandBudget: 'Sencillo',
+      stayBandMid: 'Cómodo',
+      stayBandUpper: 'Vista a la muralla',
+      stayAmenities: 'Servicios',
+      stayAllAmenities: 'Cualquiera',
+      stayCheckIn: 'Entrada',
+      stayCheckOut: 'Salida',
+      stayGuests: 'Huéspedes',
+      stayNote: 'Nota para el anfitrión',
+      stayNotePlaceholder: 'Hora de llegada, almohadas extra…',
+      stayRequestRoom: 'Pedir una habitación',
+      stayRequesting: 'Enviando solicitud…',
+      stayPending: 'Esperando confirmación',
+      stayHoldUntil: 'Reservado hasta {when}',
+      stayConfirmed: 'Estadía confirmada',
+      stayReference: 'Referencia {code}',
+      stayDeclined: 'El anfitrión rechazó esta solicitud',
+      stayExpired: 'Esta solicitud venció',
+      stayCancelled: 'Cancelada',
+      stayCompleted: 'Completada',
+      stayCancel: 'Cancelar solicitud',
+      stayCancelling: 'Cancelando…',
+      stayCancelConfirm: '¿Cancelar esta solicitud de estadía? Se libera el cupo.',
+      stayUnavailable: 'Esas noches no están disponibles. Prueba otras fechas.',
+      stayBusyNights: 'No disponible: {dates}',
+      staySuccess: 'Solicitud enviada. El anfitrión aún debe confirmar.',
+      stayErrorForm: 'No se pudo enviar la solicitud. Inténtalo de nuevo.',
+      stayReview: 'Revisa tu solicitud',
+      stayNoPayment: 'Aquí no se cobra. El anfitrión confirma la habitación.',
+      stayNights: '{n} noches',
+      stayOpenPlace: 'Ver lugar',
+      amenityWifi: 'Wi-Fi',
+      amenityAc: 'Aire acondicionado',
+      amenityFan: 'Ventilador',
+      amenityBreakfast: 'Desayuno',
+      amenityPool: 'Piscina',
+      amenityOceanView: 'Vista al mar',
+      amenityRooftop: 'Terraza',
+      amenityCourtyard: 'Patio',
+      amenitySharedCourtyard: 'Patio compartido',
+      amenityHammocks: 'Hamacas',
+      bookTitle: 'Tus estadías',
+      bookEmpty: 'Aún no hay solicitudes de estadía.',
+      bookLoading: 'Cargando solicitudes…',
+      bookError: 'No se pudieron cargar las solicitudes.',
+      bookRetry: 'Intentar de nuevo',
+      bookDirections: 'Cómo llegar',
+      bookPrivate: 'Las solicitudes de estadía quedan en esta cuenta. Un viaje compartido nunca las incluye.',
+      obsTitle: 'Lo que sabemos ahora',
+      obsEmpty: 'No hay notas actuales de este lugar.',
+      obsLoading: 'Cargando notas locales…',
+      obsError: 'No se pudieron cargar las notas locales.',
+      obsRetry: 'Intentar de nuevo',
+      obsPublicListing: 'Listado público',
+      obsBusinessStatement: 'Declaración del negocio',
+      obsPendingCheck: 'Comprobación local pendiente',
+      obsLocallyConfirmed: 'Confirmado por un local',
+      obsExpired: 'Vencido',
+      obsObserved: 'Observado {when}',
+      obsRequestCheck: 'Pedir una comprobación',
+      obsRequesting: 'Solicitando…',
+      obsRequested: 'Se pidió una comprobación local',
+      obsNotCurrent: 'Esta nota ya no es actual.',
+      obsKindSchedule: 'Horario',
+      obsKindAccess: 'Acceso',
+      obsKindService: 'Servicio',
+      obsKindCondition: 'Condición',
+      timelineWalk: 'A pie · unos {n} min',
+      timelineTaxi: 'Taxi · unos {n} min',
+      timelineBoat: 'Traslado en lancha · unos {n} min',
+      timelineSubstitute: 'Cambiar parada',
+      timelineDuration: '{n} min',
+      timelineTravel: 'Traslado',
+      entitlementTitle: 'Tu plan',
+      entitlementActive: 'Activo',
+      entitlementExpired: 'Vencido',
+      entitlementNone: 'No hay plan en esta cuenta.',
+      entitlementNote: 'Estado del plan de esta cuenta. La facturación no se hace en la app.',
     },
   },
 }

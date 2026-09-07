@@ -7,6 +7,8 @@
     "dev": "next dev -p 3002",
     "build": "pnpm --filter @guaca/shared build && next build",
     "start": "next start -p 3002",
+    "recording:build": "GUACA_RECORDING=true NEXT_PUBLIC_PRESENTATION_MODE=true pnpm run build",
+    "recording:start": "GUACA_RECORDING=true next start -H 127.0.0.1 -p 3012",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm test:unit",
     "test:unit": "echo 'no app unit tests yet' && exit 0"

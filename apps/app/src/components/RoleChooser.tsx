@@ -3,8 +3,7 @@ import { GuacaLogo, useLanguage } from '@guaca/ui'
 import { JoinScene } from './JoinScene'
 import { InstallApp } from './InstallApp'
 
-type Role = 'tourist' | 'spotter'
-const BUSINESS_URL = `${process.env.NEXT_PUBLIC_LANDING_URL ?? 'https://guaca.live'}/#businesses`
+type Role = 'tourist' | 'spotter' | 'merchant'
 
 export function RoleChooser({ onChoose, onLogin }: { onChoose: (role: Role) => void; onLogin?: () => void }) {
   const { lang, setLang } = useLanguage()
@@ -36,7 +35,11 @@ export function RoleChooser({ onChoose, onLogin }: { onChoose: (role: Role) => v
               <span><strong>{es ? 'Soy Spotter' : 'I’m a Spotter'}</strong><span>{es ? 'Verifica lugares y comparte lo que sabes.' : 'Verify places and share what you know.'}</span></span>
               <ArrowRight size={20} aria-hidden="true" />
             </button>
-            <a className="join-business" href={BUSINESS_URL}><Store size={18} aria-hidden="true" /><span>{es ? '¿Tienes un negocio? Conoce Guaca.' : 'Own a local business? Meet Guaca.'}</span><ArrowRight size={16} /></a>
+            <button type="button" className="join-merchant" onClick={() => onChoose('merchant')}>
+              <Store size={24} aria-hidden="true" />
+              <span><strong>{es ? 'Tengo un alojamiento' : 'I host a stay'}</strong><span>{es ? 'Confirma solicitudes y actualiza tu listado.' : 'Confirm requests and keep your listing current.'}</span></span>
+              <ArrowRight size={20} aria-hidden="true" />
+            </button>
             <p className="join-login">{es ? '¿Ya tienes una cuenta?' : 'Already have an account?'} <button type="button" onClick={onLogin}>{es ? 'Iniciar sesión' : 'Log in'}</button></p>
             <InstallApp tone="dark" />
           </section>

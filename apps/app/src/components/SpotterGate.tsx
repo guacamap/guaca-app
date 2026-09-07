@@ -2,10 +2,16 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Trophy } from 'lucide-react'
 import { Button, Input, useLanguage } from '@guaca/ui'
 import { appCopy } from '../lib/copy'
+import { DEV_LOGIN_CODE, SCENARIO_SPOTTERS, SHOWCASE_EMAIL } from '../lib/scenarioActors'
 import { GateCard } from './GateCard'
 import { GLASS, GLASS_INPUT } from './JoinScene'
 
 type Step = 'checking' | 'email' | 'code' | 'authed'
+
+/** Presentation mode: NEXT_PUBLIC_PRESENTATION_MODE=true hides the dev-only
+ *  shortcuts in this gate while a screen is being recorded on the dev
+ *  build. Production builds never show them anyway. */
+const PRESENTATION = process.env.NEXT_PUBLIC_PRESENTATION_MODE === 'true'
 
 /**
  * Spotter door: email, then a one-time code, the same door tourists use.
@@ -78,12 +84,13 @@ export function SpotterGate({ children }: { children: ReactNode }) {
     }
   }
 
-  /** One tap into the seeded test spotter. The API only issues 000000
-   *  outside production, so this is inert even if it ever rendered there. */
-  const devBypass = async () => {
+  /** Dev-only: request a code then verify with the fixed local code.
+   *  Production never renders these buttons, and the API only issues
+   *  000000 outside production. The showcase tourist email is never used. */
+  const signInWith = async (devEmail: string) => {
+    if (devEmail.trim().toLowerCase() === SHOWCASE_EMAIL) return
     setBusy(true)
     setError(null)
-    const devEmail = 'yorman.salazar@spotters.guaca.dev'
     try {
       await fetch('/api/spotter/auth/request-code', {
         method: 'POST',
@@ -95,7 +102,7 @@ export function SpotterGate({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: devEmail, code: '000000' }),
+        body: JSON.stringify({ email: devEmail, code: DEV_LOGIN_CODE }),
       })
       if (res.ok) setStep('authed')
       else setError(t.loginFailed)
@@ -105,6 +112,8 @@ export function SpotterGate({ children }: { children: ReactNode }) {
       setBusy(false)
     }
   }
+
+  const devBypass = () => void signInWith('yorman.salazar@spotters.guaca.dev')
 
   const g = GLASS.coral
   return (
@@ -128,10 +137,25 @@ export function SpotterGate({ children }: { children: ReactNode }) {
           <Button type="submit" disabled={busy} className={`h-12 w-full rounded-xl text-[15px] font-black text-white ${g.button}`}>
             {t.sendCodeCta}
           </Button>
-          {process.env.NODE_ENV !== 'production' && (
-            <Button type="button" variant="ghost" disabled={busy} onClick={() => void devBypass()} className="h-11 w-full rounded-xl border border-dashed border-guaca-mango bg-guaca-mango/15 text-xs font-black text-guaca-mango-light hover:bg-guaca-mango/25">
-              {t.devBypassCta}
-            </Button>
+          {process.env.NODE_ENV !== 'production' && !PRESENTATION && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-white/70">{t.scenarioHint}</p>
+              {SCENARIO_SPOTTERS.map((actor) => (
+                <Button
+                  key={actor.email}
+                  type="button"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => void signInWith(actor.email)}
+                  className="h-11 w-full rounded-xl border border-dashed border-guaca-coral/50 bg-guaca-coral/15 text-xs font-black text-white hover:bg-guaca-coral/25"
+                >
+                  {t[actor.copyKey]}
+                </Button>
+              ))}
+              <Button type="button" variant="ghost" disabled={busy} onClick={() => void devBypass()} className="h-11 w-full rounded-xl border border-dashed border-guaca-mango bg-guaca-mango/15 text-xs font-black text-guaca-mango-light hover:bg-guaca-mango/25">
+                {t.devBypassCta}
+              </Button>
+            </div>
           )}
         </form>
       )}
@@ -141,7 +165,7 @@ export function SpotterGate({ children }: { children: ReactNode }) {
           <p className="text-[13px] font-semibold text-white/75">
             {accessCode ? (lang === 'es' ? 'Ingresa tu código de acceso para' : 'Enter your access code for') : t.codeSentTo} <span className="font-black text-white">{email}</span>
           </p>
-          {process.env.NODE_ENV !== 'production' && !accessCode && (
+          {process.env.NODE_ENV !== 'production' && !PRESENTATION && !accessCode && (
             <p className="text-xs font-bold text-guaca-mango-light">{t.devCodeHint}</p>
           )}
           <label className="block text-[12px] font-black uppercase tracking-[.08em] text-white/70" htmlFor="sp-code">

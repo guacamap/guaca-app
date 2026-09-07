@@ -13,11 +13,13 @@ export default function HomeScreen() {
    *  door (spotters were onboarded by an operator and know theirs). */
   const login = async () => {
     try {
-      const [spotter, tourist] = await Promise.all([
+      const [spotter, tourist, merchant] = await Promise.all([
         fetch('/api/spotter/me', { credentials: 'include' }),
         fetch('/api/tourist/me', { credentials: 'include' }),
+        fetch('/api/merchant/me', { credentials: 'include' }),
       ])
       if (spotter.ok) return router.push('/spotter')
+      if (merchant.ok) return router.push('/merchant')
       if (tourist.ok) return router.push('/map')
     } catch {
       // fall through to the default door
@@ -28,7 +30,10 @@ export default function HomeScreen() {
   return (
     <Providers>
       <PhoneShell>
-        <RoleChooser onChoose={(role) => router.push(`/${role === 'tourist' ? 'map' : role}`)} onLogin={() => void login()} />
+        <RoleChooser
+          onChoose={(role) => router.push(role === 'tourist' ? '/map' : `/${role}`)}
+          onLogin={() => void login()}
+        />
         <a
           href={LANDING_URL}
           aria-label="Back to Guaca website"

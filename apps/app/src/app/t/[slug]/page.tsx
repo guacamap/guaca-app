@@ -41,6 +41,7 @@ const CATEGORY_GLYPH: Record<string, string> = {
   services: '🔧',
   nightlife_music: '🎶',
   practical: '🧭',
+  lodging: '🛏️',
 };
 
 function fmt(min: number): string {
