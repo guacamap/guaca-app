@@ -15,16 +15,16 @@
   "dependencies": {
     "@guaca/shared": "workspace:*",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.563.0",
-    "mapbox-gl": "^3.28.1",
-    "tailwind-merge": "^3.4.0"
+    "lucide-react": "^1.45.0",
+    "mapbox-gl": "^3.30.0",
+    "tailwind-merge": "^3.7.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "typescript": "^5.7.2"
+    "@types/react": "^19.3.0",
+    "typescript": "^7.0.2"
   }
 }
